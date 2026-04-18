@@ -53,8 +53,6 @@ export type MatrixWorkspaceApi = {
   workspace: MatrixWorkspaceV1;
   initialSnapshot: RiskMatrixSnapshot | undefined;
   surfaceId: string;
-  /** False only on the first paint before `localStorage` is applied — avoids UI flashes. */
-  workspaceReady: boolean;
   matrixGetterRef: MutableRefObject<(() => RiskMatrixSnapshot) | null>;
   onSnapshotChange: (snap: RiskMatrixSnapshot) => void;
   /** Current matrix title (saved row title, or draft title when on the default surface). */
@@ -335,7 +333,6 @@ export function useMatrixWorkspace(
     workspace,
     initialSnapshot,
     surfaceId,
-    workspaceReady: surfaceId !== "pre-hydrate",
     matrixGetterRef,
     onSnapshotChange,
     activeTitle,
