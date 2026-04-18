@@ -3,57 +3,100 @@
 import React, {
   useCallback,
   useEffect,
-  useId,
   useLayoutEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
-import { COLOR_GROUPS, INITIAL_COLLAPSED } from "./constants";
+import {
+  COLOR_GROUPS,
+  INITIAL_CATEGORIZED_REVEAL_HIDDEN,
+  INITIAL_COLLAPSED,
+  cellKeyToBgClass,
+} from "./constants";
+import type { RiskMatrixSnapshot } from "./matrixTypes";
 import type {
+  CategorizedRevealHiddenState,
   CellKey,
   CollapsedState,
+  ColorGroupKey,
   DragState,
   GridLine,
   LineLocation,
+  OtherAction,
   PoolLine,
   StarredAction,
   SubLine,
 } from "./types";
 import {
-  emptyGrid,
+  handleListVerticalArrows,
+  isArrowWithSelectionOrOsShortcut,
+} from "./listTextareaNav";
+import {
+  categorizedRiskRowKey,
+  mergeHydratedGrid,
   normalizePoolLines,
   parseRiskCellShortcut,
 } from "./riskMatrixUtils";
 
-/** Shift/Cmd/Ctrl/Alt + arrows: native selection & OS shortcuts, not cross-line focus. */
-function isArrowWithSelectionOrOsShortcut(e: React.KeyboardEvent): boolean {
-  return e.shiftKey || e.metaKey || e.ctrlKey || e.altKey;
-}
+/** Stable across SSR and client — not derived from `useId()`. */
+const DEFAULT_EMPTY_POOL_LINE_ID = "rm-ln-i-0";
 
-export function useRiskMatrix() {
-  const reactId = useId().replace(/:/g, "");
+export type UseRiskMatrixOptions = {
+  initialSnapshot?: RiskMatrixSnapshot | null;
+  onSnapshotChange?: (snapshot: RiskMatrixSnapshot) => void;
+};
+
+export function useRiskMatrix(options: UseRiskMatrixOptions = {}) {
+  const { initialSnapshot, onSnapshotChange } = options;
+  const onSnapshotChangeRef = useRef(onSnapshotChange);
+  useLayoutEffect(() => {
+    onSnapshotChangeRef.current = onSnapshotChange;
+  }, [onSnapshotChange]);
+
   const lineSeq = useRef(0);
   const subSeq = useRef(0);
   const newLineId = useCallback(() => {
     lineSeq.current += 1;
-    return `${reactId}-i-${lineSeq.current}`;
-  }, [reactId]);
+    return `rm-ln-i-${lineSeq.current}`;
+  }, []);
   const newSubLineId = useCallback(() => {
     subSeq.current += 1;
-    return `${reactId}-s-${subSeq.current}`;
-  }, [reactId]);
+    return `rm-sub-s-${subSeq.current}`;
+  }, []);
+  const otherSeq = useRef(0);
+  const newOtherId = useCallback(() => {
+    otherSeq.current += 1;
+    return `rm-other-o-${otherSeq.current}`;
+  }, []);
 
-  const [pool, setPool] = useState<PoolLine[]>(() => [
-    { id: `${reactId}-i-0`, text: "" },
-  ]);
-  const [grid, setGrid] = useState<Record<CellKey, GridLine[]>>(emptyGrid);
+  const [pool, setPool] = useState<PoolLine[]>(() =>
+    initialSnapshot?.pool?.length
+      ? initialSnapshot.pool
+      : [{ id: DEFAULT_EMPTY_POOL_LINE_ID, text: "" }],
+  );
+  const [grid, setGrid] = useState<Record<CellKey, GridLine[]>>(
+    () => mergeHydratedGrid(initialSnapshot?.grid),
+  );
 
   const [dragState, setDragState] = useState<DragState | null>(null);
   const [dragOverTarget, setDragOverTarget] = useState<string | null>(null);
-  const [collapsed, setCollapsed] = useState<CollapsedState>(INITIAL_COLLAPSED);
+  const [collapsed, setCollapsed] = useState<CollapsedState>(
+    () => initialSnapshot?.collapsed ?? INITIAL_COLLAPSED,
+  );
   const [hasCompletedFirstDragToMatrix, setHasCompletedFirstDragToMatrix] =
-    useState(false);
+    useState(() => initialSnapshot?.hasCompletedFirstDragToMatrix ?? false);
+  const [otherActions, setOtherActions] = useState<OtherAction[]>(
+    () => initialSnapshot?.otherActions ?? [],
+  );
+  const [hiddenCategorizedRiskKeys, setHiddenCategorizedRiskKeys] = useState<
+    string[]
+  >(() => initialSnapshot?.hiddenCategorizedRiskKeys ?? []);
+  const [categorizedRevealHidden, setCategorizedRevealHidden] =
+    useState<CategorizedRevealHiddenState>(() => ({
+      ...INITIAL_CATEGORIZED_REVEAL_HIDDEN,
+      ...(initialSnapshot?.categorizedRevealHidden ?? {}),
+    }));
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const pendingDeleteActionRef = useRef<null | (() => void)>(null);
 
@@ -62,9 +105,41 @@ export function useRiskMatrix() {
     newSubLineIdRef.current = newSubLineId;
   }, [newSubLineId]);
 
-  // Keep a trailing empty unstarred sub-item in every non-empty grid line's
-  // reduce and prepare lists. Runs whenever grid changes; short-circuits
-  // when nothing needs adjusting so it won't loop.
+  const hydratedSnapshotRef = useRef(initialSnapshot ?? null);
+  useLayoutEffect(() => {
+    const snap = hydratedSnapshotRef.current;
+    if (!snap) return;
+    let maxI = 0;
+    let maxS = 0;
+    let maxO = 0;
+    const scanIds = (ids: string[]) => {
+      for (const id of ids) {
+        const mi = /-i-(\d+)$/.exec(id);
+        if (mi) maxI = Math.max(maxI, Number(mi[1]));
+        const ms = /-s-(\d+)$/.exec(id);
+        if (ms) maxS = Math.max(maxS, Number(ms[1]));
+        const mo = /-o-(\d+)$/.exec(id);
+        if (mo) maxO = Math.max(maxO, Number(mo[1]));
+      }
+    };
+    for (const p of snap.pool) scanIds([p.id]);
+    for (const lines of Object.values(snap.grid)) {
+      for (const line of lines) {
+        scanIds([line.id]);
+        for (const s of [...(line.reduce || []), ...(line.prepare || [])]) {
+          scanIds([s.id]);
+        }
+      }
+    }
+    for (const o of snap.otherActions ?? []) scanIds([o.id]);
+    lineSeq.current = maxI;
+    subSeq.current = maxS;
+    otherSeq.current = maxO;
+  }, []);
+
+  // Seed one empty unstarred reduce/prepare row when a risk has none yet
+  // (so there is a box to type in). Extra rows are added only via Enter
+  // (splitSubLine), not when the current line gains text.
   useEffect(() => {
     setGrid((prev) => {
       let changed = false;
@@ -78,12 +153,8 @@ export function useRiskMatrix() {
           const prepareArr = l.prepare || [];
           const reduceUnstarred = reduceArr.filter((s) => !s.starred);
           const prepareUnstarred = prepareArr.filter((s) => !s.starred);
-          const needsReduceEmpty =
-            reduceUnstarred.length === 0 ||
-            reduceUnstarred[reduceUnstarred.length - 1].text !== "";
-          const needsPrepareEmpty =
-            prepareUnstarred.length === 0 ||
-            prepareUnstarred[prepareUnstarred.length - 1].text !== "";
+          const needsReduceEmpty = reduceUnstarred.length === 0;
+          const needsPrepareEmpty = prepareUnstarred.length === 0;
           let newReduce = reduceArr;
           let newPrepare = prepareArr;
           if (needsReduceEmpty) {
@@ -406,16 +477,11 @@ export function useRiskMatrix() {
       };
 
       if (e.key === "ArrowUp") {
+        const linesRef = linesNow.map((l) => ({ id: l.id, text: l.text }));
+        if (handleListVerticalArrows(e, linesRef, line.id, focusLine)) return;
         if (isArrowWithSelectionOrOsShortcut(e)) return;
         const before = el.value.substring(0, caret);
         if (!before.includes("\n")) {
-          const idx = linesNow.findIndex((l) => l.id === line.id);
-          if (idx > 0) {
-            e.preventDefault();
-            const target = linesNow[idx - 1];
-            focusLine(target.id, target.text.length);
-            return;
-          }
           const nb = neighbor("up");
           if (nb) {
             e.preventDefault();
@@ -425,16 +491,11 @@ export function useRiskMatrix() {
         return;
       }
       if (e.key === "ArrowDown") {
+        const linesRef = linesNow.map((l) => ({ id: l.id, text: l.text }));
+        if (handleListVerticalArrows(e, linesRef, line.id, focusLine)) return;
         if (isArrowWithSelectionOrOsShortcut(e)) return;
         const after = el.value.substring(caret);
         if (!after.includes("\n")) {
-          const idx = linesNow.findIndex((l) => l.id === line.id);
-          if (idx < linesNow.length - 1) {
-            e.preventDefault();
-            const target = linesNow[idx + 1];
-            focusLine(target.id, 0);
-            return;
-          }
           const nb = neighbor("down");
           if (nb) {
             e.preventDefault();
@@ -526,31 +587,9 @@ export function useRiskMatrix() {
         }
         return;
       }
-      if (e.key === "ArrowUp") {
-        if (isArrowWithSelectionOrOsShortcut(e)) return;
-        const before = el.value.substring(0, caret);
-        if (!before.includes("\n")) {
-          const idx = linesNow.findIndex((l) => l.id === line.id);
-          if (idx > 0) {
-            e.preventDefault();
-            const target = linesNow[idx - 1];
-            focusRiskLine(target.id, target.text.length);
-          }
-        }
-        return;
-      }
-      if (e.key === "ArrowDown") {
-        if (isArrowWithSelectionOrOsShortcut(e)) return;
-        const after = el.value.substring(caret);
-        if (!after.includes("\n")) {
-          const idx = linesNow.findIndex((l) => l.id === line.id);
-          if (idx < linesNow.length - 1) {
-            e.preventDefault();
-            const target = linesNow[idx + 1];
-            focusRiskLine(target.id, 0);
-          }
-        }
-        return;
+      if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+        const linesRef = linesNow.map((l) => ({ id: l.id, text: l.text }));
+        if (handleListVerticalArrows(e, linesRef, line.id, focusRiskLine)) return;
       }
     },
     [
@@ -705,31 +744,9 @@ export function useRiskMatrix() {
         }
         return;
       }
-      if (e.key === "ArrowUp") {
-        if (isArrowWithSelectionOrOsShortcut(e)) return;
-        const before = el.value.substring(0, caret);
-        if (!before.includes("\n")) {
-          const idx = arr.findIndex((s) => s.id === subLine.id);
-          if (idx > 0) {
-            e.preventDefault();
-            const target = arr[idx - 1];
-            focusSubLine(target.id, target.text.length);
-          }
-        }
-        return;
-      }
-      if (e.key === "ArrowDown") {
-        if (isArrowWithSelectionOrOsShortcut(e)) return;
-        const after = el.value.substring(caret);
-        if (!after.includes("\n")) {
-          const idx = arr.findIndex((s) => s.id === subLine.id);
-          if (idx < arr.length - 1) {
-            e.preventDefault();
-            const target = arr[idx + 1];
-            focusSubLine(target.id, 0);
-          }
-        }
-        return;
+      if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+        const linesRef = arr.map((s) => ({ id: s.id, text: s.text }));
+        if (handleListVerticalArrows(e, linesRef, subLine.id, focusSubLine)) return;
       }
     },
     [grid, splitSubLine, mergeSubWithPrevious, focusSubLine],
@@ -815,7 +832,13 @@ export function useRiskMatrix() {
       const row = document.querySelector(`[data-row-id="${CSS.escape(id)}"]`);
       const rect = row
         ? row.getBoundingClientRect()
-        : { left: e.clientX, top: e.clientY, width: 180 };
+        : {
+            left: e.clientX - 90,
+            top: e.clientY - 22,
+            width: 180,
+            height: 44,
+          };
+      const variant = found.loc === "pool" ? "pool" : "cell";
       setDragState({
         id,
         text: line.text,
@@ -824,6 +847,9 @@ export function useRiskMatrix() {
         offsetX: e.clientX - rect.left,
         offsetY: e.clientY - rect.top,
         width: rect.width,
+        height: rect.height,
+        variant,
+        cellBgClass: variant === "cell" ? cellKeyToBgClass(found.loc) : null,
       });
       if (document.activeElement && "blur" in document.activeElement) {
         (document.activeElement as HTMLElement).blur();
@@ -946,6 +972,123 @@ export function useRiskMatrix() {
     return actions;
   }, [grid]);
 
+  const addOtherAction = useCallback(() => {
+    setOtherActions((prev) => [...prev, { id: newOtherId(), text: "" }]);
+  }, [newOtherId]);
+
+  const updateOtherAction = useCallback((id: string, text: string) => {
+    setOtherActions((prev) =>
+      prev.map((o) => (o.id === id ? { ...o, text } : o)),
+    );
+  }, []);
+
+  const removeOtherAction = useCallback((id: string) => {
+    setOtherActions((prev) => prev.filter((o) => o.id !== id));
+  }, []);
+
+  const splitOtherAction = useCallback(
+    (id: string, caret: number) => {
+      const nid = newOtherId();
+      setOtherActions((prev) => {
+        const idx = prev.findIndex((o) => o.id === id);
+        if (idx < 0) return prev;
+        const orig = prev[idx];
+        return [
+          ...prev.slice(0, idx),
+          { ...orig, text: orig.text.slice(0, caret) },
+          { id: nid, text: orig.text.slice(caret) },
+          ...prev.slice(idx + 1),
+        ];
+      });
+      return nid;
+    },
+    [newOtherId],
+  );
+
+  const mergeOtherWithPrevious = useCallback((id: string) => {
+    setOtherActions((prev) => {
+      const idx = prev.findIndex((o) => o.id === id);
+      if (idx <= 0) return prev;
+      const prevItem = prev[idx - 1];
+      const curr = prev[idx];
+      return [
+        ...prev.slice(0, idx - 1),
+        { ...prevItem, text: prevItem.text + curr.text },
+        ...prev.slice(idx + 1),
+      ];
+    });
+  }, []);
+
+  const handleOtherKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLTextAreaElement>, action: OtherAction) => {
+      const el = e.target as HTMLTextAreaElement;
+      const caret = el.selectionStart ?? 0;
+      const list = otherActions;
+
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        const nid = splitOtherAction(action.id, caret);
+        focusLine(nid, 0);
+        return;
+      }
+      if (e.key === "Backspace" && caret === 0 && el.selectionEnd === 0) {
+        const idx = list.findIndex((o) => o.id === action.id);
+        if (idx > 0) {
+          e.preventDefault();
+          const prevLine = list[idx - 1];
+          const targetCaret = prevLine.text.length;
+          mergeOtherWithPrevious(action.id);
+          focusLine(prevLine.id, targetCaret);
+        }
+        return;
+      }
+      if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+        const linesRef = list.map((o) => ({ id: o.id, text: o.text }));
+        if (handleListVerticalArrows(e, linesRef, action.id, focusLine)) return;
+      }
+    },
+    [otherActions, splitOtherAction, mergeOtherWithPrevious, focusLine],
+  );
+
+  const handleOtherBlur = useCallback(
+    (_e: React.FocusEvent<HTMLTextAreaElement>, action: OtherAction) => {
+      if (action.text.length > 0) return;
+      setOtherActions((prev) => {
+        const idx = prev.findIndex((o) => o.id === action.id);
+        if (idx < 0) return prev;
+        if (idx !== prev.length - 1) return prev;
+        if (prev.length <= 1) return prev;
+        const without = prev.filter((o) => o.id !== action.id);
+        const last = without[without.length - 1];
+        if (without.length === 0 || (last && last.text !== "")) {
+          without.push({ id: newOtherId(), text: "" });
+        }
+        return without;
+      });
+    },
+    [newOtherId],
+  );
+
+  const toggleCategorizedRiskHidden = useCallback(
+    (cellKey: CellKey, lineId: string) => {
+      const k = categorizedRiskRowKey(cellKey, lineId);
+      setHiddenCategorizedRiskKeys((prev) =>
+        prev.includes(k) ? prev.filter((x) => x !== k) : [...prev, k],
+      );
+    },
+    [],
+  );
+
+  const toggleCategorizedRevealHidden = useCallback(
+    (groupKey: ColorGroupKey) => {
+      setCategorizedRevealHidden((prev) => ({
+        ...prev,
+        [groupKey]: !prev[groupKey],
+      }));
+    },
+    [],
+  );
+
   const anyRisks = COLOR_GROUPS.some(
     (g) => (risksByColor[g.key] || []).length > 0,
   );
@@ -957,6 +1100,30 @@ export function useRiskMatrix() {
     }
     setIsDeleteConfirmOpen(true);
   }, [closeDeleteConfirmation]);
+
+  const getSnapshot = useCallback((): RiskMatrixSnapshot => {
+    return {
+      pool,
+      grid,
+      collapsed,
+      hasCompletedFirstDragToMatrix,
+      otherActions,
+      hiddenCategorizedRiskKeys,
+      categorizedRevealHidden,
+    };
+  }, [
+    pool,
+    grid,
+    collapsed,
+    hasCompletedFirstDragToMatrix,
+    otherActions,
+    hiddenCategorizedRiskKeys,
+    categorizedRevealHidden,
+  ]);
+
+  useEffect(() => {
+    onSnapshotChangeRef.current?.(getSnapshot());
+  }, [getSnapshot]);
 
   return {
     pool,
@@ -972,6 +1139,16 @@ export function useRiskMatrix() {
     confirmDelete,
     risksByColor,
     allActions,
+    otherActions,
+    addOtherAction,
+    updateOtherAction,
+    removeOtherAction,
+    handleOtherKeyDown,
+    handleOtherBlur,
+    hiddenCategorizedRiskKeys,
+    categorizedRevealHidden,
+    toggleCategorizedRiskHidden,
+    toggleCategorizedRevealHidden,
     anyRisks,
     updateText,
     handleKeyDown,
@@ -983,5 +1160,6 @@ export function useRiskMatrix() {
     updateSubText,
     handleSubKeyDown,
     toggleStar,
+    getSnapshot,
   };
 }

@@ -37,11 +37,12 @@ const LineRow = React.memo(function LineRow({
   inCell,
 }: LineRowProps) {
   const isEmpty = line.text.length === 0;
+  const verticalMargin = loc === "pool" ? "my-1" : "my-0.5";
   return (
     <div
       data-row-id={line.id}
       className={[
-        "my-0.5 flex items-start gap-0.5 p-0 rounded-[5px] transition-[background,border-color] duration-150",
+        `${verticalMargin} flex items-start gap-0.5 p-0 rounded-[5px] transition-[background,border-color] duration-150`,
         isDragging ? "opacity-35" : "opacity-100",
         isEmpty
           ? "border border-transparent bg-transparent"

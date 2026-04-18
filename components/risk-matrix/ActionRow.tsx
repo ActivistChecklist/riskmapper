@@ -3,7 +3,7 @@
 import React from "react";
 import { Star } from "lucide-react";
 import type { CellKey, StarredAction } from "./types";
-import { GROUP_ACTION_BORDER } from "./constants";
+import { GROUP_HEADER_CLASS } from "./constants";
 import AutoTextarea from "./AutoTextarea";
 
 export type ActionRowProps = {
@@ -30,15 +30,12 @@ const ActionRow = React.memo(function ActionRow({
 }: ActionRowProps) {
   const { subLine, cellKey, parentLineId, subType, parentText, groupTone } =
     action;
-  const borderTone = GROUP_ACTION_BORDER[groupTone];
-  const kindPhrase = subType === "reduce" ? "Reduction for" : "Preparation for";
   const riskLabel = parentText.trim() || "Untitled risk";
+  const toneClass = GROUP_HEADER_CLASS[groupTone];
   return (
     <div
       className={[
         "my-1.5 flex items-start rounded-[5px] border border-black/12 bg-white py-1.5 pr-2.5 pl-2.5",
-        "border-l-[8px]",
-        borderTone,
       ].join(" ")}
     >
       <span
@@ -60,9 +57,15 @@ const ActionRow = React.memo(function ActionRow({
           }
           className="px-1.5 py-0.5 text-[15px] font-semibold"
         />
-        <div className="ml-1.5 mt-0.5 text-xs leading-snug tracking-wide text-rm-ink/80">
-          <span className="text-rm-ink/65">{kindPhrase}</span>{" "}
-          <span className="text-rm-ink/72 italic">{riskLabel}</span>
+        <div className="ml-1.5 mt-0.5 min-w-0">
+          <span
+            className={[
+              "inline-flex max-w-full min-w-0 items-center truncate rounded-[5px] border border-black/8 px-1 py-0.5 text-[10px] font-medium leading-snug text-rm-ink",
+              toneClass,
+            ].join(" ")}
+          >
+            {riskLabel}
+          </span>
         </div>
       </div>
     </div>

@@ -1,5 +1,10 @@
 import type { CellKey, GridLine, PoolLine } from "./types";
 
+/** Stable id for a risk row in the categorized mitigations table. */
+export function categorizedRiskRowKey(cellKey: CellKey, lineId: string): string {
+  return `${cellKey}:${lineId}`;
+}
+
 export function emptyGrid(): Record<CellKey, GridLine[]> {
   const g: Record<CellKey, GridLine[]> = {};
   for (let r = 0; r < 3; r++) {
@@ -8,6 +13,18 @@ export function emptyGrid(): Record<CellKey, GridLine[]> {
     }
   }
   return g;
+}
+
+/** Ensure every cell key exists (older snapshots may omit empty cells). */
+export function mergeHydratedGrid(
+  g: Record<CellKey, GridLine[]> | undefined,
+): Record<CellKey, GridLine[]> {
+  const base = emptyGrid();
+  if (!g) return base;
+  for (const k of Object.keys(base)) {
+    base[k] = g[k] ?? [];
+  }
+  return base;
 }
 
 export function parseImpactToken(token: string): 0 | 1 | 2 | null {

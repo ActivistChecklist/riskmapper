@@ -9,6 +9,8 @@ export type RiskPoolSectionProps = {
   pool: PoolLine[];
   dragState: DragState | null;
   dragOverTarget: string | null;
+  /** When false, step 2 stays hidden until persisted workspace is applied (avoids a flash). */
+  workspaceReady: boolean;
   hasCompletedFirstDragToMatrix: boolean;
   onPoolClick: (e: React.MouseEvent) => void;
   onChange: (loc: LineLocation, id: string, text: string) => void;
@@ -29,6 +31,7 @@ export default function RiskPoolSection({
   pool,
   dragState,
   dragOverTarget,
+  workspaceReady,
   hasCompletedFirstDragToMatrix,
   onPoolClick,
   onChange,
@@ -36,6 +39,9 @@ export default function RiskPoolSection({
   onBlur,
   onGripPointerDown,
 }: RiskPoolSectionProps) {
+  const showStep2Hint =
+    workspaceReady && !hasCompletedFirstDragToMatrix;
+
   return (
     <>
       <div className="mb-3 flex flex-wrap items-center gap-3 text-base font-medium text-rm-ink/85 sm:text-[1.05rem]">
@@ -48,7 +54,7 @@ export default function RiskPoolSection({
         data-drop-target="pool"
         onClick={onPoolClick}
         className={[
-          "mb-6 w-full max-w-[56ch] min-h-[100px] cursor-text rounded-md border border-black/12 bg-white px-2.5 py-2",
+          "mb-6 w-full max-w-[42ch] min-h-[100px] cursor-text rounded-md border border-black/12 bg-white px-2.5 py-2",
           dragOverTarget === "pool"
             ? "shadow-[inset_0_0_0_2px_rgba(0,0,0,0.35)]"
             : "",
@@ -78,18 +84,22 @@ export default function RiskPoolSection({
         ))}
       </div>
 
-      <div className="mt-2 min-h-[3.25rem]">
+      <div
+        className={[
+          "mt-2",
+          workspaceReady ? "min-h-[3.25rem]" : "min-h-0",
+        ].join(" ")}
+      >
         <p
           className={[
-            "flex flex-wrap items-center gap-3 text-base leading-snug text-rm-ink/78 transition-opacity duration-200 sm:text-[1.05rem]",
-            hasCompletedFirstDragToMatrix
-              ? "pointer-events-none opacity-0"
-              : "opacity-100",
+            "flex flex-wrap items-center gap-3 text-base font-medium leading-snug text-rm-ink/85 sm:text-[1.05rem]",
+            workspaceReady ? "transition-opacity duration-200" : "",
+            showStep2Hint ? "opacity-100" : "pointer-events-none opacity-0",
           ].join(" ")}
-          aria-hidden={hasCompletedFirstDragToMatrix}
+          aria-hidden={!showStep2Hint}
         >
           <StepBadge step={2} />
-          <span className="min-w-0">
+          <span className="min-w-0 leading-snug">
             Drag the risks from the pool into the matrix when you are ready to
             categorize them.
           </span>

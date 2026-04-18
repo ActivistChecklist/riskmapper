@@ -1,18 +1,25 @@
 "use client";
 
 import React, { useLayoutEffect, useMemo, useRef } from "react";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, Eye, EyeOff } from "lucide-react";
 import MitigationLineRow from "./MitigationLineRow";
-import MitigationsStep3Prompt from "./MitigationsStep3Prompt";
 import MitigationsTableHeaderRow from "./MitigationsTableHeaderRow";
 import RiskLineRow from "./RiskLineRow";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   COLOR_GROUPS,
   type ColorGroup,
   GROUP_HEADER_CLASS,
 } from "./constants";
+import { categorizedRiskRowKey } from "./riskMatrixUtils";
 import type {
   CellKey,
+  CategorizedRevealHiddenState,
   CollapsedState,
   ColorGroupKey,
   GridLine,
@@ -24,6 +31,10 @@ export type CategorizedRiskGroupsProps = {
   risksByColor: Record<string, { line: GridLine; cellKey: CellKey }[]>;
   collapsed: CollapsedState;
   setCollapsed: React.Dispatch<React.SetStateAction<CollapsedState>>;
+  hiddenCategorizedRiskKeys: string[];
+  categorizedRevealHidden: CategorizedRevealHiddenState;
+  onToggleCategorizedRiskHidden: (cellKey: CellKey, lineId: string) => void;
+  onToggleCategorizedRevealHidden: (groupKey: ColorGroupKey) => void;
   onChangeRisk: (loc: CellKey, id: string, text: string) => void;
   onRiskKeyDown: (
     e: React.KeyboardEvent<HTMLTextAreaElement>,
@@ -59,6 +70,10 @@ export default function CategorizedRiskGroups({
   risksByColor,
   collapsed,
   setCollapsed,
+  hiddenCategorizedRiskKeys,
+  categorizedRevealHidden,
+  onToggleCategorizedRiskHidden,
+  onToggleCategorizedRevealHidden,
   onChangeRisk,
   onRiskKeyDown,
   onChangeSub,
@@ -76,15 +91,41 @@ export default function CategorizedRiskGroups({
     });
   }, [risksByColor]);
 
+  const hiddenSet = useMemo(
+    () => new Set(hiddenCategorizedRiskKeys),
+    [hiddenCategorizedRiskKeys],
+  );
+
+  const sectionsWithDisplay = useMemo(() => {
+    return sections.map(({ group, risks }) => {
+      const reveal = categorizedRevealHidden[group.key];
+      const visible: { line: GridLine; cellKey: CellKey }[] = [];
+      const hiddenShown: { line: GridLine; cellKey: CellKey }[] = [];
+      for (const r of risks) {
+        const k = categorizedRiskRowKey(r.cellKey, r.line.id);
+        if (!hiddenSet.has(k)) {
+          visible.push(r);
+        } else if (reveal) {
+          hiddenShown.push(r);
+        }
+      }
+      const displayRisks = [...visible, ...hiddenShown];
+      const hiddenInGroupCount = risks.filter((r) =>
+        hiddenSet.has(categorizedRiskRowKey(r.cellKey, r.line.id)),
+      ).length;
+      return { group, risks, displayRisks, hiddenInGroupCount };
+    });
+  }, [sections, hiddenSet, categorizedRevealHidden]);
+
   const riskRowOffsetByGroup = useMemo(() => {
     let acc = 0;
     const m = new Map<ColorGroupKey, number>();
-    for (const { group, risks } of sections) {
+    for (const { group, displayRisks } of sectionsWithDisplay) {
       m.set(group.key, acc);
-      acc += risks.length;
+      acc += displayRisks.length;
     }
     return m;
-  }, [sections]);
+  }, [sectionsWithDisplay]);
 
   useLayoutEffect(() => {
     const root = rootRef.current;
@@ -100,7 +141,7 @@ export default function CategorizedRiskGroups({
       ro.disconnect();
       root.style.removeProperty("--rm-mit-thead-h");
     };
-  }, [sections]);
+  }, [sectionsWithDisplay]);
 
   if (!anyRisks) return null;
 
@@ -109,126 +150,188 @@ export default function CategorizedRiskGroups({
       ref={rootRef}
       className="min-w-0 mb-3.5 rounded-md border border-black/10 bg-white [--rm-mit-thead-h:3.25rem]"
     >
-      <MitigationsStep3Prompt />
       <MitigationsTableHeaderRow ref={theadRef} />
 
-      {sections.map(({ group, risks }, sectionIndex) => {
-        const isCollapsed = collapsed[group.key];
-        return (
-          <section
-            key={group.key}
-            className={sectionIndex > 0 ? "border-t border-black/10" : undefined}
-          >
-            <div
-              role="button"
-              tabIndex={0}
-              aria-expanded={!isCollapsed}
-              onClick={() =>
-                setCollapsed((c) => ({ ...c, [group.key]: !c[group.key] }))
-              }
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  setCollapsed((c) => ({ ...c, [group.key]: !c[group.key] }));
-                }
-              }}
-              className="sticky top-[var(--rm-mit-thead-h)] z-20 flex w-full cursor-pointer select-none items-center justify-between gap-3 border-b border-black/8 bg-zinc-100 px-3 py-2 shadow-[0_1px_0_rgba(0,0,0,0.03)]"
+      {sectionsWithDisplay.map(
+        ({ group, risks, displayRisks, hiddenInGroupCount }, sectionIndex) => {
+          const isCollapsed = collapsed[group.key];
+          const reveal = categorizedRevealHidden[group.key];
+          return (
+            <section
+              key={group.key}
+              className={sectionIndex > 0 ? "border-t border-black/10" : undefined}
             >
-              <div className="flex min-w-0 items-center gap-2">
-                {isCollapsed ? (
-                  <ChevronRight size={14} aria-hidden />
-                ) : (
-                  <ChevronDown size={14} aria-hidden />
-                )}
-                <span
-                  aria-hidden
-                  className={[
-                    "inline-block h-6 min-w-[2.75rem] shrink-0 rounded-full border border-black/20 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.45)]",
-                    GROUP_HEADER_CLASS[group.key],
-                  ].join(" ")}
-                />
-                <span className="min-w-0 truncate text-xs font-semibold uppercase tracking-wide sm:text-sm">
-                  {group.label}
-                </span>
-                <span className="shrink-0 text-xs opacity-85 sm:text-sm">
-                  ({risks.length})
-                </span>
-              </div>
-              {group.key === "green" && isCollapsed && (
-                <span className="max-w-[min(100%,12rem)] shrink-0 text-right text-[11px] font-normal normal-case leading-snug tracking-normal text-zinc-500 sm:text-xs">
-                  Hidden by default. Click to show.
-                </span>
-              )}
-            </div>
-
-            {!isCollapsed && (
-              <div className="bg-white px-0 pb-2">
-                {risks.map((r, i) => {
-                  const reduce = r.line.reduce || [];
-                  const prepare = r.line.prepare || [];
-                  const rowIdx =
-                    (riskRowOffsetByGroup.get(group.key) ?? 0) + i;
-                  const stripe = rowIdx % 2 === 1 ? "bg-zinc-50/90" : "bg-white";
-                  return (
-                    <div
-                      key={r.line.id}
-                      className={[
-                        "grid items-start gap-4 px-3 py-2 [grid-template-columns:minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)]",
-                        stripe,
-                        i === 0 ? "" : "border-t border-black/5",
-                      ].join(" ")}
+              <div
+                role="button"
+                tabIndex={0}
+                aria-expanded={!isCollapsed}
+                onClick={() =>
+                  setCollapsed((c) => ({ ...c, [group.key]: !c[group.key] }))
+                }
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setCollapsed((c) => ({ ...c, [group.key]: !c[group.key] }));
+                  }
+                }}
+                className="sticky top-[var(--rm-mit-thead-h)] z-20 flex w-full cursor-pointer select-none items-center justify-between gap-3 border-b border-black/8 bg-zinc-100 px-3 py-2 shadow-[0_1px_0_rgba(0,0,0,0.03)]"
+              >
+                <div className="flex min-w-0 flex-1 items-center gap-2">
+                  {isCollapsed ? (
+                    <ChevronRight size={14} aria-hidden />
+                  ) : (
+                    <ChevronDown size={14} aria-hidden />
+                  )}
+                  <span
+                    aria-hidden
+                    className={[
+                      "inline-block h-6 min-w-[2.75rem] shrink-0 rounded-full border border-black/20 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.45)]",
+                      GROUP_HEADER_CLASS[group.key],
+                    ].join(" ")}
+                  />
+                  <span className="min-w-0 truncate text-xs font-semibold uppercase tracking-wide sm:text-sm">
+                    {group.label}
+                  </span>
+                  <span className="shrink-0 text-xs opacity-85 sm:text-sm">
+                    ({risks.length})
+                  </span>
+                </div>
+                <div className="flex max-w-[min(100%,20rem)] shrink-0 flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-2">
+                  {hiddenInGroupCount > 0 && !isCollapsed ? (
+                    <button
+                      type="button"
+                      className="w-full rounded-sm px-1 py-0.5 text-left text-[11px] font-medium text-zinc-800 underline decoration-zinc-600/90 underline-offset-2 hover:bg-black/[0.04] hover:text-zinc-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500/40 sm:w-auto sm:text-right sm:text-xs"
+                      aria-pressed={reveal}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onToggleCategorizedRevealHidden(group.key);
+                      }}
                     >
+                      {reveal ? "Hide hidden risks" : "Show hidden risks"}
+                    </button>
+                  ) : null}
+                  {group.key === "green" && isCollapsed && hiddenInGroupCount === 0 ? (
+                    <span className="max-w-[min(100%,12rem)] text-right text-[11px] font-normal normal-case leading-snug tracking-normal text-zinc-600 sm:text-xs">
+                      Hidden by default. Click to show.
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+
+              {!isCollapsed && (
+                <div className="bg-white px-0 pb-2">
+                  {displayRisks.map((r, i) => {
+                    const reduce = r.line.reduce || [];
+                    const prepare = r.line.prepare || [];
+                    const rowIdx =
+                      (riskRowOffsetByGroup.get(group.key) ?? 0) + i;
+                    const stripe = rowIdx % 2 === 1 ? "bg-zinc-50/90" : "bg-white";
+                    const rowKey = categorizedRiskRowKey(r.cellKey, r.line.id);
+                    const isMarkedHidden = hiddenSet.has(rowKey);
+                    const dimHiddenButRevealed = isMarkedHidden && reveal;
+                    return (
                       <div
+                        key={r.line.id}
                         className={[
-                          "min-w-0 rounded-[5px] border border-black/8 px-1.5 py-1",
-                          GROUP_HEADER_CLASS[group.key],
+                          "group/riskrow grid items-start gap-4 px-3 py-2 [grid-template-columns:minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)]",
+                          stripe,
+                          i === 0 ? "" : "border-t border-black/5",
                         ].join(" ")}
                       >
-                        <RiskLineRow
-                          line={r.line}
-                          cellKey={r.cellKey}
-                          onChange={onChangeRisk}
-                          onKeyDown={onRiskKeyDown}
-                        />
+                        <div
+                          className={[
+                            "min-w-0 rounded-[5px] px-1.5 py-1",
+                            dimHiddenButRevealed
+                              ? "border border-zinc-300/90 bg-zinc-100"
+                              : [
+                                  GROUP_HEADER_CLASS[group.key],
+                                  "border border-black/8",
+                                ].join(" "),
+                          ].join(" ")}
+                        >
+                          <div className="flex min-w-0 items-start gap-1">
+                            <div className="min-w-0 flex-1">
+                              <RiskLineRow
+                                line={r.line}
+                                cellKey={r.cellKey}
+                                onChange={onChangeRisk}
+                                onKeyDown={onRiskKeyDown}
+                              />
+                            </div>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button
+                                    type="button"
+                                    className="mt-0.5 shrink-0 rounded p-1 text-zinc-800 opacity-100 hover:bg-black/10 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500/50 md:opacity-0 md:group-hover/riskrow:opacity-100"
+                                    aria-label={
+                                      isMarkedHidden
+                                        ? "Always show this risk in the list"
+                                        : "Hide this risk from the list"
+                                    }
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onToggleCategorizedRiskHidden(
+                                        r.cellKey,
+                                        r.line.id,
+                                      );
+                                    }}
+                                  >
+                                    {isMarkedHidden ? (
+                                      <Eye size={16} strokeWidth={2} aria-hidden />
+                                    ) : (
+                                      <EyeOff size={16} strokeWidth={2} aria-hidden />
+                                    )}
+                                  </button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">
+                                  {isMarkedHidden
+                                    ? "Show this risk in the list again"
+                                    : "Hide this risk from the list (it stays in the matrix)"}
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </div>
+                        </div>
+                        <div className="min-w-0">
+                          {reduce.map((s, j) => (
+                            <MitigationLineRow
+                              key={s.id}
+                              subLine={s}
+                              cellKey={r.cellKey}
+                              parentLineId={r.line.id}
+                              subType="reduce"
+                              placeholder={j === 0 ? "Start typing" : undefined}
+                              onChange={onChangeSub}
+                              onKeyDown={onSubKeyDown}
+                              onToggleStar={onToggleStar}
+                            />
+                          ))}
+                        </div>
+                        <div className="min-w-0">
+                          {prepare.map((s, j) => (
+                            <MitigationLineRow
+                              key={s.id}
+                              subLine={s}
+                              cellKey={r.cellKey}
+                              parentLineId={r.line.id}
+                              subType="prepare"
+                              placeholder={j === 0 ? "Start typing" : undefined}
+                              onChange={onChangeSub}
+                              onKeyDown={onSubKeyDown}
+                              onToggleStar={onToggleStar}
+                            />
+                          ))}
+                        </div>
                       </div>
-                      <div className="min-w-0">
-                        {reduce.map((s, j) => (
-                          <MitigationLineRow
-                            key={s.id}
-                            subLine={s}
-                            cellKey={r.cellKey}
-                            parentLineId={r.line.id}
-                            subType="reduce"
-                            placeholder={j === 0 ? "Start typing" : undefined}
-                            onChange={onChangeSub}
-                            onKeyDown={onSubKeyDown}
-                            onToggleStar={onToggleStar}
-                          />
-                        ))}
-                      </div>
-                      <div className="min-w-0">
-                        {prepare.map((s, j) => (
-                          <MitigationLineRow
-                            key={s.id}
-                            subLine={s}
-                            cellKey={r.cellKey}
-                            parentLineId={r.line.id}
-                            subType="prepare"
-                            placeholder={j === 0 ? "Start typing" : undefined}
-                            onChange={onChangeSub}
-                            onKeyDown={onSubKeyDown}
-                            onToggleStar={onToggleStar}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </section>
-        );
-      })}
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+          );
+        },
+      )}
     </div>
   );
 }

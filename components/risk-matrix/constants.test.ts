@@ -3,7 +3,6 @@ import {
   CELL_BG_CLASSES,
   COLOR_GROUPS,
   COL_LABELS,
-  GROUP_ACTION_BORDER,
   GROUP_HEADER_CLASS,
   ROW_LABELS,
 } from "./constants";
@@ -37,10 +36,9 @@ describe("risk-matrix constants", () => {
     }
   });
 
-  it("maps each group tone to header and action border classes", () => {
+  it("maps each group tone to a header background class", () => {
     for (const g of COLOR_GROUPS) {
       expect(GROUP_HEADER_CLASS[g.key]).toMatch(/^bg-rm-/);
-      expect(GROUP_ACTION_BORDER[g.key]).toMatch(/^border-l-rm-.*-strong$/);
     }
   });
 });

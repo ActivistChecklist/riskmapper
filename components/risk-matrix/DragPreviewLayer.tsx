@@ -1,6 +1,9 @@
 "use client";
 
 import React from "react";
+import { GripVertical } from "lucide-react";
+
+import { cn } from "@/lib/utils";
 import type { DragState } from "./types";
 
 export type DragPreviewLayerProps = {
@@ -9,16 +12,49 @@ export type DragPreviewLayerProps = {
 
 export default function DragPreviewLayer({ dragState }: DragPreviewLayerProps) {
   if (!dragState) return null;
+  const left = dragState.x - dragState.offsetX;
+  const top = dragState.y - dragState.offsetY;
+  const isCell = dragState.variant === "cell";
+
   return (
     <div
-      className="pointer-events-none fixed z-[1000] rounded-[5px] border border-black/20 bg-white py-0.5 pr-2 pl-[26px] text-[13px] leading-[1.45] text-rm-ink opacity-95 shadow-[0_6px_20px_rgba(0,0,0,0.18)] whitespace-pre-wrap break-words"
+      className={cn(
+        "pointer-events-none fixed z-[1000] overflow-hidden rounded-[5px] border border-black/8",
+        "shadow-[0_10px_28px_rgba(0,0,0,0.2)]",
+        "rotate-[-2.5deg] origin-top-left",
+      )}
       style={{
-        left: dragState.x - dragState.offsetX,
-        top: dragState.y - dragState.offsetY,
+        left,
+        top,
         width: dragState.width,
+        minHeight: dragState.height,
       }}
     >
-      {dragState.text}
+      {isCell && dragState.cellBgClass ? (
+        <div
+          className={cn(
+            "pointer-events-none absolute inset-0",
+            dragState.cellBgClass,
+          )}
+          aria-hidden
+        />
+      ) : null}
+      <div
+        className={cn(
+          "relative flex min-h-full items-start gap-0.5 p-0",
+          isCell ? "bg-white/55" : "bg-rm-line",
+        )}
+      >
+        <span
+          className="flex w-[22px] shrink-0 select-none items-center justify-center self-stretch text-zinc-800"
+          aria-hidden
+        >
+          <GripVertical size={14} className="opacity-50" />
+        </span>
+        <div className="min-w-0 flex-1 whitespace-pre-wrap break-words px-1.5 py-1.5 text-[15px] leading-[1.5] text-rm-ink">
+          {dragState.text}
+        </div>
+      </div>
     </div>
   );
 }

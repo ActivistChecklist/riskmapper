@@ -1,7 +1,6 @@
 "use client";
 
 import React from "react";
-import MitigationsStep3Prompt from "./MitigationsStep3Prompt";
 import MitigationsTableHeaderRow from "./MitigationsTableHeaderRow";
 
 /**
@@ -11,7 +10,6 @@ import MitigationsTableHeaderRow from "./MitigationsTableHeaderRow";
 export default function MitigationsTablePlaceholder() {
   return (
     <div className="min-w-0 mb-3.5 rounded-md border border-black/10 bg-white">
-      <MitigationsStep3Prompt />
       <MitigationsTableHeaderRow />
       <div className="flex min-h-[12.5rem] flex-col bg-white px-3 pb-3 pt-2.5 sm:min-h-[14rem]">
         <div

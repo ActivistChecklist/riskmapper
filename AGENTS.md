@@ -6,8 +6,6 @@ Before any Next.js work, find and read the relevant doc in `node_modules/next/di
 
 <!-- END:nextjs-agent-rules -->
 
-# Project Guidelines
-
 ## Commands
 
 | Command      | Purpose                                          |

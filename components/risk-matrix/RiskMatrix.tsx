@@ -1,18 +1,33 @@
 "use client";
 
-import React from "react";
+import React, { useLayoutEffect, useMemo } from "react";
 import ActionsAside from "./ActionsAside";
 import CategorizedRiskGroups from "./CategorizedRiskGroups";
 import MitigationsTablePlaceholder from "./MitigationsTablePlaceholder";
 import DeleteRiskDialog from "./DeleteRiskDialog";
 import DragPreviewLayer from "./DragPreviewLayer";
 import LikelihoodImpactMatrix from "./LikelihoodImpactMatrix";
-import MatrixHelpToolbar from "./MatrixHelpToolbar";
+import MatrixTopBar from "./MatrixTopBar";
+import MitigationsStep3Prompt from "./MitigationsStep3Prompt";
 import RiskPoolSection from "./RiskPoolSection";
+import { createLocalMatrixRepository } from "./matrixDataLayer";
 import { useRiskMatrix } from "./useRiskMatrix";
+import { useMatrixWorkspace } from "./useMatrixWorkspace";
+import type { MatrixWorkspaceApi } from "./useMatrixWorkspace";
 
-export default function RiskMatrix() {
-  const m = useRiskMatrix();
+type CanvasProps = {
+  workspace: MatrixWorkspaceApi;
+};
+
+function RiskMatrixCanvas({ workspace: ws }: CanvasProps) {
+  const m = useRiskMatrix({
+    initialSnapshot: ws.initialSnapshot,
+    onSnapshotChange: ws.onSnapshotChange,
+  });
+  const { matrixGetterRef } = ws;
+  useLayoutEffect(() => {
+    matrixGetterRef.current = m.getSnapshot;
+  }, [m.getSnapshot, matrixGetterRef]);
 
   return (
     <div
@@ -21,12 +36,13 @@ export default function RiskMatrix() {
         m.dragState ? "touch-none" : "touch-auto",
       ].join(" ")}
     >
-      <MatrixHelpToolbar />
+      <MatrixTopBar workspace={ws} />
 
       <RiskPoolSection
         pool={m.pool}
         dragState={m.dragState}
         dragOverTarget={m.dragOverTarget}
+        workspaceReady={ws.workspaceReady}
         hasCompletedFirstDragToMatrix={m.hasCompletedFirstDragToMatrix}
         onPoolClick={m.onPoolClick}
         onChange={m.updateText}
@@ -46,27 +62,45 @@ export default function RiskMatrix() {
         onGripPointerDown={m.onGripPointerDown}
       />
 
-      <div className="mt-9 grid gap-8 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
-        {m.anyRisks ? (
-          <CategorizedRiskGroups
-            anyRisks={m.anyRisks}
-            risksByColor={m.risksByColor}
-            collapsed={m.collapsed}
-            setCollapsed={m.setCollapsed}
-            onChangeRisk={m.updateText}
-            onRiskKeyDown={m.handleRiskKeyDown}
+      <div className="mt-9 w-full min-w-0">
+        <div className="w-full min-w-0">
+          <MitigationsStep3Prompt />
+        </div>
+        <div className="grid gap-8 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)] xl:items-start">
+          <div className="min-w-0">
+            {m.anyRisks ? (
+              <CategorizedRiskGroups
+                anyRisks={m.anyRisks}
+                risksByColor={m.risksByColor}
+                collapsed={m.collapsed}
+                setCollapsed={m.setCollapsed}
+                hiddenCategorizedRiskKeys={m.hiddenCategorizedRiskKeys}
+                categorizedRevealHidden={m.categorizedRevealHidden}
+                onToggleCategorizedRiskHidden={m.toggleCategorizedRiskHidden}
+                onToggleCategorizedRevealHidden={m.toggleCategorizedRevealHidden}
+                onChangeRisk={m.updateText}
+                onRiskKeyDown={m.handleRiskKeyDown}
+                onChangeSub={m.updateSubText}
+                onSubKeyDown={m.handleSubKeyDown}
+                onToggleStar={m.toggleStar}
+              />
+            ) : (
+              <MitigationsTablePlaceholder />
+            )}
+          </div>
+          <ActionsAside
+            grid={m.grid}
+            allActions={m.allActions}
+            otherActions={m.otherActions}
             onChangeSub={m.updateSubText}
-            onSubKeyDown={m.handleSubKeyDown}
             onToggleStar={m.toggleStar}
+            onChangeOther={m.updateOtherAction}
+            onRemoveOther={m.removeOtherAction}
+            onAddOther={m.addOtherAction}
+            onOtherKeyDown={m.handleOtherKeyDown}
+            onOtherBlur={m.handleOtherBlur}
           />
-        ) : (
-          <MitigationsTablePlaceholder />
-        )}
-        <ActionsAside
-          allActions={m.allActions}
-          onChangeSub={m.updateSubText}
-          onToggleStar={m.toggleStar}
-        />
+        </div>
       </div>
 
       <DragPreviewLayer dragState={m.dragState} />
@@ -79,4 +113,10 @@ export default function RiskMatrix() {
       />
     </div>
   );
+}
+
+export default function RiskMatrix() {
+  const repo = useMemo(() => createLocalMatrixRepository(), []);
+  const ws = useMatrixWorkspace(repo);
+  return <RiskMatrixCanvas key={ws.surfaceId} workspace={ws} />;
 }

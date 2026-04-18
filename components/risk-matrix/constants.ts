@@ -1,4 +1,9 @@
-import type { CollapsedState, ColorGroupKey } from "./types";
+import type {
+  CategorizedRevealHiddenState,
+  CellKey,
+  CollapsedState,
+  ColorGroupKey,
+} from "./types";
 
 /** Tailwind cell backgrounds [row][col] — static strings for the compiler. */
 export const CELL_BG_CLASSES: string[][] = [
@@ -6,6 +11,23 @@ export const CELL_BG_CLASSES: string[][] = [
   ["bg-rm-green", "bg-rm-yellow", "bg-rm-orange"],
   ["bg-rm-green", "bg-rm-green", "bg-rm-yellow"],
 ];
+
+export function cellKeyToBgClass(key: CellKey): string {
+  const [rs, cs] = key.split("-");
+  const row = Number(rs);
+  const col = Number(cs);
+  if (
+    Number.isFinite(row) &&
+    Number.isFinite(col) &&
+    row >= 0 &&
+    row <= 2 &&
+    col >= 0 &&
+    col <= 2
+  ) {
+    return CELL_BG_CLASSES[row][col];
+  }
+  return CELL_BG_CLASSES[0][0];
+}
 
 export const ROW_LABELS = [
   "High likelihood",
@@ -32,13 +54,6 @@ export const GROUP_HEADER_CLASS: Record<ColorGroupKey, string> = {
   green: "bg-rm-green",
 };
 
-export const GROUP_ACTION_BORDER: Record<ColorGroupKey, string> = {
-  red: "border-l-rm-red-strong",
-  orange: "border-l-rm-orange-strong",
-  yellow: "border-l-rm-yellow-strong",
-  green: "border-l-rm-green-strong",
-};
-
 // Ordered from highest to lowest risk. Cells within a group are listed
 // highest severity first.
 export const COLOR_GROUPS: ColorGroup[] = [
@@ -53,4 +68,11 @@ export const INITIAL_COLLAPSED: CollapsedState = {
   orange: false,
   yellow: false,
   green: true,
+};
+
+export const INITIAL_CATEGORIZED_REVEAL_HIDDEN: CategorizedRevealHiddenState = {
+  red: false,
+  orange: false,
+  yellow: false,
+  green: false,
 };
