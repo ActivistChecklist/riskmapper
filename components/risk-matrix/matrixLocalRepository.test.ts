@@ -5,6 +5,7 @@ import {
   normalizeWorkspace,
 } from "./matrixLocalRepository";
 import type { MatrixWorkspaceV1, RiskMatrixSnapshot } from "./matrixTypes";
+import { DEFAULT_DRAFT_MATRIX_TITLE } from "./matrixTypes";
 
 function minimalSnapshot(): RiskMatrixSnapshot {
   return {
@@ -36,6 +37,7 @@ describe("normalizeWorkspace", () => {
     const w = normalizeWorkspace(null);
     expect(w.v).toBe(1);
     expect(w.activeKind).toBe("default");
+    expect(w.draftTitle).toBe(DEFAULT_DRAFT_MATRIX_TITLE);
     expect(w.saved).toEqual([]);
   });
 });
@@ -53,6 +55,7 @@ describe("createLocalMatrixRepository", () => {
         activeKind: "default",
         activeSavedId: null,
         defaultSnapshot: snap,
+        draftTitle: "Workshop matrix",
         saved: [
           {
             id: "saved-1",
@@ -67,6 +70,7 @@ describe("createLocalMatrixRepository", () => {
       expect(loaded.saved).toHaveLength(1);
       expect(loaded.saved[0].title).toBe("Test doc");
       expect(loaded.defaultSnapshot?.pool[0].text).toBe("x");
+      expect(loaded.draftTitle).toBe("Workshop matrix");
     } finally {
       if (prev == null) localStorage.removeItem(key);
       else localStorage.setItem(key, prev);

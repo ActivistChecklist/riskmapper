@@ -19,6 +19,7 @@ import type {
   RiskMatrixSnapshot,
   StoredMatrix,
 } from "./matrixTypes";
+import { DEFAULT_DRAFT_MATRIX_TITLE } from "./matrixTypes";
 
 function mergeSnapshotIntoWorkspace(
   w: MatrixWorkspaceV1,
@@ -56,7 +57,7 @@ export type MatrixWorkspaceApi = {
   workspaceReady: boolean;
   matrixGetterRef: MutableRefObject<(() => RiskMatrixSnapshot) | null>;
   onSnapshotChange: (snap: RiskMatrixSnapshot) => void;
-  /** Current title for the active saved matrix (saved docs only). */
+  /** Current matrix title (saved row title, or draft title when on the default surface). */
   activeTitle: string;
   setActiveTitle: (title: string) => void;
   recentSorted: StoredMatrix[];
@@ -156,12 +157,20 @@ export function useMatrixWorkspace(
     workspace.activeKind === "saved" && workspace.activeSavedId
       ? (workspace.saved.find((s) => s.id === workspace.activeSavedId)?.title ??
         "")
-      : "";
+      : workspace.draftTitle;
 
   const setActiveTitle = useCallback(
     (title: string) => {
+      if (workspace.activeKind === "default") {
+        setWorkspace((w) => {
+          const next: MatrixWorkspaceV1 = { ...w, draftTitle: title };
+          repo.save(next);
+          return next;
+        });
+        return;
+      }
       const id = workspace.activeSavedId;
-      if (!id || workspace.activeKind !== "saved") return;
+      if (!id) return;
       setWorkspace((w) => {
         const next: MatrixWorkspaceV1 = {
           ...w,
@@ -221,6 +230,7 @@ export function useMatrixWorkspace(
           activeKind: "default",
           activeSavedId: null,
           defaultSnapshot: null,
+          draftTitle: DEFAULT_DRAFT_MATRIX_TITLE,
         };
         repo.save(next);
         return next;

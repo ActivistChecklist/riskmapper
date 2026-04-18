@@ -3,6 +3,7 @@ import type {
   MatrixWorkspaceV1,
   RiskMatrixSnapshot,
 } from "./matrixTypes";
+import { DEFAULT_DRAFT_MATRIX_TITLE } from "./matrixTypes";
 import { COLOR_GROUPS } from "./constants";
 import type { CategorizedRevealHiddenState, OtherAction } from "./types";
 
@@ -73,17 +74,32 @@ function isWorkspaceV1(x: unknown): x is MatrixWorkspaceV1 {
   if (x.defaultSnapshot !== null && !isRiskMatrixSnapshot(x.defaultSnapshot)) {
     return false;
   }
+  if (x.draftTitle !== undefined && typeof x.draftTitle !== "string") {
+    return false;
+  }
   if (!Array.isArray(x.saved) || !x.saved.every(isStoredMatrix)) return false;
   return true;
 }
 
+function normalizeDraftTitle(value: unknown): string {
+  if (typeof value !== "string") return DEFAULT_DRAFT_MATRIX_TITLE;
+  const t = value.trim();
+  return t.length > 0 ? t : DEFAULT_DRAFT_MATRIX_TITLE;
+}
+
 export function normalizeWorkspace(raw: unknown): MatrixWorkspaceV1 {
-  if (isWorkspaceV1(raw)) return raw;
+  if (isWorkspaceV1(raw)) {
+    return {
+      ...raw,
+      draftTitle: normalizeDraftTitle(raw.draftTitle),
+    };
+  }
   return {
     v: 1,
     activeKind: "default",
     activeSavedId: null,
     defaultSnapshot: null,
+    draftTitle: DEFAULT_DRAFT_MATRIX_TITLE,
     saved: [],
   };
 }

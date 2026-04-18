@@ -41,17 +41,17 @@ export default function DragPreviewLayer({ dragState }: DragPreviewLayerProps) {
       ) : null}
       <div
         className={cn(
-          "relative flex min-h-full items-start gap-0.5 p-0",
+          "relative flex min-h-full items-start gap-0 p-0 sm:gap-0.5",
           isCell ? "bg-white/55" : "bg-rm-line",
         )}
       >
         <span
-          className="flex w-[22px] shrink-0 select-none items-center justify-center self-stretch text-zinc-800"
+          className="flex w-[18px] shrink-0 select-none items-center justify-center self-stretch text-zinc-800 sm:w-[22px]"
           aria-hidden
         >
           <GripVertical size={14} className="opacity-50" />
         </span>
-        <div className="min-w-0 flex-1 whitespace-pre-wrap break-words px-1.5 py-1.5 text-[15px] leading-[1.5] text-rm-ink">
+        <div className="min-w-0 flex-1 whitespace-pre-wrap break-words py-1.5 pl-0 pr-1 text-[15px] leading-[1.5] text-rm-ink sm:px-1.5">
           {dragState.text}
         </div>
       </div>

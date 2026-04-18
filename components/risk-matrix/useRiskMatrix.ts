@@ -34,6 +34,7 @@ import {
 } from "./listTextareaNav";
 import {
   categorizedRiskRowKey,
+  isMatrixCellEmptyBackgroundClick,
   mergeHydratedGrid,
   normalizePoolLines,
   parseRiskCellShortcut,
@@ -892,20 +893,80 @@ export function useRiskMatrix(options: UseRiskMatrixOptions = {}) {
     };
   }, [dragState, moveLineTo]);
 
-  const onCellClick = useCallback(
-    (e: React.MouseEvent, key: CellKey) => {
-      if (e.target !== e.currentTarget) return;
-      const lines = grid[key] || [];
+  /** Append a pool line or focus the trailing empty line (pointer “+ add”). */
+  const requestAddPoolLine = useCallback(() => {
+    const last = pool[pool.length - 1];
+    if (last && last.text === "") {
+      focusLine(last.id, 0);
+      return;
+    }
+    const nid = newLineId();
+    setPool((prev) => normalizePoolLines([...prev, { id: nid, text: "" }]));
+    focusLine(nid, 0);
+  }, [pool, newLineId, focusLine]);
+
+  /** Append a matrix cell line or focus the trailing empty line (pointer “+ add”). */
+  const requestAddMatrixCellLine = useCallback(
+    (cellKey: CellKey) => {
+      const lines = grid[cellKey] || [];
       if (lines.length === 0) {
         const id = newLineId();
-        setGrid((prev) => ({ ...prev, [key]: [{ id, text: "" }] }));
-        focusLine(id);
-      } else {
-        const last = lines[lines.length - 1];
-        focusLine(last.id, last.text.length);
+        setGrid((prev) => ({ ...prev, [cellKey]: [{ id, text: "" }] }));
+        focusLine(id, 0);
+        return;
       }
+      const last = lines[lines.length - 1];
+      if (last.text === "") {
+        focusLine(last.id, 0);
+        return;
+      }
+      const nid = newLineId();
+      setGrid((prev) => ({
+        ...prev,
+        [cellKey]: [...(prev[cellKey] || []), { id: nid, text: "" }],
+      }));
+      focusLine(nid, 0);
     },
-    [grid, focusLine, newLineId],
+    [grid, newLineId, focusLine],
+  );
+
+  /** Append a mitigation sub-line or focus the trailing empty row (pointer “+ add”). */
+  const requestAddMitigationSubLine = useCallback(
+    (cellKey: CellKey, parentLineId: string, subType: "reduce" | "prepare") => {
+      const line = (grid[cellKey] || []).find((l) => l.id === parentLineId);
+      if (!line) return;
+      const arr = line[subType] || [];
+      const last = arr[arr.length - 1];
+      if (last && last.text === "") {
+        focusSubLine(last.id, 0);
+        return;
+      }
+      const nid = newSubLineId();
+      setGrid((prev) => ({
+        ...prev,
+        [cellKey]: (prev[cellKey] || []).map((l) =>
+          l.id !== parentLineId
+            ? l
+            : {
+                ...l,
+                [subType]: [
+                  ...(l[subType] || []),
+                  { id: nid, text: "", starred: false },
+                ],
+              },
+        ),
+      }));
+      focusSubLine(nid, 0);
+    },
+    [grid, newSubLineId, focusSubLine],
+  );
+
+  const onCellClick = useCallback(
+    (e: React.MouseEvent, key: CellKey) => {
+      if (!isMatrixCellEmptyBackgroundClick(e.target)) return;
+      requestAddMatrixCellLine(key);
+    },
+    [requestAddMatrixCellLine],
   );
 
   const onPoolClick = useCallback(
@@ -1156,6 +1217,9 @@ export function useRiskMatrix(options: UseRiskMatrixOptions = {}) {
     onGripPointerDown,
     onPoolClick,
     onCellClick,
+    requestAddPoolLine,
+    requestAddMatrixCellLine,
+    requestAddMitigationSubLine,
     handleRiskKeyDown,
     updateSubText,
     handleSubKeyDown,

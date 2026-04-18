@@ -2,13 +2,16 @@
 
 import React from "react";
 import LineRow from "./LineRow";
-import StepBadge from "./StepBadge";
+import PointerAddLineButton from "./PointerAddLineButton";
+import { POINTER_ADD_ROW_HOVER_CLASSES } from "./constants";
+import StepHeadingRow from "./StepHeadingRow";
 import type { DragState, LineLocation, PoolLine } from "./types";
 
 export type RiskPoolSectionProps = {
   pool: PoolLine[];
   dragState: DragState | null;
   dragOverTarget: string | null;
+  onAddPoolLine: () => void;
   /** When false, step 2 stays hidden until persisted workspace is applied (avoids a flash). */
   workspaceReady: boolean;
   hasCompletedFirstDragToMatrix: boolean;
@@ -34,6 +37,7 @@ export default function RiskPoolSection({
   workspaceReady,
   hasCompletedFirstDragToMatrix,
   onPoolClick,
+  onAddPoolLine,
   onChange,
   onKeyDown,
   onBlur,
@@ -44,66 +48,73 @@ export default function RiskPoolSection({
 
   return (
     <>
-      <div className="mb-3 flex flex-wrap items-center gap-3 text-base font-medium text-rm-ink/85 sm:text-[1.05rem]">
-        <StepBadge step={1} />
-        <span className="min-w-0 leading-snug">
-          What risks concern you the most right now?
-        </span>
-      </div>
+      <StepHeadingRow step={1} className="mb-3">
+        What risks concern you the most right now?
+      </StepHeadingRow>
       <div
         data-drop-target="pool"
         onClick={onPoolClick}
         className={[
-          "mb-6 w-full max-w-[42ch] min-h-[100px] cursor-text rounded-md border border-black/12 bg-white px-2.5 py-2",
+          "group mb-6 flex w-full max-w-[42ch] min-h-[100px] cursor-text flex-col rounded-md border border-black/12 bg-white px-2.5 py-2",
           dragOverTarget === "pool"
             ? "shadow-[inset_0_0_0_2px_rgba(0,0,0,0.35)]"
             : "",
         ].join(" ")}
       >
-        {pool.map((line) => (
-          <LineRow
-            key={line.id}
-            line={line}
-            loc="pool"
-            isDragging={!!dragState && dragState.id === line.id}
-            placeholder={
-              pool.length === 1 && line.text.length === 0
-                ? "Add your first risk..."
-                : pool.length > 1 &&
-                    line.id === pool[pool.length - 1]?.id &&
-                    line.text.length === 0
-                  ? "Press Enter to add another risk"
-                  : undefined
-            }
-            onChange={onChange}
-            onKeyDown={onKeyDown}
-            onBlur={onBlur}
-            onGripPointerDown={onGripPointerDown}
-            inCell={false}
+        <div className="min-h-0 flex-1">
+          {pool.map((line) => (
+            <LineRow
+              key={line.id}
+              line={line}
+              loc="pool"
+              isDragging={!!dragState && dragState.id === line.id}
+              placeholder={
+                pool.length === 1 && line.text.length === 0
+                  ? "Add your first risk..."
+                  : pool.length > 1 &&
+                      line.id === pool[pool.length - 1]?.id &&
+                      line.text.length === 0
+                    ? "Press Enter to add another risk"
+                    : undefined
+              }
+              onChange={onChange}
+              onKeyDown={onKeyDown}
+              onBlur={onBlur}
+              onGripPointerDown={onGripPointerDown}
+              inCell={false}
+            />
+          ))}
+        </div>
+        <div
+          className={[
+            "mt-1 flex shrink-0 justify-start border-t border-black/5 pt-1",
+            POINTER_ADD_ROW_HOVER_CLASSES,
+          ].join(" ")}
+        >
+          <PointerAddLineButton
+            ariaLabel="Add another risk to the pool"
+            onTrigger={onAddPoolLine}
           />
-        ))}
+        </div>
       </div>
 
       <div
         className={[
-          "mt-2",
+          "mt-2 mb-3",
           workspaceReady ? "min-h-[3.25rem]" : "min-h-0",
         ].join(" ")}
       >
-        <p
+        <StepHeadingRow
+          step={2}
           className={[
-            "flex flex-wrap items-center gap-3 text-base font-medium leading-snug text-rm-ink/85 sm:text-[1.05rem]",
             workspaceReady ? "transition-opacity duration-200" : "",
             showStep2Hint ? "opacity-100" : "pointer-events-none opacity-0",
           ].join(" ")}
           aria-hidden={!showStep2Hint}
         >
-          <StepBadge step={2} />
-          <span className="min-w-0 leading-snug">
-            Drag the risks from the pool into the matrix when you are ready to
-            categorize them.
-          </span>
-        </p>
+          Drag the risks from the pool into the matrix when you are ready to
+          categorize them.
+        </StepHeadingRow>
       </div>
     </>
   );

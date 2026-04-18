@@ -1,5 +1,23 @@
 import type { CellKey, GridLine, PoolLine } from "./types";
 
+/** Matrix cell: treat click as “empty chrome” (not an existing line or control). */
+export function isMatrixCellEmptyBackgroundClick(target: unknown): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.closest("textarea")) return false;
+  if (target.closest("button")) return false;
+  if (target.closest("[data-row-id]")) return false;
+  return true;
+}
+
+/** Mitigation column: treat click as empty padding (not an existing mitigation row or control). */
+export function isMitigationColumnEmptyBackgroundClick(target: unknown): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.closest("textarea")) return false;
+  if (target.closest("button")) return false;
+  if (target.closest("[data-mitigation-row]")) return false;
+  return true;
+}
+
 /** Stable id for a risk row in the categorized mitigations table. */
 export function categorizedRiskRowKey(cellKey: CellKey, lineId: string): string {
   return `${cellKey}:${lineId}`;

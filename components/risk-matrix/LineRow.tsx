@@ -42,7 +42,7 @@ const LineRow = React.memo(function LineRow({
     <div
       data-row-id={line.id}
       className={[
-        `${verticalMargin} flex items-start gap-0.5 p-0 rounded-[5px] transition-[background,border-color] duration-150`,
+        `${verticalMargin} flex items-start gap-0 p-0 rounded-[5px] transition-[background,border-color] duration-150 sm:gap-0.5`,
         isDragging ? "opacity-35" : "opacity-100",
         isEmpty
           ? "border border-transparent bg-transparent"
@@ -55,7 +55,7 @@ const LineRow = React.memo(function LineRow({
         onPointerDown={(e) => !isEmpty && onGripPointerDown(e, line.id)}
         title={isEmpty ? "" : "drag to move"}
         className={[
-          "flex w-[22px] shrink-0 items-center justify-center self-stretch select-none touch-none",
+          "flex w-[18px] shrink-0 items-center justify-center self-stretch select-none touch-none sm:w-[22px]",
           isEmpty ? "cursor-default opacity-15" : "cursor-grab opacity-50",
         ].join(" ")}
       >
@@ -68,6 +68,7 @@ const LineRow = React.memo(function LineRow({
         onChange={(e) => onChange(loc, line.id, e.target.value)}
         onKeyDown={(e) => onKeyDown(e, loc, line)}
         onBlur={(e) => onBlur?.(e, loc, line)}
+        className="max-sm:pl-0 max-sm:pr-1 sm:pl-1.5 sm:pr-1.5"
       />
     </div>
   );

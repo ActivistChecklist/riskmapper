@@ -2,13 +2,20 @@
 
 import React from "react";
 import LineRow from "./LineRow";
-import { CELL_BG_CLASSES, COL_LABELS, ROW_LABELS } from "./constants";
+import PointerAddLineButton from "./PointerAddLineButton";
+import {
+  CELL_BG_CLASSES,
+  COL_LABELS,
+  POINTER_ADD_ROW_HOVER_CLASSES,
+  ROW_LABELS,
+} from "./constants";
 import type { CellKey, DragState, GridLine, LineLocation, PoolLine } from "./types";
 
 export type LikelihoodImpactMatrixProps = {
   grid: Record<CellKey, GridLine[]>;
   dragState: DragState | null;
   dragOverTarget: string | null;
+  onAddCellLine: (cellKey: CellKey) => void;
   onCellClick: (e: React.MouseEvent, key: CellKey) => void;
   onChange: (loc: LineLocation, id: string, text: string) => void;
   onKeyDown: (
@@ -28,6 +35,7 @@ export default function LikelihoodImpactMatrix({
   grid,
   dragState,
   dragOverTarget,
+  onAddCellLine,
   onCellClick,
   onChange,
   onKeyDown,
@@ -64,25 +72,38 @@ export default function LikelihoodImpactMatrix({
                 onClick={(e) => onCellClick(e, key)}
                 className={[
                   CELL_BG_CLASSES[row][col],
-                  "relative flex min-h-0 cursor-text flex-col px-1.5 py-1 transition-shadow duration-100",
+                  "group relative flex min-h-0 cursor-text flex-col px-1.5 py-1 transition-shadow duration-100",
                   isDragOver
                     ? "shadow-[inset_0_0_0_2px_rgba(0,0,0,0.5)]"
                     : "",
                 ].join(" ")}
               >
-                {cellLines.map((line) => (
-                  <LineRow
-                    key={line.id}
-                    line={line}
-                    loc={key}
-                    isDragging={!!dragState && dragState.id === line.id}
-                    onChange={onChange}
-                    onKeyDown={onKeyDown}
-                    onBlur={onBlur}
-                    onGripPointerDown={onGripPointerDown}
-                    inCell
+                <div className="flex min-h-0 flex-1 flex-col">
+                  {cellLines.map((line) => (
+                    <LineRow
+                      key={line.id}
+                      line={line}
+                      loc={key}
+                      isDragging={!!dragState && dragState.id === line.id}
+                      onChange={onChange}
+                      onKeyDown={onKeyDown}
+                      onBlur={onBlur}
+                      onGripPointerDown={onGripPointerDown}
+                      inCell
+                    />
+                  ))}
+                </div>
+                <div
+                  className={[
+                    "mt-auto flex shrink-0 justify-start pt-0.5",
+                    POINTER_ADD_ROW_HOVER_CLASSES,
+                  ].join(" ")}
+                >
+                  <PointerAddLineButton
+                    ariaLabel="Add another risk in this matrix cell"
+                    onTrigger={() => onAddCellLine(key)}
                   />
-                ))}
+                </div>
               </div>
             );
           })}

@@ -7,6 +7,9 @@ import type {
   PoolLine,
 } from "./types";
 
+/** Default title for the draft matrix (`activeKind === "default"`) until the user sets one. */
+export const DEFAULT_DRAFT_MATRIX_TITLE = "Untitled";
+
 /** Serializable matrix state for persistence (pool, grid, UI prefs). */
 export type RiskMatrixSnapshot = {
   pool: PoolLine[];
@@ -32,6 +35,8 @@ export type MatrixWorkspaceV1 = {
   activeKind: "default" | "saved";
   activeSavedId: string | null;
   defaultSnapshot: RiskMatrixSnapshot | null;
+  /** Title for the in-memory draft when `activeKind === "default"` (not a saved row). Blank values normalize to `DEFAULT_DRAFT_MATRIX_TITLE` on load. */
+  draftTitle: string;
   saved: StoredMatrix[];
 };
 

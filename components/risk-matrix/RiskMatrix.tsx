@@ -33,7 +33,7 @@ function RiskMatrixCanvas({ workspace: ws }: CanvasProps) {
     <div
       className={[
         "mx-auto min-h-screen w-full max-w-[1320px] bg-rm-canvas px-4 py-5 font-sans text-rm-ink sm:px-6 sm:py-6 lg:px-8",
-        m.dragState ? "touch-none" : "touch-auto",
+        m.dragState ? "touch-none rm-dragging-active" : "touch-auto",
       ].join(" ")}
     >
       <MatrixTopBar workspace={ws} />
@@ -45,6 +45,7 @@ function RiskMatrixCanvas({ workspace: ws }: CanvasProps) {
         workspaceReady={ws.workspaceReady}
         hasCompletedFirstDragToMatrix={m.hasCompletedFirstDragToMatrix}
         onPoolClick={m.onPoolClick}
+        onAddPoolLine={m.requestAddPoolLine}
         onChange={m.updateText}
         onKeyDown={m.handleKeyDown}
         onBlur={m.handleLineBlur}
@@ -55,6 +56,7 @@ function RiskMatrixCanvas({ workspace: ws }: CanvasProps) {
         grid={m.grid}
         dragState={m.dragState}
         dragOverTarget={m.dragOverTarget}
+        onAddCellLine={m.requestAddMatrixCellLine}
         onCellClick={m.onCellClick}
         onChange={m.updateText}
         onKeyDown={m.handleKeyDown}
@@ -83,6 +85,7 @@ function RiskMatrixCanvas({ workspace: ws }: CanvasProps) {
                 onChangeSub={m.updateSubText}
                 onSubKeyDown={m.handleSubKeyDown}
                 onToggleStar={m.toggleStar}
+                onPointerAddMitigationSubLine={m.requestAddMitigationSubLine}
               />
             ) : (
               <MitigationsTablePlaceholder />

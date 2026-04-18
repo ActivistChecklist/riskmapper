@@ -76,3 +76,7 @@ export const INITIAL_CATEGORIZED_REVEAL_HIDDEN: CategorizedRevealHiddenState = {
   yellow: false,
   green: false,
 };
+
+/** Add row: always visible below `md`; from `md` up, hidden until `group-hover` (see parent `group`). */
+export const POINTER_ADD_ROW_HOVER_CLASSES =
+  "opacity-100 transition-opacity duration-200 md:opacity-0 md:pointer-events-none md:group-hover:pointer-events-auto md:group-hover:opacity-100";

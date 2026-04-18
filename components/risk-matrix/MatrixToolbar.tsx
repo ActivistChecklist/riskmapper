@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { CircleHelp, FilePlus, History } from "lucide-react";
+import { CircleCheck, CircleHelp, FilePlus, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -11,23 +11,40 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import type { MatrixWorkspaceApi } from "./useMatrixWorkspace";
+import { DEFAULT_DRAFT_MATRIX_TITLE } from "./matrixTypes";
 
 type Props = {
   workspace: MatrixWorkspaceApi;
 };
 
-/** Open recent + Create new — kept to the left of the matrix title in the top bar. */
+function needsMatrixNamePrompt(title: string): boolean {
+  const t = title.trim();
+  if (t.length === 0) return true;
+  return t.toLowerCase() === DEFAULT_DRAFT_MATRIX_TITLE.toLowerCase();
+}
+
+/** Create new + Open recent — after the site title and matrix title in the top bar. */
 export function MatrixDocumentActions({ workspace: ws }: Props) {
   const [createOpen, setCreateOpen] = useState(false);
   const [recentOpen, setRecentOpen] = useState(false);
+  const [savedLocallyOpen, setSavedLocallyOpen] = useState(false);
   const [nameInput, setNameInput] = useState("");
+  const hasRecent = ws.recentSorted.length > 0;
 
   const openCreateDialog = () => {
-    const preset =
-      ws.workspace.activeKind === "saved" ? ws.activeTitle : "";
-    setNameInput(preset);
-    setCreateOpen(true);
+    const current = ws.activeTitle;
+    if (needsMatrixNamePrompt(current)) {
+      setNameInput("");
+      setCreateOpen(true);
+      return;
+    }
+    ws.createNewNamed(current.trim());
   };
 
   const submitCreate = () => {
@@ -40,15 +57,81 @@ export function MatrixDocumentActions({ workspace: ws }: Props) {
 
   return (
     <>
-      <Button
-        variant="outline"
-        size="sm"
-        type="button"
-        onClick={() => setRecentOpen(true)}
-      >
-        <History size={15} strokeWidth={2} aria-hidden />
-        Open recent
-      </Button>
+      <div className="flex shrink-0 flex-wrap items-center gap-2">
+        <Button variant="outline" size="sm" type="button" onClick={openCreateDialog}>
+          <FilePlus size={15} strokeWidth={2} aria-hidden />
+          Create new
+        </Button>
+
+        {hasRecent ? (
+          <Button
+            variant="outline"
+            size="sm"
+            type="button"
+            onClick={() => setRecentOpen(true)}
+          >
+            <History size={15} strokeWidth={2} aria-hidden />
+            Open recent
+          </Button>
+        ) : (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="inline-flex" tabIndex={0}>
+                <Button variant="outline" size="sm" type="button" disabled>
+                  <History size={15} strokeWidth={2} aria-hidden />
+                  Open recent
+                </Button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-xs">
+              No saved matrices yet. Use Create new to save the current sheet to
+              your library; saved matrices will appear here.
+            </TooltipContent>
+          </Tooltip>
+        )}
+
+        <Button
+          variant="outline"
+          size="sm"
+          type="button"
+          onClick={() => setSavedLocallyOpen(true)}
+          className="text-zinc-700"
+          aria-label="Saved locally: where your work is kept"
+        >
+          <CircleCheck size={15} strokeWidth={2} aria-hidden />
+          Saved locally
+        </Button>
+      </div>
+
+      <Dialog open={savedLocallyOpen} onOpenChange={setSavedLocallyOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Saved on your device</DialogTitle>
+            <DialogDescription asChild>
+              <div className="space-y-3 pt-1 text-sm leading-relaxed text-rm-ink opacity-90">
+                <p>
+                  Nothing you type here is sent over the internet or stored on our
+                  servers or in the cloud. Your risks, notes, and saved matrices stay
+                  in this browser on this computer, like notes in a notebook that never
+                  leave your desk.
+                </p>
+                <p>
+                  If you clear this site&apos;s data, switch browsers, or use another
+                  machine, that copy won&apos;t come along unless you export or copy it
+                  yourself. When you use this browser on this computer again, your work
+                  is still here, including if you open a new tab.
+                </p>
+              </div>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-4 flex justify-end">
+            <Button type="button" onClick={() => setSavedLocallyOpen(false)}>
+              Got it
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={recentOpen} onOpenChange={setRecentOpen}>
         <DialogContent>
           <DialogHeader>
@@ -60,7 +143,7 @@ export function MatrixDocumentActions({ workspace: ws }: Props) {
           </DialogHeader>
           <div className="mt-2 max-h-[min(60vh,420px)] space-y-1 overflow-y-auto">
             {ws.recentSorted.length === 0 ? (
-              <p className="text-sm opacity-80">No saved matrices yet.</p>
+              <p className="text-sm opacity-80">No saved matrices.</p>
             ) : (
               ws.recentSorted.map((m) => (
                 <button
@@ -82,11 +165,6 @@ export function MatrixDocumentActions({ workspace: ws }: Props) {
           </div>
         </DialogContent>
       </Dialog>
-
-      <Button variant="outline" size="sm" type="button" onClick={openCreateDialog}>
-        <FilePlus size={15} strokeWidth={2} aria-hidden />
-        Create new
-      </Button>
       <Dialog
         open={createOpen}
         onOpenChange={(o) => {
@@ -115,7 +193,7 @@ export function MatrixDocumentActions({ workspace: ws }: Props) {
                 }
               }}
               className="mt-1 w-full rounded-md border border-black/15 bg-white px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-black/15"
-              placeholder="e.g. Q1 vendor review"
+              placeholder="e.g. Direct action — safety & legal risks"
               autoFocus
               aria-label="Name for the current matrix"
             />

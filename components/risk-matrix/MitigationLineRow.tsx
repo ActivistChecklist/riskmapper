@@ -46,9 +46,9 @@ const MitigationLineRow = React.memo(function MitigationLineRow({
   const isEmpty = subLine.text.length === 0;
   const starred = subLine.starred;
   return (
-    <div className="my-px flex items-start">
+    <div className="my-px flex items-start gap-0 sm:gap-0.5" data-mitigation-row>
       {isEmpty ? (
-        <span aria-hidden className="mt-1 inline-block w-[26px] shrink-0" />
+        <span aria-hidden className="mt-1 inline-block w-[22px] shrink-0 sm:w-[26px]" />
       ) : (
         <span
           onClick={(e) => {
@@ -57,7 +57,7 @@ const MitigationLineRow = React.memo(function MitigationLineRow({
           }}
           title={starred ? "Remove from actions list" : "Also show in actions list"}
           className={[
-            "mt-1 flex size-[26px] shrink-0 cursor-pointer select-none items-center justify-center",
+            "mt-1 flex size-[22px] shrink-0 cursor-pointer select-none items-center justify-center sm:size-[26px]",
             starred
               ? "text-rm-star-strong"
               : "text-black opacity-70 hover:opacity-100",
@@ -79,6 +79,7 @@ const MitigationLineRow = React.memo(function MitigationLineRow({
           onChange(cellKey, parentLineId, subType, subLine.id, e.target.value)
         }
         onKeyDown={(e) => onKeyDown(e, cellKey, parentLineId, subType, subLine)}
+        className="max-sm:pl-0 max-sm:pr-1 sm:pl-1.5 sm:pr-1.5"
       />
     </div>
   );

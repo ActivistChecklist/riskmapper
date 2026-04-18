@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useLayoutEffect, useEffect, useRef } from "react";
+import { cn } from "@/lib/utils";
 
 export type AutoTextareaProps = {
   value: string;
@@ -90,7 +91,7 @@ const AutoTextarea = React.forwardRef<HTMLTextAreaElement, AutoTextareaProps>(
         onBlur={onBlur}
         placeholder={placeholder}
         rows={1}
-        className={[baseTextareaClass, className].filter(Boolean).join(" ")}
+        className={cn(baseTextareaClass, className)}
       />
     );
   },

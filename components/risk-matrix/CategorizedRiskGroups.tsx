@@ -4,6 +4,7 @@ import React, { useLayoutEffect, useMemo, useRef } from "react";
 import { ChevronDown, ChevronRight, Eye, EyeOff } from "lucide-react";
 import MitigationLineRow from "./MitigationLineRow";
 import MitigationsTableHeaderRow from "./MitigationsTableHeaderRow";
+import PointerAddLineButton from "./PointerAddLineButton";
 import RiskLineRow from "./RiskLineRow";
 import {
   Tooltip,
@@ -15,8 +16,12 @@ import {
   COLOR_GROUPS,
   type ColorGroup,
   GROUP_HEADER_CLASS,
+  POINTER_ADD_ROW_HOVER_CLASSES,
 } from "./constants";
-import { categorizedRiskRowKey } from "./riskMatrixUtils";
+import {
+  categorizedRiskRowKey,
+  isMitigationColumnEmptyBackgroundClick,
+} from "./riskMatrixUtils";
 import type {
   CellKey,
   CategorizedRevealHiddenState,
@@ -61,6 +66,11 @@ export type CategorizedRiskGroupsProps = {
     subType: "reduce" | "prepare",
     subId: string,
   ) => void;
+  onPointerAddMitigationSubLine: (
+    cellKey: CellKey,
+    parentLineId: string,
+    subType: "reduce" | "prepare",
+  ) => void;
 };
 
 type Section = { group: ColorGroup; risks: { line: GridLine; cellKey: CellKey }[] };
@@ -79,6 +89,7 @@ export default function CategorizedRiskGroups({
   onChangeSub,
   onSubKeyDown,
   onToggleStar,
+  onPointerAddMitigationSubLine,
 }: CategorizedRiskGroupsProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const theadRef = useRef<HTMLDivElement>(null);
@@ -293,35 +304,101 @@ export default function CategorizedRiskGroups({
                             </TooltipProvider>
                           </div>
                         </div>
-                        <div className="min-w-0">
-                          {reduce.map((s, j) => (
-                            <MitigationLineRow
-                              key={s.id}
-                              subLine={s}
-                              cellKey={r.cellKey}
-                              parentLineId={r.line.id}
-                              subType="reduce"
-                              placeholder={j === 0 ? "Start typing" : undefined}
-                              onChange={onChangeSub}
-                              onKeyDown={onSubKeyDown}
-                              onToggleStar={onToggleStar}
+                        <div
+                          role="presentation"
+                          data-testid={`mitigation-reduce-${r.line.id}`}
+                          className="group flex min-h-0 min-w-0 flex-col"
+                          onClick={(e) => {
+                            if (!isMitigationColumnEmptyBackgroundClick(e.target)) {
+                              return;
+                            }
+                            onPointerAddMitigationSubLine(
+                              r.cellKey,
+                              r.line.id,
+                              "reduce",
+                            );
+                          }}
+                        >
+                          <div className="min-w-0 flex-1">
+                            {reduce.map((s, j) => (
+                              <MitigationLineRow
+                                key={s.id}
+                                subLine={s}
+                                cellKey={r.cellKey}
+                                parentLineId={r.line.id}
+                                subType="reduce"
+                                placeholder={j === 0 ? "Start typing" : undefined}
+                                onChange={onChangeSub}
+                                onKeyDown={onSubKeyDown}
+                                onToggleStar={onToggleStar}
+                              />
+                            ))}
+                          </div>
+                          <div
+                            className={[
+                              "mt-0.5 flex shrink-0 justify-start",
+                              POINTER_ADD_ROW_HOVER_CLASSES,
+                            ].join(" ")}
+                          >
+                            <PointerAddLineButton
+                              ariaLabel="Add another reduce mitigation"
+                              onTrigger={() =>
+                                onPointerAddMitigationSubLine(
+                                  r.cellKey,
+                                  r.line.id,
+                                  "reduce",
+                                )
+                              }
                             />
-                          ))}
+                          </div>
                         </div>
-                        <div className="min-w-0">
-                          {prepare.map((s, j) => (
-                            <MitigationLineRow
-                              key={s.id}
-                              subLine={s}
-                              cellKey={r.cellKey}
-                              parentLineId={r.line.id}
-                              subType="prepare"
-                              placeholder={j === 0 ? "Start typing" : undefined}
-                              onChange={onChangeSub}
-                              onKeyDown={onSubKeyDown}
-                              onToggleStar={onToggleStar}
+                        <div
+                          role="presentation"
+                          data-testid={`mitigation-prepare-${r.line.id}`}
+                          className="group flex min-h-0 min-w-0 flex-col"
+                          onClick={(e) => {
+                            if (!isMitigationColumnEmptyBackgroundClick(e.target)) {
+                              return;
+                            }
+                            onPointerAddMitigationSubLine(
+                              r.cellKey,
+                              r.line.id,
+                              "prepare",
+                            );
+                          }}
+                        >
+                          <div className="min-w-0 flex-1">
+                            {prepare.map((s, j) => (
+                              <MitigationLineRow
+                                key={s.id}
+                                subLine={s}
+                                cellKey={r.cellKey}
+                                parentLineId={r.line.id}
+                                subType="prepare"
+                                placeholder={j === 0 ? "Start typing" : undefined}
+                                onChange={onChangeSub}
+                                onKeyDown={onSubKeyDown}
+                                onToggleStar={onToggleStar}
+                              />
+                            ))}
+                          </div>
+                          <div
+                            className={[
+                              "mt-0.5 flex shrink-0 justify-start",
+                              POINTER_ADD_ROW_HOVER_CLASSES,
+                            ].join(" ")}
+                          >
+                            <PointerAddLineButton
+                              ariaLabel="Add another prepare mitigation"
+                              onTrigger={() =>
+                                onPointerAddMitigationSubLine(
+                                  r.cellKey,
+                                  r.line.id,
+                                  "prepare",
+                                )
+                              }
                             />
-                          ))}
+                          </div>
                         </div>
                       </div>
                     );
