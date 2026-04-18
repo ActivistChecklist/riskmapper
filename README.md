@@ -2,6 +2,8 @@
 
 A client-side risk matrix workspace built with Next.js (App Router). Organize risks, categories, and mitigations in the browser.
 
+**[View Risk Matrix site →](https://activistchecklist.github.io/riskmatrix/)**
+
 ## Requirements
 
 - Node.js 20+
