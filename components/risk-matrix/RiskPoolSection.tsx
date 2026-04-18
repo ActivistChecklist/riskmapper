@@ -14,7 +14,6 @@ export type RiskPoolSectionProps = {
   onAddPoolLine: () => void;
   /** When false, step 2 stays hidden until persisted workspace is applied (avoids a flash). */
   workspaceReady: boolean;
-  hasCompletedFirstDragToMatrix: boolean;
   onPoolClick: (e: React.MouseEvent) => void;
   onChange: (loc: LineLocation, id: string, text: string) => void;
   onKeyDown: (
@@ -35,7 +34,6 @@ export default function RiskPoolSection({
   dragState,
   dragOverTarget,
   workspaceReady,
-  hasCompletedFirstDragToMatrix,
   onPoolClick,
   onAddPoolLine,
   onChange,
@@ -43,9 +41,6 @@ export default function RiskPoolSection({
   onBlur,
   onGripPointerDown,
 }: RiskPoolSectionProps) {
-  const showStep2Hint =
-    workspaceReady && !hasCompletedFirstDragToMatrix;
-
   return (
     <>
       <StepHeadingRow step={1} className="mb-3">
@@ -106,11 +101,12 @@ export default function RiskPoolSection({
       >
         <StepHeadingRow
           step={2}
-          className={[
-            workspaceReady ? "transition-opacity duration-200" : "",
-            showStep2Hint ? "opacity-100" : "pointer-events-none opacity-0",
-          ].join(" ")}
-          aria-hidden={!showStep2Hint}
+          className={
+            workspaceReady
+              ? "opacity-100 transition-opacity duration-200"
+              : "pointer-events-none opacity-0"
+          }
+          aria-hidden={!workspaceReady}
         >
           Drag the risks from the pool into the matrix when you are ready to
           categorize them.

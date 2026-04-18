@@ -17,8 +17,8 @@ export default function MitigationsTablePlaceholder() {
           aria-label="Placeholder: after you place risks in the matrix, mitigation rows will appear in this area."
         >
           <p className="max-w-[20rem] text-center text-[13px] leading-snug font-normal italic text-zinc-400 sm:text-sm sm:leading-relaxed">
-            Drag a risk from the pool into a matrix cell. Your categorized risks
-            and mitigation notes will show up in this table.
+            Drag a risk from the pool into a cell in the risk matrix table above.
+            Your risks will show up here.
           </p>
         </div>
       </div>

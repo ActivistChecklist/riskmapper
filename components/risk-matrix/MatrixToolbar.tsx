@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { CircleCheck, CircleHelp, FilePlus, History } from "lucide-react";
+import { CircleCheck, CircleHelp, FilePlus, History, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -16,8 +16,14 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import DeleteMatrixDialog from "./DeleteMatrixDialog";
 import type { MatrixWorkspaceApi } from "./useMatrixWorkspace";
 import { DEFAULT_DRAFT_MATRIX_TITLE } from "./matrixTypes";
+
+type PendingMatrixDelete =
+  | null
+  | { kind: "saved"; id: string; title: string }
+  | { kind: "current"; title: string };
 
 type Props = {
   workspace: MatrixWorkspaceApi;
@@ -29,13 +35,28 @@ function needsMatrixNamePrompt(title: string): boolean {
   return t.toLowerCase() === DEFAULT_DRAFT_MATRIX_TITLE.toLowerCase();
 }
 
-/** Create new + Open recent — after the site title and matrix title in the top bar. */
+/** New + Open recent — after the site title and matrix title in the top bar. */
 export function MatrixDocumentActions({ workspace: ws }: Props) {
   const [createOpen, setCreateOpen] = useState(false);
   const [recentOpen, setRecentOpen] = useState(false);
   const [savedLocallyOpen, setSavedLocallyOpen] = useState(false);
   const [nameInput, setNameInput] = useState("");
+  const [pendingDelete, setPendingDelete] = useState<PendingMatrixDelete>(null);
   const hasRecent = ws.recentSorted.length > 0;
+
+  const confirmPendingDelete = () => {
+    if (!pendingDelete) return;
+    const kind = pendingDelete.kind;
+    if (kind === "saved") {
+      ws.removeSavedMatrix(pendingDelete.id);
+    } else {
+      ws.deleteActiveMatrix();
+      setRecentOpen(false);
+    }
+    setPendingDelete(null);
+  };
+
+  const cancelPendingDelete = () => setPendingDelete(null);
 
   const openCreateDialog = () => {
     const current = ws.activeTitle;
@@ -57,10 +78,10 @@ export function MatrixDocumentActions({ workspace: ws }: Props) {
 
   return (
     <>
-      <div className="flex shrink-0 flex-wrap items-center gap-2">
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
         <Button variant="outline" size="sm" type="button" onClick={openCreateDialog}>
           <FilePlus size={15} strokeWidth={2} aria-hidden />
-          Create new
+          New
         </Button>
 
         {hasRecent ? (
@@ -84,8 +105,8 @@ export function MatrixDocumentActions({ workspace: ws }: Props) {
               </span>
             </TooltipTrigger>
             <TooltipContent side="bottom" className="max-w-xs">
-              No saved matrices yet. Use Create new to save the current sheet to
-              your library; saved matrices will appear here.
+              No saved matrices yet. Use New to save the current sheet to your
+              library; saved matrices will appear here.
             </TooltipContent>
           </Tooltip>
         )}
@@ -100,6 +121,24 @@ export function MatrixDocumentActions({ workspace: ws }: Props) {
         >
           <CircleCheck size={15} strokeWidth={2} aria-hidden />
           Saved locally
+        </Button>
+
+        <Button
+          variant="destructiveOutline"
+          size="sm"
+          type="button"
+          onClick={() =>
+            setPendingDelete({ kind: "current", title: ws.activeTitle })
+          }
+          aria-label="Delete this matrix from this browser"
+        >
+          <Trash2
+            size={15}
+            strokeWidth={2}
+            aria-hidden
+            className="text-zinc-600 transition-colors group-hover:text-red-600"
+          />
+          Delete
         </Button>
       </div>
 
@@ -116,10 +155,8 @@ export function MatrixDocumentActions({ workspace: ws }: Props) {
                   leave your desk.
                 </p>
                 <p>
-                  If you clear this site&apos;s data, switch browsers, or use another
-                  machine, that copy won&apos;t come along unless you export or copy it
-                  yourself. When you use this browser on this computer again, your work
-                  is still here, including if you open a new tab.
+                  If you clear this site&apos;s data in your browser, the data will be
+                  deleted.
                 </p>
               </div>
             </DialogDescription>
@@ -146,25 +183,61 @@ export function MatrixDocumentActions({ workspace: ws }: Props) {
               <p className="text-sm opacity-80">No saved matrices.</p>
             ) : (
               ws.recentSorted.map((m) => (
-                <button
+                <div
                   key={m.id}
-                  type="button"
-                  className="flex w-full flex-col items-start rounded-md border border-black/10 bg-white px-3 py-2 text-left text-sm hover:bg-black/[0.04] focus-visible:ring-2 focus-visible:ring-black/15"
-                  onClick={() => {
-                    ws.openSaved(m.id);
-                    setRecentOpen(false);
-                  }}
+                  className="flex gap-1 rounded-md border border-black/10 bg-white p-1"
                 >
-                  <span className="font-medium text-rm-ink">{m.title}</span>
-                  <span className="text-xs opacity-70">
-                    {new Date(m.updatedAt).toLocaleString()}
-                  </span>
-                </button>
+                  <button
+                    type="button"
+                    className="flex min-w-0 flex-1 flex-col items-start rounded px-2 py-1.5 text-left text-sm hover:bg-black/[0.04] focus-visible:ring-2 focus-visible:ring-black/15"
+                    onClick={() => {
+                      ws.openSaved(m.id);
+                      setRecentOpen(false);
+                    }}
+                  >
+                    <span className="font-medium text-rm-ink">{m.title}</span>
+                    <span className="text-xs opacity-70">
+                      {new Date(m.updatedAt).toLocaleString()}
+                    </span>
+                  </button>
+                  <Button
+                    variant="destructiveOutline"
+                    type="button"
+                    size="sm"
+                    className="h-auto shrink-0 px-2 py-2"
+                    aria-label={`Delete saved matrix: ${m.title}`}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setPendingDelete({
+                        kind: "saved",
+                        id: m.id,
+                        title: m.title,
+                      });
+                    }}
+                  >
+                    <Trash2
+                      size={15}
+                      strokeWidth={2}
+                      aria-hidden
+                      className="text-zinc-600 transition-colors group-hover:text-red-600"
+                    />
+                  </Button>
+                </div>
               ))
             )}
           </div>
         </DialogContent>
       </Dialog>
+
+      <DeleteMatrixDialog
+        open={pendingDelete != null}
+        onOpenChange={(open) => {
+          if (!open) setPendingDelete(null);
+        }}
+        matrixTitle={pendingDelete?.title ?? ""}
+        onCancel={cancelPendingDelete}
+        onConfirm={confirmPendingDelete}
+      />
       <Dialog
         open={createOpen}
         onOpenChange={(o) => {

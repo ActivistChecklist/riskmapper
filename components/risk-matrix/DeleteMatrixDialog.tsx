@@ -11,37 +11,40 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-export type DeleteRiskDialogProps = {
+export type DeleteMatrixDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  matrixTitle: string;
   onCancel: () => void;
   onConfirm: () => void;
 };
 
-export default function DeleteRiskDialog({
+export default function DeleteMatrixDialog({
   open,
   onOpenChange,
+  matrixTitle,
   onCancel,
   onConfirm,
-}: DeleteRiskDialogProps) {
+}: DeleteMatrixDialogProps) {
+  const displayTitle = matrixTitle.trim() || "Untitled";
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Delete this risk?</DialogTitle>
+          <DialogTitle>Delete this matrix?</DialogTitle>
           <DialogDescription>
-            This risk has mitigation or preparation notes. Deleting it will merge
-            it into the previous risk line.
+            &ldquo;{displayTitle}&rdquo; will be permanently removed from this browser.
+            This can&apos;t be undone.
           </DialogDescription>
         </DialogHeader>
         <div className="mt-4 flex justify-end gap-2">
           <DialogClose asChild>
-            <Button variant="outline" onClick={onCancel}>
+            <Button variant="outline" type="button" onClick={onCancel}>
               Cancel
             </Button>
           </DialogClose>
           <Button type="button" variant="destructive" onClick={onConfirm}>
-            Delete risk
+            Delete
           </Button>
         </div>
       </DialogContent>

@@ -43,7 +43,6 @@ function RiskMatrixCanvas({ workspace: ws }: CanvasProps) {
         dragState={m.dragState}
         dragOverTarget={m.dragOverTarget}
         workspaceReady={ws.workspaceReady}
-        hasCompletedFirstDragToMatrix={m.hasCompletedFirstDragToMatrix}
         onPoolClick={m.onPoolClick}
         onAddPoolLine={m.requestAddPoolLine}
         onChange={m.updateText}

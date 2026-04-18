@@ -64,6 +64,10 @@ export type MatrixWorkspaceApi = {
   flushSave: () => void;
   createNewNamed: (name: string) => void;
   openSaved: (id: string) => void;
+  /** Remove a saved matrix from the library (no-op if id is missing). */
+  removeSavedMatrix: (id: string) => void;
+  /** Delete the active matrix: remove it if saved, or clear the draft from this device. */
+  deleteActiveMatrix: () => void;
 };
 
 const EMPTY_WORKSPACE = normalizeLoadedWorkspace(normalizeWorkspace(null));
@@ -93,6 +97,13 @@ export function useMatrixWorkspace(
 
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const matrixGetterRef = useRef<(() => RiskMatrixSnapshot) | null>(null);
+
+  const cancelPendingPersist = useCallback(() => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
+    }
+  }, []);
 
   const flushSave = useCallback(() => {
     if (debounceTimerRef.current) {
@@ -259,6 +270,67 @@ export function useMatrixWorkspace(
     [flushSave, repo],
   );
 
+  const removeSavedMatrix = useCallback(
+    (id: string) => {
+      const deletingActive =
+        identityRef.current.kind === "saved" &&
+        identityRef.current.id === id;
+      if (deletingActive) {
+        cancelPendingPersist();
+      } else {
+        flushSave();
+      }
+      setWorkspace((w) => {
+        if (!w.saved.some((s) => s.id === id)) return w;
+        const remaining = w.saved.filter((s) => s.id !== id);
+        let next: MatrixWorkspaceV1 = { ...w, saved: remaining };
+        if (w.activeKind === "saved" && w.activeSavedId === id) {
+          next = {
+            ...next,
+            activeKind: "default",
+            activeSavedId: null,
+            defaultSnapshot: null,
+            draftTitle: DEFAULT_DRAFT_MATRIX_TITLE,
+          };
+        }
+        repo.save(next);
+        return next;
+      });
+      if (deletingActive) {
+        setSurfaceId(crypto.randomUUID());
+      }
+    },
+    [cancelPendingPersist, flushSave, repo],
+  );
+
+  const deleteActiveMatrix = useCallback(() => {
+    cancelPendingPersist();
+    setWorkspace((w) => {
+      if (w.activeKind === "saved" && w.activeSavedId) {
+        const id = w.activeSavedId;
+        const remaining = w.saved.filter((s) => s.id !== id);
+        const next: MatrixWorkspaceV1 = {
+          ...w,
+          saved: remaining,
+          activeKind: "default",
+          activeSavedId: null,
+          defaultSnapshot: null,
+          draftTitle: DEFAULT_DRAFT_MATRIX_TITLE,
+        };
+        repo.save(next);
+        return next;
+      }
+      const next: MatrixWorkspaceV1 = {
+        ...w,
+        defaultSnapshot: null,
+        draftTitle: DEFAULT_DRAFT_MATRIX_TITLE,
+      };
+      repo.save(next);
+      return next;
+    });
+    setSurfaceId(crypto.randomUUID());
+  }, [cancelPendingPersist, repo]);
+
   return {
     workspace,
     initialSnapshot,
@@ -272,5 +344,7 @@ export function useMatrixWorkspace(
     flushSave,
     createNewNamed,
     openSaved,
+    removeSavedMatrix,
+    deleteActiveMatrix,
   };
 }

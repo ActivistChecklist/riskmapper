@@ -27,7 +27,7 @@ export default function OtherActionRow({
     <div className="mb-1 mt-1.5 flex items-start gap-1 rounded-[5px] border border-black/12 bg-zinc-50/90 pb-1 pt-1.5 pr-2 pl-2">
       <button
         type="button"
-        className="text-rm-ink/45 hover:text-rm-ink/80 mt-0.5 flex size-[22px] shrink-0 items-center justify-center rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-black/15"
+        className="mt-0.5 flex size-[22px] shrink-0 items-center justify-center rounded-sm text-zinc-500 outline-none transition-colors hover:text-red-600 focus-visible:ring-2 focus-visible:ring-red-500/30"
         aria-label="Remove action"
         onClick={() => onRemove(action.id)}
       >
