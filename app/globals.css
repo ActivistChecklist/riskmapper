@@ -1,0 +1,49 @@
+@import "tailwindcss";
+
+:root {
+  --background: #fafaf7;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+
+  /* Risk matrix palette */
+  --color-rm-green: #d4ebd4;
+  --color-rm-yellow: #f1e6b8;
+  --color-rm-orange: #f2d2b6;
+  --color-rm-red: #eebcbc;
+  /* Brighter pastel accents (same families as rm-* fills, more chroma, not muddy) */
+  --color-rm-green-strong: #4ccd7a;
+  --color-rm-yellow-strong: #e4c23d;
+  --color-rm-orange-strong: #f2934a;
+  --color-rm-red-strong: #ef6f6f;
+  --color-rm-canvas: #fafaf7;
+  --color-rm-ink: #1a1a1a;
+  --color-rm-line: #f5f5f2;
+  --color-rm-actions: #2a2a28;
+  --color-rm-actions-fg: #fafaf7;
+  /* Primary CTA (teal — distinct from risk pastels and charcoal actions chrome) */
+  --color-rm-primary: #0f7669;
+  --color-rm-primary-hover: #115e59;
+  --color-rm-primary-fg: #fafaf7;
+  /* Star matches body text */
+  --color-rm-star: var(--color-rm-ink);
+  --color-rm-star-strong: var(--color-rm-ink);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+}

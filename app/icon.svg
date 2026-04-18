@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Risk matrix">
+  <defs>
+    <!-- Clip so only the OUTER corners are rounded; inner cell corners stay square -->
+    <clipPath id="tileClip">
+      <rect x="20" y="20" width="472" height="472" rx="112" ry="112"/>
+    </clipPath>
+  </defs>
+
+  <!-- 3x3 heatmap fills the clipped area edge-to-edge (472 is not divisible by 3; last row/col is +1px) -->
+  <g clip-path="url(#tileClip)">
+    <!-- row 0 -->
+    <rect x="20" y="20" width="157" height="157" fill="#d9b84a"/>
+    <rect x="177" y="20" width="157" height="157" fill="#d98752"/>
+    <rect x="334" y="20" width="158" height="157" fill="#d35f5f"/>
+
+    <!-- row 1 -->
+    <rect x="20" y="177" width="157" height="157" fill="#7fb87f"/>
+    <rect x="177" y="177" width="157" height="157" fill="#d9b84a"/>
+    <rect x="334" y="177" width="158" height="157" fill="#d98752"/>
+
+    <!-- row 2 -->
+    <rect x="20" y="334" width="157" height="158" fill="#7fb87f"/>
+    <rect x="177" y="334" width="157" height="158" fill="#7fb87f"/>
+    <rect x="334" y="334" width="158" height="158" fill="#d9b84a"/>
+  </g>
+
+  <!-- Border sits ON TOP of the heatmap -->
+  <rect
+    x="20"
+    y="20"
+    width="472"
+    height="472"
+    rx="112"
+    ry="112"
+    fill="none"
+    stroke="#1a1a1a"
+    stroke-opacity="0.30"
+    stroke-width="12"
+  />
+</svg>
