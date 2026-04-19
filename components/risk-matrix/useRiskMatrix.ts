@@ -33,11 +33,12 @@ import {
   isArrowWithSelectionOrOsShortcut,
 } from "./listTextareaNav";
 import {
+  applyPoolTextUpdate,
   categorizedRiskRowKey,
+  getCategorizedRisksFlat,
   isMatrixCellEmptyBackgroundClick,
   mergeHydratedGrid,
   normalizePoolLines,
-  parseRiskCellShortcut,
 } from "./riskMatrixUtils";
 
 /** Stable across SSR and client — not derived from `useId()`. */
@@ -76,6 +77,9 @@ export function useRiskMatrix(options: UseRiskMatrixOptions = {}) {
       ? initialSnapshot.pool
       : [{ id: DEFAULT_EMPTY_POOL_LINE_ID, text: "" }],
   );
+  const poolRef = useRef(pool);
+  poolRef.current = pool;
+
   const [grid, setGrid] = useState<Record<CellKey, GridLine[]>>(
     () => mergeHydratedGrid(initialSnapshot?.grid),
   );
@@ -264,43 +268,21 @@ export function useRiskMatrix(options: UseRiskMatrixOptions = {}) {
   const updateText = useCallback(
     (loc: LineLocation, id: string, text: string) => {
       if (loc === "pool") {
-        setPool((prev) => {
-          const shortcut = parseRiskCellShortcut(text);
-          const next = normalizePoolLines(
-            prev.map((l) =>
-              l.id === id
-                ? { ...l, text: shortcut ? shortcut.cleanedText : text }
-                : l,
-            ),
-          );
-          if (shortcut) {
-            const moved = next.find((line) => line.id === id);
-            if (moved && moved.text.trim().length > 0) {
-              const gridLine: GridLine = {
-                ...(moved as GridLine),
-                id: newLineId(),
-              };
-              setGrid((gridPrev) => ({
-                ...gridPrev,
-                [shortcut.targetCell]: [
-                  ...(gridPrev[shortcut.targetCell] || []),
-                  gridLine,
-                ],
-              }));
-              const withoutMoved = normalizePoolLines(
-                next.filter((line) => line.id !== id),
-              );
-              const last = withoutMoved[withoutMoved.length - 1];
-              if (withoutMoved.length === 0 || (last && last.text !== "")) {
-                withoutMoved.push({ id: newLineId(), text: "" });
-              }
-              return normalizePoolLines(withoutMoved);
-            }
-          }
-          const last = next[next.length - 1];
-          if (!last || last.text !== "") next.push({ id: newLineId(), text: "" });
-          return normalizePoolLines(next);
-        });
+        const result = applyPoolTextUpdate(
+          poolRef.current,
+          id,
+          text,
+          newLineId,
+        );
+        poolRef.current = result.pool;
+        setPool(result.pool);
+        if (result.gridAppend) {
+          const { cell, line } = result.gridAppend;
+          setGrid((gridPrev) => ({
+            ...gridPrev,
+            [cell]: [...(gridPrev[cell] || []), line],
+          }));
+        }
       } else {
         setGrid((prev) => ({
           ...prev,
@@ -591,6 +573,49 @@ export function useRiskMatrix(options: UseRiskMatrixOptions = {}) {
       if (e.key === "ArrowUp" || e.key === "ArrowDown") {
         const linesRef = linesNow.map((l) => ({ id: l.id, text: l.text }));
         if (handleListVerticalArrows(e, linesRef, line.id, focusRiskLine)) return;
+
+        if (isArrowWithSelectionOrOsShortcut(e)) return;
+        const idx = linesNow.findIndex((l) => l.id === line.id);
+        if (idx < 0) return;
+        const before = el.value.substring(0, caret);
+        const after = el.value.substring(caret);
+        const flat = getCategorizedRisksFlat(grid);
+        const rowIndex = flat.findIndex(
+          (x) => x.cellKey === cellKey && x.lineId === line.id,
+        );
+
+        if (
+          e.key === "ArrowDown" &&
+          idx === linesNow.length - 1 &&
+          !after.includes("\n") &&
+          rowIndex >= 0
+        ) {
+          const red = line.reduce || [];
+          if (red.length > 0) {
+            e.preventDefault();
+            focusSubLine(red[0].id, 0);
+            return;
+          }
+        }
+
+        if (
+          e.key === "ArrowUp" &&
+          idx === 0 &&
+          !before.includes("\n") &&
+          rowIndex > 0
+        ) {
+          const prev = flat[rowIndex - 1];
+          const prevParent = (grid[prev.cellKey] || []).find(
+            (l) => l.id === prev.lineId,
+          );
+          const pp = prevParent?.prepare || [];
+          if (pp.length > 0) {
+            const lastP = pp[pp.length - 1];
+            e.preventDefault();
+            focusSubLine(lastP.id, lastP.text.length);
+            return;
+          }
+        }
       }
     },
     [
@@ -598,6 +623,7 @@ export function useRiskMatrix(options: UseRiskMatrixOptions = {}) {
       splitLine,
       mergeWithPrevious,
       focusRiskLine,
+      focusSubLine,
       hasMitigationOrPreparation,
       requestDeleteConfirmation,
     ],
@@ -748,9 +774,87 @@ export function useRiskMatrix(options: UseRiskMatrixOptions = {}) {
       if (e.key === "ArrowUp" || e.key === "ArrowDown") {
         const linesRef = arr.map((s) => ({ id: s.id, text: s.text }));
         if (handleListVerticalArrows(e, linesRef, subLine.id, focusSubLine)) return;
+
+        if (isArrowWithSelectionOrOsShortcut(e)) return;
+        const idx = arr.findIndex((s) => s.id === subLine.id);
+        if (idx < 0) return;
+        const before = el.value.substring(0, caret);
+        const after = el.value.substring(caret);
+        const flat = getCategorizedRisksFlat(grid);
+        const rowIndex = flat.findIndex(
+          (x) => x.cellKey === cellKey && x.lineId === parentLineId,
+        );
+
+        if (
+          e.key === "ArrowDown" &&
+          subType === "reduce" &&
+          idx === arr.length - 1 &&
+          !after.includes("\n") &&
+          rowIndex >= 0
+        ) {
+          const parent = (grid[cellKey] || []).find((l) => l.id === parentLineId);
+          const prep = parent?.prepare || [];
+          if (prep.length > 0) {
+            e.preventDefault();
+            focusSubLine(prep[0].id, 0);
+            return;
+          }
+        }
+
+        if (
+          e.key === "ArrowUp" &&
+          subType === "prepare" &&
+          idx === 0 &&
+          !before.includes("\n") &&
+          rowIndex >= 0
+        ) {
+          const parent = (grid[cellKey] || []).find((l) => l.id === parentLineId);
+          const red = parent?.reduce || [];
+          if (red.length > 0) {
+            const lastR = red[red.length - 1];
+            e.preventDefault();
+            focusSubLine(lastR.id, lastR.text.length);
+            return;
+          }
+        }
+
+        if (
+          e.key === "ArrowDown" &&
+          subType === "prepare" &&
+          idx === arr.length - 1 &&
+          !after.includes("\n") &&
+          rowIndex >= 0 &&
+          rowIndex < flat.length - 1
+        ) {
+          const next = flat[rowIndex + 1];
+          const nextParent = (grid[next.cellKey] || []).find(
+            (l) => l.id === next.lineId,
+          );
+          const nr = nextParent?.reduce || [];
+          if (nr.length > 0) {
+            e.preventDefault();
+            focusSubLine(nr[0].id, 0);
+            return;
+          }
+        }
+
+        if (
+          e.key === "ArrowUp" &&
+          subType === "reduce" &&
+          idx === 0 &&
+          !before.includes("\n") &&
+          rowIndex >= 0
+        ) {
+          const parent = (grid[cellKey] || []).find((l) => l.id === parentLineId);
+          if (parent) {
+            e.preventDefault();
+            focusRiskLine(parentLineId, parent.text.length);
+            return;
+          }
+        }
       }
     },
-    [grid, splitSubLine, mergeSubWithPrevious, focusSubLine],
+    [grid, splitSubLine, mergeSubWithPrevious, focusSubLine, focusRiskLine],
   );
 
   const findLine = useCallback(

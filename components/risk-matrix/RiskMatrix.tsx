@@ -7,6 +7,7 @@ import MitigationsTablePlaceholder from "./MitigationsTablePlaceholder";
 import DeleteRiskDialog from "./DeleteRiskDialog";
 import DragPreviewLayer from "./DragPreviewLayer";
 import LikelihoodImpactMatrix from "./LikelihoodImpactMatrix";
+import MatrixHelpSection from "./MatrixHelpSection";
 import MatrixTopBar from "./MatrixTopBar";
 import MitigationsStep3Prompt from "./MitigationsStep3Prompt";
 import RiskPoolSection from "./RiskPoolSection";
@@ -38,6 +39,8 @@ function RiskMatrixCanvas({ workspace: ws }: CanvasProps) {
     >
       <MatrixTopBar workspace={ws} />
 
+      <MatrixHelpSection />
+
       <RiskPoolSection
         pool={m.pool}
         dragState={m.dragState}
@@ -50,17 +53,19 @@ function RiskMatrixCanvas({ workspace: ws }: CanvasProps) {
         onGripPointerDown={m.onGripPointerDown}
       />
 
-      <LikelihoodImpactMatrix
-        grid={m.grid}
-        dragState={m.dragState}
-        dragOverTarget={m.dragOverTarget}
-        onAddCellLine={m.requestAddMatrixCellLine}
-        onCellClick={m.onCellClick}
-        onChange={m.updateText}
-        onKeyDown={m.handleKeyDown}
-        onBlur={m.handleLineBlur}
-        onGripPointerDown={m.onGripPointerDown}
-      />
+      <div className="-mx-4 min-w-0 w-[calc(100%+2rem)] sm:mx-0 sm:w-full">
+        <LikelihoodImpactMatrix
+          grid={m.grid}
+          dragState={m.dragState}
+          dragOverTarget={m.dragOverTarget}
+          onAddCellLine={m.requestAddMatrixCellLine}
+          onCellClick={m.onCellClick}
+          onChange={m.updateText}
+          onKeyDown={m.handleKeyDown}
+          onBlur={m.handleLineBlur}
+          onGripPointerDown={m.onGripPointerDown}
+        />
+      </div>
 
       <div className="mt-9 w-full min-w-0">
         <div className="w-full min-w-0">

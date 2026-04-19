@@ -43,12 +43,12 @@ export default function LikelihoodImpactMatrix({
   onGripPointerDown,
 }: LikelihoodImpactMatrixProps) {
   return (
-    <div className="grid grid-cols-[44px_repeat(3,1fr)] grid-rows-[auto_repeat(3,minmax(140px,auto))] gap-px overflow-hidden rounded border border-black/8 bg-black/6">
+    <div className="grid grid-cols-[32px_repeat(3,1fr)] grid-rows-[auto_repeat(3,minmax(140px,auto))] gap-px overflow-hidden rounded-none border border-black/8 bg-black/6 sm:grid-cols-[44px_repeat(3,1fr)] sm:rounded">
       <div className="bg-rm-canvas" />
       {COL_LABELS.map((label) => (
         <div
           key={label}
-          className="flex items-center justify-center bg-rm-canvas px-2 py-2.5 text-xs font-medium tracking-wide opacity-95 sm:text-sm"
+          className="flex items-center justify-center bg-rm-canvas px-1 py-2 text-xs font-medium tracking-wide opacity-95 sm:px-2 sm:py-2.5 sm:text-sm"
         >
           {label}
         </div>
@@ -56,7 +56,7 @@ export default function LikelihoodImpactMatrix({
 
       {[0, 1, 2].map((row) => (
         <React.Fragment key={row}>
-          <div className="flex items-center justify-center bg-rm-canvas px-0 py-1.5 text-xs font-medium tracking-wide opacity-95 sm:text-sm">
+          <div className="flex items-center justify-center bg-rm-canvas px-0 py-1 text-xs font-medium tracking-wide opacity-95 sm:py-1.5 sm:text-sm">
             <span className="whitespace-nowrap [writing-mode:vertical-rl] rotate-180">
               {ROW_LABELS[row]}
             </span>
@@ -72,7 +72,7 @@ export default function LikelihoodImpactMatrix({
                 onClick={(e) => onCellClick(e, key)}
                 className={[
                   CELL_BG_CLASSES[row][col],
-                  "group relative flex min-h-0 cursor-text flex-col px-1.5 py-1 transition-shadow duration-100",
+                  "group relative flex min-h-0 cursor-text flex-col px-1 py-1 transition-shadow duration-100 sm:px-1.5",
                   isDragOver
                     ? "shadow-[inset_0_0_0_2px_rgba(0,0,0,0.5)]"
                     : "",

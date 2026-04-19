@@ -5,6 +5,12 @@ import type {
   ColorGroupKey,
 } from "./types";
 
+/**
+ * Toolbar + help panel: `max-w-prose` (~65ch) — comfortable line length;
+ * left-aligned in the canvas (`w-full` up to that cap).
+ */
+export const MATRIX_READING_COLUMN_CLASS = "w-full max-w-prose";
+
 /** Tailwind cell backgrounds [row][col] — static strings for the compiler. */
 export const CELL_BG_CLASSES: string[][] = [
   ["bg-rm-yellow", "bg-rm-orange", "bg-rm-red"],

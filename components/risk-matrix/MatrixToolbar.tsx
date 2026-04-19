@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { CircleCheck, CircleHelp, FilePlus, History, Trash2 } from "lucide-react";
+import { CircleCheck, FilePlus, History, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -16,6 +16,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 import DeleteMatrixDialog from "./DeleteMatrixDialog";
 import type { MatrixWorkspaceApi } from "./useMatrixWorkspace";
 import { DEFAULT_DRAFT_MATRIX_TITLE } from "./matrixTypes";
@@ -27,6 +28,10 @@ type PendingMatrixDelete =
 
 type Props = {
   workspace: MatrixWorkspaceApi;
+  /** When true, show icon-only controls (labels via tooltip / aria-label). */
+  iconOnly?: boolean;
+  /** Document actions on the top strip — ghost-style buttons on a panel background. */
+  toolbar?: boolean;
 };
 
 function needsMatrixNamePrompt(title: string): boolean {
@@ -36,7 +41,11 @@ function needsMatrixNamePrompt(title: string): boolean {
 }
 
 /** New + Open recent — after the site title and matrix title in the top bar. */
-export function MatrixDocumentActions({ workspace: ws }: Props) {
+export function MatrixDocumentActions({
+  workspace: ws,
+  iconOnly = false,
+  toolbar = false,
+}: Props) {
   const [createOpen, setCreateOpen] = useState(false);
   const [recentOpen, setRecentOpen] = useState(false);
   const [savedLocallyOpen, setSavedLocallyOpen] = useState(false);
@@ -76,70 +85,162 @@ export function MatrixDocumentActions({ workspace: ws }: Props) {
     setNameInput("");
   };
 
-  return (
-    <>
-      <div className="flex min-w-0 flex-wrap items-center gap-2">
-        <Button variant="outline" size="sm" type="button" onClick={openCreateDialog}>
-          <FilePlus size={15} strokeWidth={2} aria-hidden />
-          New
-        </Button>
+  const iconBtn = iconOnly ? "gap-0 px-2" : "";
+  const surface = toolbar ? "ghost" : "outline";
 
-        {hasRecent ? (
+  const newBtn = (
+    <Button
+      variant={surface}
+      size="sm"
+      type="button"
+      onClick={openCreateDialog}
+      className={iconBtn}
+      aria-label={iconOnly ? "New matrix" : undefined}
+    >
+      <FilePlus size={15} strokeWidth={2} aria-hidden />
+      {!iconOnly ? "New" : null}
+    </Button>
+  );
+
+  const recentBtn = hasRecent ? (
+    <Button
+      variant={surface}
+      size="sm"
+      type="button"
+      onClick={() => setRecentOpen(true)}
+      className={iconBtn}
+      aria-label={iconOnly ? "Open recent" : undefined}
+    >
+      <History size={15} strokeWidth={2} aria-hidden />
+      {!iconOnly ? "Open recent" : null}
+    </Button>
+  ) : (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="inline-flex" tabIndex={0}>
           <Button
-            variant="outline"
+            variant={surface}
             size="sm"
             type="button"
-            onClick={() => setRecentOpen(true)}
+            disabled
+            className={iconBtn}
+            aria-label={iconOnly ? "Open recent" : undefined}
           >
             <History size={15} strokeWidth={2} aria-hidden />
-            Open recent
+            {!iconOnly ? "Open recent" : null}
           </Button>
-        ) : (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span className="inline-flex" tabIndex={0}>
-                <Button variant="outline" size="sm" type="button" disabled>
-                  <History size={15} strokeWidth={2} aria-hidden />
-                  Open recent
-                </Button>
-              </span>
-            </TooltipTrigger>
-            <TooltipContent side="bottom" className="max-w-xs">
-              No saved matrices yet. Use New to save the current sheet to your
-              library; saved matrices will appear here.
-            </TooltipContent>
-          </Tooltip>
+        </span>
+      </TooltipTrigger>
+      <TooltipContent side="bottom" className="max-w-xs">
+        No saved matrices yet. Use New to save the current sheet to your
+        library; saved matrices will appear here.
+      </TooltipContent>
+    </Tooltip>
+  );
+
+  const savedBtn = (
+    <Button
+      variant={surface}
+      size="sm"
+      type="button"
+      onClick={() => setSavedLocallyOpen(true)}
+      className={cn(
+        iconBtn,
+        toolbar &&
+          "text-emerald-900 hover:bg-emerald-50 hover:text-emerald-950 active:bg-emerald-100/80",
+        !toolbar && "text-zinc-700",
+      )}
+      aria-label="Saved locally: where your work is kept"
+    >
+      <CircleCheck
+        size={15}
+        strokeWidth={2}
+        aria-hidden
+        className={toolbar ? "text-emerald-600" : undefined}
+      />
+      {!iconOnly ? "Saved locally" : null}
+    </Button>
+  );
+
+  const deleteBtn = (
+    <Button
+      variant={toolbar ? "ghost" : "destructiveOutline"}
+      size="sm"
+      type="button"
+      onClick={() =>
+        setPendingDelete({ kind: "current", title: ws.activeTitle })
+      }
+      className={cn(
+        iconBtn,
+        toolbar &&
+          "text-zinc-700 hover:bg-red-50 hover:text-red-800 active:bg-red-100/80",
+      )}
+      aria-label="Delete this matrix from this browser"
+    >
+      <Trash2
+        size={15}
+        strokeWidth={2}
+        aria-hidden
+        className="text-zinc-600 transition-colors group-hover:text-red-600"
+      />
+      {!iconOnly ? "Delete" : null}
+    </Button>
+  );
+
+  const leftCluster = iconOnly ? (
+    <>
+      <Tooltip>
+        <TooltipTrigger asChild>{newBtn}</TooltipTrigger>
+        <TooltipContent side="bottom">New matrix</TooltipContent>
+      </Tooltip>
+      {hasRecent ? (
+        <Tooltip>
+          <TooltipTrigger asChild>{recentBtn}</TooltipTrigger>
+          <TooltipContent side="bottom">Open recent</TooltipContent>
+        </Tooltip>
+      ) : (
+        recentBtn
+      )}
+      <Tooltip>
+        <TooltipTrigger asChild>{deleteBtn}</TooltipTrigger>
+        <TooltipContent side="bottom">Delete this matrix</TooltipContent>
+      </Tooltip>
+    </>
+  ) : (
+    <>
+      {newBtn}
+      {recentBtn}
+      {deleteBtn}
+    </>
+  );
+
+  const savedCluster = iconOnly ? (
+    <Tooltip>
+      <TooltipTrigger asChild>{savedBtn}</TooltipTrigger>
+      <TooltipContent side="bottom">Saved on your device</TooltipContent>
+    </Tooltip>
+  ) : (
+    savedBtn
+  );
+
+  return (
+    <>
+      <div
+        className={cn(
+          "flex min-w-0 flex-nowrap items-center",
+          toolbar && "w-full justify-between gap-2 sm:gap-4",
+          !toolbar && "gap-2",
         )}
-
-        <Button
-          variant="outline"
-          size="sm"
-          type="button"
-          onClick={() => setSavedLocallyOpen(true)}
-          className="text-zinc-700"
-          aria-label="Saved locally: where your work is kept"
+      >
+        <div
+          className={cn(
+            "flex min-w-0 flex-nowrap items-center",
+            toolbar ? "gap-1" : "gap-2",
+          )}
         >
-          <CircleCheck size={15} strokeWidth={2} aria-hidden />
-          Saved locally
-        </Button>
-
-        <Button
-          variant="destructiveOutline"
-          size="sm"
-          type="button"
-          onClick={() =>
-            setPendingDelete({ kind: "current", title: ws.activeTitle })
-          }
-          aria-label="Delete this matrix from this browser"
-        >
-          <Trash2
-            size={15}
-            strokeWidth={2}
-            aria-hidden
-            className="text-zinc-600 transition-colors group-hover:text-red-600"
-          />
-          Delete
-        </Button>
+          {leftCluster}
+        </div>
+        <div className="shrink-0">{savedCluster}</div>
       </div>
 
       <Dialog open={savedLocallyOpen} onOpenChange={setSavedLocallyOpen}>
@@ -293,61 +394,3 @@ export function MatrixDocumentActions({ workspace: ws }: Props) {
   );
 }
 
-export function MatrixHelpTrigger() {
-  return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm" type="button">
-          <CircleHelp size={15} strokeWidth={2} aria-hidden />
-          Help
-        </Button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>How to use this matrix</DialogTitle>
-          <DialogDescription>
-            Capture risks in the top pool, then drag each item into the matrix
-            cell that matches likelihood and impact.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="mt-3 space-y-2 text-sm opacity-90">
-          <p>
-            Add mitigation ideas under each categorized risk, then star key
-            items to also list them in the Actions panel.
-          </p>
-          <p>
-            Keep each line short and specific so your priority actions stay easy
-            to review.
-          </p>
-          <p>
-            <span className="font-medium text-rm-ink">Pool shortcut:</span> end a
-            pool line with{" "}
-            <code className="rounded bg-black/[0.06] px-1 py-0.5 font-mono text-[13px]">
-              impact / likelihood
-            </code>{" "}
-            (impact, slash, likelihood) to move that risk into the matching
-            cell—e.g.{" "}
-            <code className="rounded bg-black/[0.06] px-1 py-0.5 font-mono text-[13px]">
-              HI/HL
-            </code>{" "}
-            or{" "}
-            <code className="rounded bg-black/[0.06] px-1 py-0.5 font-mono text-[13px]">
-              LI/LL
-            </code>
-            . Use short codes only—the token before the slash is impact (e.g.{" "}
-            <span className="font-mono text-[13px]">HI</span>,{" "}
-            <span className="font-mono text-[13px]">MI</span>,{" "}
-            <span className="font-mono text-[13px]">LI</span>
-            ), after the slash is likelihood (e.g.{" "}
-            <span className="font-mono text-[13px]">HL</span>,{" "}
-            <span className="font-mono text-[13px]">ML</span>,{" "}
-            <span className="font-mono text-[13px]">LL</span>
-            ). Alternate spellings like{" "}
-            <span className="font-mono text-[13px]">IL</span> or{" "}
-            <span className="font-mono text-[13px]">LH</span> work too.
-          </p>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}

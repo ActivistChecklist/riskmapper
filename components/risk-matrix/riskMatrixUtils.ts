@@ -1,4 +1,25 @@
+import { COLOR_GROUPS } from "./constants";
 import type { CellKey, GridLine, PoolLine } from "./types";
+
+/**
+ * Non-empty risks in categorized table order (same as `risksByColor` / step 3 UI):
+ * color group order, then cell order within group, then line order within cell.
+ */
+export function getCategorizedRisksFlat(
+  grid: Record<CellKey, GridLine[]>,
+): { cellKey: CellKey; lineId: string }[] {
+  const out: { cellKey: CellKey; lineId: string }[] = [];
+  for (const group of COLOR_GROUPS) {
+    for (const cellKey of group.cells) {
+      for (const line of grid[cellKey] || []) {
+        if (line.text.trim().length > 0) {
+          out.push({ cellKey, lineId: line.id });
+        }
+      }
+    }
+  }
+  return out;
+}
 
 /** Matrix cell: treat click as “empty chrome” (not an existing line or control). */
 export function isMatrixCellEmptyBackgroundClick(target: unknown): boolean {
@@ -95,4 +116,67 @@ export function normalizePoolLines(lines: PoolLine[]): PoolLine[] {
   const tailEmpties = tail.filter((l) => l.text === "");
   if (tailEmpties.length <= 1) return lines;
   return [...prefix, tailEmpties[0]];
+}
+
+/**
+ * Pure pool text update (including `impact / likelihood` shortcut → matrix cell).
+ * Call `setPool(result.pool)` and, if `result.gridAppend` is set, `setGrid` separately —
+ * never nest `setGrid` inside a `setPool` functional updater (React Strict Mode / concurrent
+ * re-runs would append duplicate lines to the grid).
+ */
+export function applyPoolTextUpdate(
+  prev: PoolLine[],
+  id: string,
+  text: string,
+  newLineId: () => string,
+): {
+  pool: PoolLine[];
+  gridAppend: { cell: CellKey; line: GridLine } | null;
+} {
+  const shortcut = parseRiskCellShortcut(text);
+  const next = normalizePoolLines(
+    prev.map((l) =>
+      l.id === id ? { ...l, text: shortcut ? shortcut.cleanedText : text } : l,
+    ),
+  );
+
+  if (!shortcut) {
+    const last = next[next.length - 1];
+    if (!last || last.text !== "") {
+      return {
+        pool: normalizePoolLines([...next, { id: newLineId(), text: "" }]),
+        gridAppend: null,
+      };
+    }
+    return { pool: next, gridAppend: null };
+  }
+
+  const moved = next.find((line) => line.id === id);
+  if (!moved || moved.text.trim().length === 0) {
+    const last = next[next.length - 1];
+    if (!last || last.text !== "") {
+      return {
+        pool: normalizePoolLines([...next, { id: newLineId(), text: "" }]),
+        gridAppend: null,
+      };
+    }
+    return { pool: next, gridAppend: null };
+  }
+
+  const gridLine: GridLine = {
+    ...(moved as GridLine),
+    id: newLineId(),
+  };
+  let withoutMoved = normalizePoolLines(next.filter((line) => line.id !== id));
+  const lastAfter = withoutMoved[withoutMoved.length - 1];
+  if (withoutMoved.length === 0 || (lastAfter && lastAfter.text !== "")) {
+    withoutMoved = normalizePoolLines([
+      ...withoutMoved,
+      { id: newLineId(), text: "" },
+    ]);
+  }
+  return {
+    pool: withoutMoved,
+    gridAppend: { cell: shortcut.targetCell, line: gridLine },
+  };
 }

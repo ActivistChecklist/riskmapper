@@ -35,12 +35,9 @@
   --color-rm-star-strong: var(--color-rm-ink);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+/* No prefers-color-scheme overrides: UI is light-only (rm-canvas pastels). Dark
+   system theme was turning `body` near-black while content stayed light, which
+   read as a broken layout (especially wide-viewport side gutters). */
 
 body {
   background: var(--background);

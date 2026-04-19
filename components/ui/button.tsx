@@ -12,10 +12,13 @@ const buttonVariants = cva(
         default: "bg-rm-actions text-rm-actions-fg hover:opacity-90",
         primary: "bg-rm-primary text-rm-primary-fg hover:bg-rm-primary-hover",
         outline: "border border-black/15 bg-white text-rm-ink hover:bg-black/5",
+        /** Muted strip / toolbar — borderless, hover wash (shadcn-style ghost). */
+        ghost:
+          "border border-transparent bg-transparent text-rm-ink hover:bg-black/6 active:bg-black/10",
         destructive:
-          "border border-transparent bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-600/40",
+          "border border-transparent bg-red-600 text-white hover:bg-red-700 focus-visible:ring-black/20",
         destructiveOutline:
-          "group border border-red-200 bg-white text-zinc-800 hover:border-red-300 hover:bg-red-50 hover:text-red-950 focus-visible:ring-red-500/30",
+          "group border border-black/15 bg-white text-rm-ink hover:border-red-300 hover:bg-red-50 hover:text-red-950 focus-visible:ring-black/20",
       },
       size: {
         default: "h-9 px-4 py-2",

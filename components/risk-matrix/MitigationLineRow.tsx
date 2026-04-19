@@ -43,34 +43,29 @@ const MitigationLineRow = React.memo(function MitigationLineRow({
   onKeyDown,
   onToggleStar,
 }: MitigationLineRowProps) {
-  const isEmpty = subLine.text.length === 0;
   const starred = subLine.starred;
   return (
     <div className="my-px flex items-start gap-0 sm:gap-0.5" data-mitigation-row>
-      {isEmpty ? (
-        <span aria-hidden className="mt-1 inline-block w-[22px] shrink-0 sm:w-[26px]" />
-      ) : (
-        <span
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggleStar(cellKey, parentLineId, subType, subLine.id);
-          }}
-          title={starred ? "Remove from actions list" : "Also show in actions list"}
-          className={[
-            "mt-1 flex size-[22px] shrink-0 cursor-pointer select-none items-center justify-center sm:size-[26px]",
-            starred
-              ? "text-rm-star-strong"
-              : "text-black opacity-70 hover:opacity-100",
-          ].join(" ")}
-        >
-          <Star
-            size={16}
-            fill={starred ? "currentColor" : "none"}
-            stroke="currentColor"
-            strokeWidth={starred ? 1.5 : 2.2}
-          />
-        </span>
-      )}
+      <span
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggleStar(cellKey, parentLineId, subType, subLine.id);
+        }}
+        title={starred ? "Remove from actions list" : "Also show in actions list"}
+        className={[
+          "mt-1 flex size-[22px] shrink-0 cursor-pointer select-none items-center justify-center sm:size-[26px]",
+          starred
+            ? "text-rm-star-strong"
+            : "text-black opacity-70 hover:opacity-100",
+        ].join(" ")}
+      >
+        <Star
+          size={16}
+          fill={starred ? "currentColor" : "none"}
+          stroke="currentColor"
+          strokeWidth={starred ? 1.5 : 2.2}
+        />
+      </span>
       <AutoTextarea
         subLineId={subLine.id}
         value={subLine.text}

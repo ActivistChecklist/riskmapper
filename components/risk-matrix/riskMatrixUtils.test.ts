@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  applyPoolTextUpdate,
   categorizedRiskRowKey,
   emptyGrid,
+  getCategorizedRisksFlat,
   isMatrixCellEmptyBackgroundClick,
   isMitigationColumnEmptyBackgroundClick,
   mergeHydratedGrid,
@@ -10,6 +12,37 @@ import {
 describe("categorizedRiskRowKey", () => {
   it("joins cell and line id", () => {
     expect(categorizedRiskRowKey("1-2", "abc")).toBe("1-2:abc");
+  });
+});
+
+describe("applyPoolTextUpdate", () => {
+  it("moves one line to the matrix cell for HI/LL shortcut (single grid append)", () => {
+    let n = 0;
+    const nid = () => `id-${++n}`;
+    const pool = [{ id: "a", text: "" }];
+    const r = applyPoolTextUpdate(pool, "a", "my risk HI/LL", nid);
+    expect(r.gridAppend).not.toBeNull();
+    expect(r.gridAppend?.cell).toBe("2-2");
+    expect(r.gridAppend?.line.text).toBe("my risk");
+    expect(r.pool.some((l) => l.text === "my risk")).toBe(false);
+    expect(r.pool.filter((l) => l.text === "").length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe("getCategorizedRisksFlat", () => {
+  it("lists non-empty risks in group/cell/line order", () => {
+    const grid = emptyGrid();
+    grid["0-2"] = [
+      { id: "a", text: "first red cell" },
+      { id: "b", text: "second in same cell" },
+    ];
+    grid["0-1"] = [{ id: "c", text: "orange" }];
+    grid["0-0"] = [{ id: "d", text: "" }];
+    expect(getCategorizedRisksFlat(grid)).toEqual([
+      { cellKey: "0-2", lineId: "a" },
+      { cellKey: "0-2", lineId: "b" },
+      { cellKey: "0-1", lineId: "c" },
+    ]);
   });
 });
 
