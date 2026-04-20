@@ -1,19 +1,15 @@
 "use client";
 
-import React, { useCallback, useMemo, useState } from "react";
-import { Copy, Files, Star } from "lucide-react";
+import React, { useMemo } from "react";
+import { Copy, Star } from "lucide-react";
 import ActionRow from "./ActionRow";
 import OtherActionRow from "./OtherActionRow";
+import { STEP_SECTION_ACTION_BUTTON_CLASS } from "./constants";
+import { copyStarredActions } from "./matrixClipboard";
 import { Button } from "@/components/ui/button";
-import type { CellKey, GridLine, OtherAction, StarredAction } from "./types";
-import { buildActionsClipboardPayload } from "./actionsClipboard";
-import {
-  formatAllMitigationsMarkdown,
-  hasMitigationsMarkdownExport,
-} from "./mitigationsMarkdown";
+import type { CellKey, OtherAction, StarredAction } from "./types";
 
 export type ActionsAsideProps = {
-  grid: Record<CellKey, GridLine[]>;
   allActions: StarredAction[];
   otherActions: OtherAction[];
   onChangeSub: (
@@ -43,7 +39,6 @@ export type ActionsAsideProps = {
 };
 
 export default function ActionsAside({
-  grid,
   allActions,
   otherActions,
   onChangeSub,
@@ -54,10 +49,6 @@ export default function ActionsAside({
   onOtherKeyDown,
   onOtherBlur,
 }: ActionsAsideProps) {
-  const [copyNotice, setCopyNotice] = useState<"idle" | "actions" | "mitigations">(
-    "idle",
-  );
-
   const totalCount = allActions.length + otherActions.length;
 
   const hasCopyableText = useMemo(() => {
@@ -68,65 +59,9 @@ export default function ActionsAside({
     return starredOk || otherOk;
   }, [allActions, otherActions]);
 
-  const hasMitigationsExport = useMemo(
-    () => hasMitigationsMarkdownExport(grid),
-    [grid],
-  );
-
-  const scheduleCopyNoticeReset = useCallback(() => {
-    window.setTimeout(() => setCopyNotice("idle"), 2000);
-  }, []);
-
-  const handleCopyActions = useCallback(async () => {
-    if (!hasCopyableText) return;
-    const { plain, html } = buildActionsClipboardPayload(
-      allActions,
-      otherActions,
-    );
-    if (!plain.trim()) return;
-    const markCopied = () => {
-      setCopyNotice("actions");
-      scheduleCopyNoticeReset();
-    };
-    try {
-      if (typeof ClipboardItem !== "undefined" && navigator.clipboard.write) {
-        await navigator.clipboard.write([
-          new ClipboardItem({
-            "text/plain": new Blob([plain], { type: "text/plain" }),
-            "text/html": new Blob([html], { type: "text/html" }),
-          }),
-        ]);
-        markCopied();
-        return;
-      }
-    } catch {
-      // fall through to plain text
-    }
-    try {
-      await navigator.clipboard.writeText(plain);
-      markCopied();
-    } catch {
-      // clipboard API unavailable or denied
-    }
-  }, [
-    allActions,
-    otherActions,
-    hasCopyableText,
-    scheduleCopyNoticeReset,
-  ]);
-
-  const handleCopyMitigations = useCallback(async () => {
-    if (!hasMitigationsExport) return;
-    const md = formatAllMitigationsMarkdown(grid);
-    if (!md.trim()) return;
-    try {
-      await navigator.clipboard.writeText(md);
-      setCopyNotice("mitigations");
-      scheduleCopyNoticeReset();
-    } catch {
-      // clipboard API unavailable or denied
-    }
-  }, [grid, hasMitigationsExport, scheduleCopyNoticeReset]);
+  const handleCopyActions = () => {
+    void copyStarredActions(allActions, otherActions);
+  };
 
   const addOtherActionControl = (
     <div className="mt-1.5 flex justify-stretch sm:justify-start">
@@ -184,49 +119,32 @@ export default function ActionsAside({
       </div>
     );
 
-  const footer = (
-    <div className="border-t border-black/10 bg-zinc-50/80 px-3 py-3 sm:px-4 sm:py-3.5">
-      <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
-        <Button
-          type="button"
-          variant="primary"
-          size="lg"
-          className="min-h-12 w-full min-w-0 flex-1 sm:w-auto"
-          disabled={!hasCopyableText}
-          onClick={handleCopyActions}
-        >
-          <Copy size={18} strokeWidth={2} aria-hidden />
-          {copyNotice === "actions" ? "Copied" : "Copy actions"}
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="lg"
-          className="min-h-12 w-full min-w-0 flex-1 sm:w-auto"
-          disabled={!hasMitigationsExport}
-          onClick={handleCopyMitigations}
-        >
-          <Files size={18} strokeWidth={2} aria-hidden />
-          {copyNotice === "mitigations" ? "Copied" : "Copy all mitigations"}
-        </Button>
-      </div>
-    </div>
-  );
-
   return (
     <aside className="min-w-0 xl:sticky xl:top-6 xl:self-start">
       <div className="flex flex-col overflow-hidden rounded-md border border-black/10 bg-white">
-        <div className="flex shrink-0 items-center gap-1.5 border-b border-black/10 bg-rm-actions px-3 py-2 text-rm-actions-fg">
+        <div className="flex shrink-0 items-center gap-1.5 border-b border-white/25 bg-rm-primary px-2 py-2 text-rm-primary-fg sm:px-3">
           <Star size={13} fill="currentColor" strokeWidth={1.5} />
-          <span className="text-xs font-semibold uppercase tracking-wide sm:text-sm">
+          <span className="min-w-0 flex-1 text-xs font-semibold uppercase tracking-wide sm:text-sm">
             Actions
           </span>
-          <span className="ml-0.5 text-xs opacity-90 sm:text-sm">
-            ({totalCount})
-          </span>
+          <span className="text-xs opacity-90 sm:text-sm">({totalCount})</span>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className={[
+              "h-8 shrink-0 gap-1 px-2",
+              STEP_SECTION_ACTION_BUTTON_CLASS,
+            ].join(" ")}
+            disabled={!hasCopyableText}
+            onClick={handleCopyActions}
+            aria-label="Copy actions"
+          >
+            <Copy size={16} strokeWidth={2} aria-hidden />
+            <span className="hidden sm:inline">Copy</span>
+          </Button>
         </div>
         {listBody}
-        {footer}
       </div>
     </aside>
   );

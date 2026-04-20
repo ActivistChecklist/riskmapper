@@ -107,8 +107,11 @@ export function normalizePoolLines(lines: PoolLine[]): PoolLine[] {
   })();
 
   if (lastNonEmptyIdx < 0) {
-    const first = lines[0];
-    return first ? [{ id: first.id, text: "" }] : lines;
+    // All lines empty: keep every row so multiple blank lines (Enter) are not
+    // squashed to one (blur/backspace would otherwise wipe the stack via
+    // handleLineBlur → normalizePoolLines).
+    if (lines.length === 0) return lines;
+    return lines;
   }
 
   const prefix = lines.slice(0, lastNonEmptyIdx + 1);

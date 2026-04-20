@@ -29,6 +29,8 @@ export type LikelihoodImpactMatrixProps = {
     line: PoolLine | GridLine,
   ) => void;
   onGripPointerDown: (e: React.PointerEvent, id: string) => void;
+  /** Sits under a {@link StepSection} header — flat top, rounded bottom. */
+  stepSectionFrame?: boolean;
 };
 
 export default function LikelihoodImpactMatrix({
@@ -41,9 +43,17 @@ export default function LikelihoodImpactMatrix({
   onKeyDown,
   onBlur,
   onGripPointerDown,
+  stepSectionFrame = false,
 }: LikelihoodImpactMatrixProps) {
   return (
-    <div className="grid grid-cols-[32px_repeat(3,1fr)] grid-rows-[auto_repeat(3,minmax(140px,auto))] gap-px overflow-hidden rounded-none border border-black/8 bg-black/6 sm:grid-cols-[44px_repeat(3,1fr)] sm:rounded">
+    <div
+      className={[
+        "grid grid-cols-[32px_repeat(3,1fr)] grid-rows-[auto_repeat(3,minmax(140px,auto))] gap-px overflow-hidden bg-black/6 sm:grid-cols-[44px_repeat(3,1fr)]",
+        stepSectionFrame
+          ? "rounded-none border border-black/10 border-t-0 sm:rounded-none sm:rounded-b-md"
+          : "rounded-none border border-black/8 sm:rounded",
+      ].join(" ")}
+    >
       <div className="bg-rm-canvas" />
       {COL_LABELS.map((label) => (
         <div

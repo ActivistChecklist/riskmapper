@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, type ReactNode } from "react";
 import { CircleCheck, FilePlus, History, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,7 +9,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Tooltip,
@@ -32,6 +31,8 @@ type Props = {
   iconOnly?: boolean;
   /** Document actions on the top strip — ghost-style buttons on a panel background. */
   toolbar?: boolean;
+  /** Placed before “Saved locally” on the right side of the toolbar row. */
+  toolbarCopyMenu?: ReactNode;
 };
 
 function needsMatrixNamePrompt(title: string): boolean {
@@ -45,6 +46,7 @@ export function MatrixDocumentActions({
   workspace: ws,
   iconOnly = false,
   toolbar = false,
+  toolbarCopyMenu,
 }: Props) {
   const [createOpen, setCreateOpen] = useState(false);
   const [recentOpen, setRecentOpen] = useState(false);
@@ -240,7 +242,10 @@ export function MatrixDocumentActions({
         >
           {leftCluster}
         </div>
-        <div className="shrink-0">{savedCluster}</div>
+        <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+          {toolbarCopyMenu}
+          {savedCluster}
+        </div>
       </div>
 
       <Dialog open={savedLocallyOpen} onOpenChange={setSavedLocallyOpen}>

@@ -7,7 +7,6 @@ describe("ActionsAside", () => {
     const onAddOther = vi.fn();
     render(
       <ActionsAside
-        grid={{}}
         allActions={[]}
         otherActions={[]}
         onChangeSub={vi.fn()}

@@ -8,6 +8,8 @@ import type { MatrixWorkspaceApi } from "./useMatrixWorkspace";
 
 type Props = {
   workspace: MatrixWorkspaceApi;
+  /** Copy / export control — receives compact mode when the toolbar switches to icon-only. */
+  copyMenu?: (opts: { iconOnly: boolean }) => React.ReactNode;
 };
 
 /** Invisible row matching full-label toolbar width — stable “does it fit?” probe (avoids compact/full flicker). */
@@ -32,13 +34,17 @@ function MatrixToolbarWidthProbe() {
       </div>
       <span className={chip}>
         <span className="inline-block w-[15px] shrink-0" />
+        Copy
+      </span>
+      <span className={chip}>
+        <span className="inline-block w-[15px] shrink-0" />
         Saved locally
       </span>
     </div>
   );
 }
 
-export default function MatrixTopBar({ workspace: ws }: Props) {
+export default function MatrixTopBar({ workspace: ws, copyMenu }: Props) {
   const toolbarRef = useRef<HTMLDivElement>(null);
   const measureRef = useRef<HTMLDivElement>(null);
   const [iconOnlyToolbar, setIconOnlyToolbar] = useState(false);
@@ -113,7 +119,12 @@ export default function MatrixTopBar({ workspace: ws }: Props) {
           >
             <MatrixToolbarWidthProbe />
           </div>
-          <MatrixDocumentActions iconOnly={iconOnlyToolbar} toolbar workspace={ws} />
+          <MatrixDocumentActions
+            iconOnly={iconOnlyToolbar}
+            toolbar
+            workspace={ws}
+            toolbarCopyMenu={copyMenu?.({ iconOnly: iconOnlyToolbar })}
+          />
         </div>
       </div>
     </TooltipProvider>

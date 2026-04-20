@@ -1,16 +1,18 @@
 import { COL_LABELS, ROW_LABELS } from "./constants";
 import type { CellKey, GridLine, SubLine } from "./types";
 
-function nonEmptyTrimmed(lines: SubLine[] | undefined): string[] {
-  return (lines ?? [])
-    .map((s) => s.text.replace(/\s+/g, " ").trim())
-    .filter((t) => t.length > 0);
-}
-
-/** One line of text safe to use after `- ` in a Markdown bullet. */
+/** One line of text safe to use after `- ` (and optional ⭐) in a Markdown bullet. */
 function bulletLine(text: string): string {
   const oneLine = text.replace(/\n/g, " ").trim();
   return oneLine.replace(/^([-*+]|\d+\.)\s/, "\\$&");
+}
+
+/** Markdown list item for a mitigation sub-line, or null if empty. */
+function bulletFromSubLine(s: SubLine): string | null {
+  const t = s.text.replace(/\s+/g, " ").trim();
+  if (t.length === 0) return null;
+  const star = s.starred ? "⭐ " : "";
+  return `- ${star}${bulletLine(t)}`;
 }
 
 /** Risk title safe for a `###` heading (strip leading `#` tokens). */
@@ -21,18 +23,24 @@ function riskHeadingTitle(line: GridLine): string {
 
 /** Markdown for one risk line’s mitigations, or null if none to export. */
 function formatRiskMitigationsBlock(line: GridLine): string | null {
-  const reduce = nonEmptyTrimmed(line.reduce);
-  const prepare = nonEmptyTrimmed(line.prepare);
-  if (reduce.length === 0 && prepare.length === 0) return null;
+  const reduceArr = line.reduce ?? [];
+  const prepareArr = line.prepare ?? [];
+  const reduceBullets = reduceArr
+    .map(bulletFromSubLine)
+    .filter((b): b is string => b != null);
+  const prepareBullets = prepareArr
+    .map(bulletFromSubLine)
+    .filter((b): b is string => b != null);
+  if (reduceBullets.length === 0 && prepareBullets.length === 0) return null;
 
   const chunks: string[] = [`### ${riskHeadingTitle(line)}`, ""];
-  if (reduce.length > 0) {
+  if (reduceBullets.length > 0) {
     chunks.push("**Reductions**", "");
-    for (const t of reduce) chunks.push(`- ${bulletLine(t)}`, "");
+    for (const b of reduceBullets) chunks.push(b, "");
   }
-  if (prepare.length > 0) {
+  if (prepareBullets.length > 0) {
     chunks.push("**Preparations**", "");
-    for (const t of prepare) chunks.push(`- ${bulletLine(t)}`, "");
+    for (const b of prepareBullets) chunks.push(b, "");
   }
   return chunks.join("\n").replace(/\n+$/, "");
 }

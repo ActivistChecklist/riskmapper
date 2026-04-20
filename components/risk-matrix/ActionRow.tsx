@@ -55,9 +55,9 @@ const ActionRow = React.memo(function ActionRow({
           onChange={(e) =>
             onChange(cellKey, parentLineId, subType, subLine.id, e.target.value)
           }
-          className="px-1.5 py-0.5 text-[15px] font-semibold"
+          className="px-1.5 py-0 text-[15px] font-semibold"
         />
-        <div className="ml-1.5 mt-0.5 min-w-0">
+        <div className="ml-1 mt-px min-w-0">
           <span
             className={[
               "inline-flex max-w-full min-w-0 items-center truncate rounded-[5px] border border-black/8 px-1 py-0.5 text-[10px] font-medium leading-snug text-rm-ink",

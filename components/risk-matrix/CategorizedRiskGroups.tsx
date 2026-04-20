@@ -18,6 +18,7 @@ import {
   GROUP_HEADER_CLASS,
   POINTER_ADD_ROW_HOVER_CLASSES,
 } from "./constants";
+import { cn } from "@/lib/utils";
 import {
   categorizedRiskRowKey,
   isMitigationColumnEmptyBackgroundClick,
@@ -71,6 +72,8 @@ export type CategorizedRiskGroupsProps = {
     parentLineId: string,
     subType: "reduce" | "prepare",
   ) => void;
+  /** Tucked under a {@link StepSection} primary header — no outer top radius. */
+  embeddedInStepSection?: boolean;
 };
 
 type Section = { group: ColorGroup; risks: { line: GridLine; cellKey: CellKey }[] };
@@ -90,6 +93,7 @@ export default function CategorizedRiskGroups({
   onSubKeyDown,
   onToggleStar,
   onPointerAddMitigationSubLine,
+  embeddedInStepSection = false,
 }: CategorizedRiskGroupsProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const theadRef = useRef<HTMLDivElement>(null);
@@ -159,7 +163,12 @@ export default function CategorizedRiskGroups({
   return (
     <div
       ref={rootRef}
-      className="min-w-0 mb-3.5 rounded-md border border-black/10 bg-white [--rm-mit-thead-h:3.25rem]"
+      className={cn(
+        "min-w-0 bg-white [--rm-mit-thead-h:3.25rem]",
+        embeddedInStepSection
+          ? "mb-0 rounded-t-none rounded-b-md border border-x-0 border-b border-black/10 border-t border-black/10"
+          : "mb-3.5 rounded-md border border-black/10",
+      )}
     >
       <MitigationsTableHeaderRow ref={theadRef} />
 

@@ -11,6 +11,20 @@ import type {
  */
 export const MATRIX_READING_COLUMN_CLASS = "w-full max-w-prose";
 
+/**
+ * Same reading width as {@link MATRIX_READING_COLUMN_CLASS} below `xl`.
+ * From `xl` up, drops the prose cap so a grid child (e.g. actions beside mitigations)
+ * can use the full column track.
+ */
+export const MATRIX_READING_COLUMN_GRID_CHILD_CLASS = [
+  MATRIX_READING_COLUMN_CLASS,
+  "min-w-0 xl:max-w-none",
+].join(" ");
+
+/** Copy/outline controls on primary (`bg-rm-primary`) step headers. */
+export const STEP_SECTION_ACTION_BUTTON_CLASS =
+  "border-white/50 bg-white/10 text-rm-primary-fg shadow-none hover:bg-white/20 hover:text-rm-primary-fg";
+
 /** Tailwind cell backgrounds [row][col] — static strings for the compiler. */
 export const CELL_BG_CLASSES: string[][] = [
   ["bg-rm-yellow", "bg-rm-orange", "bg-rm-red"],

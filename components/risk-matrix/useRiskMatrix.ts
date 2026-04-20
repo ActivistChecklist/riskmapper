@@ -391,15 +391,16 @@ export function useRiskMatrix(options: UseRiskMatrixOptions = {}) {
           const prevLine = linesNow[idx - 1];
           const targetCaret = prevLine.text.length;
           const runMerge = () => {
+            mergeWithPrevious(loc, line.id);
             const prevEl = document.querySelector<HTMLTextAreaElement>(
               `[data-line-id="${CSS.escape(prevLine.id)}"]`,
             );
             if (prevEl) {
               prevEl.focus();
               prevEl.setSelectionRange(targetCaret, targetCaret);
+            } else {
+              focusLine(prevLine.id, targetCaret);
             }
-            mergeWithPrevious(loc, line.id);
-            focusLine(prevLine.id, targetCaret);
           };
           if (
             loc !== "pool" &&

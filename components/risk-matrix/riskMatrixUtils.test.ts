@@ -7,11 +7,36 @@ import {
   isMatrixCellEmptyBackgroundClick,
   isMitigationColumnEmptyBackgroundClick,
   mergeHydratedGrid,
+  normalizePoolLines,
 } from "./riskMatrixUtils";
 
 describe("categorizedRiskRowKey", () => {
   it("joins cell and line id", () => {
     expect(categorizedRiskRowKey("1-2", "abc")).toBe("1-2:abc");
+  });
+});
+
+describe("normalizePoolLines", () => {
+  it("keeps multiple all-empty rows (does not collapse to one)", () => {
+    const lines = [
+      { id: "a", text: "" },
+      { id: "b", text: "" },
+      { id: "c", text: "" },
+    ];
+    expect(normalizePoolLines(lines)).toEqual(lines);
+  });
+
+  it("still collapses several trailing empties after the last non-empty line", () => {
+    const lines = [
+      { id: "a", text: "x" },
+      { id: "b", text: "" },
+      { id: "c", text: "" },
+      { id: "d", text: "" },
+    ];
+    expect(normalizePoolLines(lines)).toEqual([
+      { id: "a", text: "x" },
+      { id: "b", text: "" },
+    ]);
   });
 });
 

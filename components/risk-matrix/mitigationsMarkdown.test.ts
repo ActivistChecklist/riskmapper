@@ -60,4 +60,23 @@ describe("formatAllMitigationsMarkdown", () => {
     } as Record<CellKey, GridLine[]>);
     expect(md).toContain("- \\- looks like a list");
   });
+
+  it("prefixes starred mitigations with a star emoji in the bullet", () => {
+    const md = formatAllMitigationsMarkdown({
+      "0-0": [
+        {
+          id: "r",
+          text: "Risk A",
+          reduce: [
+            { id: "a", text: "Do this first", starred: true },
+            { id: "b", text: "Do this second", starred: false },
+          ],
+          prepare: [{ id: "c", text: "Prep line", starred: true }],
+        },
+      ],
+    } as Record<CellKey, GridLine[]>);
+    expect(md).toContain("- ⭐ Do this first");
+    expect(md).toContain("- Do this second");
+    expect(md).toContain("- ⭐ Prep line");
+  });
 });

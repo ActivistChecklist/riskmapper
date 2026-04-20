@@ -3,13 +3,28 @@
 import React from "react";
 import MitigationsTableHeaderRow from "./MitigationsTableHeaderRow";
 
+import { cn } from "@/lib/utils";
+
+type Props = {
+  embeddedInStepSection?: boolean;
+};
+
 /**
  * Shown before any risk is placed on the matrix: same table header as the real
  * grid; dashed body explains what will appear here.
  */
-export default function MitigationsTablePlaceholder() {
+export default function MitigationsTablePlaceholder({
+  embeddedInStepSection = false,
+}: Props) {
   return (
-    <div className="min-w-0 mb-3.5 rounded-md border border-black/10 bg-white">
+    <div
+      className={cn(
+        "min-w-0 bg-white",
+        embeddedInStepSection
+          ? "mb-0 rounded-t-none rounded-b-md border border-x-0 border-b border-black/10 border-t border-black/10"
+          : "mb-3.5 rounded-md border border-black/10",
+      )}
+    >
       <MitigationsTableHeaderRow />
       <div className="flex min-h-[12.5rem] flex-col bg-white px-3 pb-3 pt-2.5 sm:min-h-[14rem]">
         <div
