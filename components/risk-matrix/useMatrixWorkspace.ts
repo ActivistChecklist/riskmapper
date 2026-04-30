@@ -101,6 +101,10 @@ export function useMatrixWorkspace(
   const [surfaceId, setSurfaceId] = useState("pre-hydrate");
 
   useLayoutEffect(() => {
+    // SSR-safe localStorage hydration: the static-export build renders the
+    // EMPTY_WORKSPACE; we swap in the persisted state before paint. This is
+    // the intended pattern for client-only stores in Next.js App Router.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setWorkspace(normalizeLoadedWorkspace(repo.load()));
     setSurfaceId(crypto.randomUUID());
   }, [repo]);

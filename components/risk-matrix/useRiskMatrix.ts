@@ -78,6 +78,11 @@ export function useRiskMatrix(options: UseRiskMatrixOptions = {}) {
       : [{ id: DEFAULT_EMPTY_POOL_LINE_ID, text: "" }],
   );
   const poolRef = useRef(pool);
+  // Mirror the latest pool into a ref so event handlers (drag, blur) can read
+  // the freshest value without re-binding. Updating during render is the
+  // simplest correct pattern for "latest-value ref"; the alternative
+  // (useEffect) introduces a one-frame stale window.
+  // eslint-disable-next-line react-hooks/refs
   poolRef.current = pool;
 
   const [grid, setGrid] = useState<Record<CellKey, GridLine[]>>(
