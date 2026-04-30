@@ -20,6 +20,31 @@ Before any Next.js work, find and read the relevant doc in `node_modules/next/di
 - **App Router** (`app/` directory). Do not use Pages Router patterns.
 - **Client side by default.** Assume all of this app runs on the client side unless we need to add a server side compontent.
 - **TypeScript required.** All new files must be `.ts`/`.tsx`. No `any` types without a comment explaining why.
+- **Cloud-sync API** lives in `app/api/matrix/**/route.ts` (Node runtime). Shared route helpers live in `lib/cloud/`. The relay stores opaque ciphertext only — see `THREAT-MODEL.md`.
+
+## Server vs. client — when to use each
+
+This is a single Next.js app with both client (SPA) and server (Route Handlers) code in the same tree. Be deliberate about which side a piece of work belongs on.
+
+**Use server (`app/api/**/route.ts`, `lib/cloud/**`) only when you need to:**
+
+- Touch the MongoDB collection (`getCollection` from `lib/cloud/db.ts`).
+- Enforce a security invariant the client cannot be trusted with — e.g. ciphertext size cap, rate limit, optimistic-concurrency check.
+- Hold a secret (DB credentials, future API keys). Anything imported from a Route Handler is server-only and is **not** sent to the browser.
+
+**Use client (`components/`, `app/page.tsx`, hooks under `components/risk-matrix/`) for:**
+
+- Anything React, hooks, DOM, drag-and-drop, localStorage.
+- Anything that touches `lib/e2ee/*` — encryption MUST run client-side; the server never sees plaintext or keys.
+- Anything reading `window.location` (share-link import lives client-side).
+
+**Don't import server modules into client code.** A `"use client"` file that imports from `lib/cloud/db.ts` will leak `mongodb` and connection logic into the browser bundle. The line is enforced informally — if a client file imports from `lib/cloud/`, that's a smell to check.
+
+**Don't import client modules into Route Handlers.** Anything under `components/` is client UI; importing it server-side will fail at build time on `"use client"` boundaries.
+
+**Same-origin by design.** The client repository (`components/risk-matrix/matrixCloudRepository.ts`) hits relative URLs like `/api/matrix`. There's no CORS allow-list; the API only responds to same-origin requests. If you change this, also re-add server-side origin validation.
+
+**Rate limiter is in-process.** `lib/cloud/rateLimit.ts` uses `rate-limiter-flexible` with the memory backend. Sufficient for a single-instance deploy; for horizontal scale, swap `RateLimiterMemory` for `RateLimiterRedis` (same API).
 
 ## Conventions
 

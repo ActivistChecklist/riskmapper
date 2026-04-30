@@ -1,19 +1,21 @@
 # Risk Matrix — Threat Model
 
 
-## What we are building
+## What this system is
 
-An **opt-in** capability-URL sharing model: the user creates an encrypted
-copy of one matrix on a relay server, then shares a URL of the form
+Risk Matrix's cloud-sync feature is an **opt-in** capability-URL sharing
+model. A user encrypts a copy of one matrix and stores it via the relay
+(Next.js Route Handlers under `app/api/matrix/**` in this same app), then
+shares a URL of the form
 
 ```
-https://activistchecklist.github.io/riskmatrix/?matrix=<RECORD_ID>#k=<KEY_B64URL>&v=1
+https://example.com/?matrix=<RECORD_ID>#k=<KEY_B64URL>&v=1
 ```
 
-with collaborators. Anyone with that URL can read **and edit** the matrix.
-The relay server stores only ciphertext and non-sensitive metadata
-(`createdDate`, `lastWriteDate`, `lastReadDate`, monotonic `version`,
-`lamport`).
+Anyone with that URL can read **and edit** the matrix. The relay stores
+only ciphertext and non-sensitive metadata (`createdDate`,
+`lastWriteDate`, `lastReadDate`, monotonic `version`, `lamport`). All
+client → API requests are same-origin.
 
 ---
 
@@ -202,7 +204,7 @@ following are gating items:
 
 - [ ] External cryptographic review of `lib/e2ee/*`.
 - [ ] External review of the server request handlers
-      (`server/src/app.ts`).
+      (`app/api/matrix/**` and `lib/cloud/**`).
 - [ ] Penetration test of the share-URL load path.
 - [ ] Documented rollback / incident-response plan for "how do we revoke
       a leaked link."
