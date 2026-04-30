@@ -427,8 +427,9 @@ export default function RiskMatrix() {
   // Auto-adopt: when the share fetch resolves, drop the matrix straight into
   // the local library and switch to it. If the recordId is already in the
   // library (a previous import or the original sharer's own copy) we just
-  // open that row instead of creating a duplicate. After either case, clean
-  // the share path off the URL so a refresh doesn't re-trigger import.
+  // open that row instead of creating a duplicate. We deliberately KEEP the
+  // /grid/<id># URL in the address bar so the user can copy it again or
+  // refresh without losing context — dedupe makes re-import idempotent.
   useEffect(() => {
     if (importer.state.kind !== "ready") return;
     if (adoptedRef.current) return;
@@ -451,7 +452,7 @@ export default function RiskMatrix() {
         },
       });
     }
-    importer.dismiss();
+    importer.reset();
   }, [importer, ws]);
 
   if (importer.state.kind === "loading" || importer.state.kind === "ready") {

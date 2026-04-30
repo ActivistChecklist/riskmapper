@@ -125,9 +125,10 @@ describe("share-link import flow", () => {
     expect(saved.cloud?.lastSyncedVersion).toBe(3);
     expect(saved.cloud?.lastSyncedLamport).toBe(2);
 
-    // URL is cleaned so a refresh doesn't re-trigger the import.
-    expect(window.location.pathname).toBe("/");
-    expect(window.location.hash).toBe("");
+    // URL is intentionally LEFT INTACT so the user can copy it again or
+    // refresh without losing context. Dedupe handles re-import.
+    expect(window.location.pathname).toBe(`/grid/${FAKE_RECORD_ID}`);
+    expect(window.location.hash).toBe(`#${keyToB64(key)}`);
   });
 
   it("dedupes when the recordId is already in the local library", async () => {

@@ -95,10 +95,20 @@ export function useShareImport({ repo, enabled = true }: UseShareImportArgs) {
     };
   }, [enabled, repo]);
 
+  /** Reset the hook's state without touching the URL. Used by the
+   *  auto-adoption path so the address bar still reflects the matrix the
+   *  user landed on (refreshing keeps them on it; dedupe handles the
+   *  re-import on reload). */
+  const reset = useCallback(() => {
+    setState({ kind: "idle" });
+  }, []);
+
+  /** Reset state AND strip the share-link path from the URL. Used by the
+   *  failure screens, where the user explicitly chose to leave. */
   const dismiss = useCallback(() => {
     setState({ kind: "idle" });
     clearShareFromUrl();
   }, []);
 
-  return { state, dismiss };
+  return { state, reset, dismiss };
 }
