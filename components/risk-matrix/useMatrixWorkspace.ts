@@ -14,6 +14,7 @@ import {
   normalizeWorkspace,
 } from "./matrixDataLayer";
 import type {
+  CloudMatrixMeta,
   MatrixRepository,
   MatrixWorkspaceV1,
   RiskMatrixSnapshot,
@@ -49,6 +50,12 @@ function normalizeLoadedWorkspace(w: MatrixWorkspaceV1): MatrixWorkspaceV1 {
   return w;
 }
 
+export type CloudWriteHook = (args: {
+  cloud: CloudMatrixMeta;
+  snapshot: RiskMatrixSnapshot;
+  title: string;
+}) => void;
+
 export type MatrixWorkspaceApi = {
   workspace: MatrixWorkspaceV1;
   initialSnapshot: RiskMatrixSnapshot | undefined;
@@ -66,12 +73,28 @@ export type MatrixWorkspaceApi = {
   removeSavedMatrix: (id: string) => void;
   /** Delete the active matrix: remove it if saved, or clear the draft from this device. */
   deleteActiveMatrix: () => void;
+  /** Attach or update cloud-sync metadata on a saved matrix. */
+  setCloudMeta: (id: string, cloud: CloudMatrixMeta | null) => void;
+  /** Lookup helper. */
+  findSaved: (id: string) => StoredMatrix | undefined;
+  /** The matrix object currently open on the canvas, if it's a saved row. */
+  activeSavedMatrix: StoredMatrix | null;
+  /**
+   * Adopt an inbound shared matrix as a new saved row and switch to it.
+   * Returns the new id. Used by the share-link import flow.
+   */
+  adoptSharedMatrix: (args: {
+    title: string;
+    snapshot: RiskMatrixSnapshot;
+    cloud: CloudMatrixMeta;
+  }) => string;
 };
 
 const EMPTY_WORKSPACE = normalizeLoadedWorkspace(normalizeWorkspace(null));
 
 export function useMatrixWorkspace(
   repo: MatrixRepository = createLocalMatrixRepository(),
+  options?: { onCloudWrite?: CloudWriteHook },
 ): MatrixWorkspaceApi {
   const [workspace, setWorkspace] =
     useState<MatrixWorkspaceV1>(EMPTY_WORKSPACE);
@@ -95,6 +118,19 @@ export function useMatrixWorkspace(
 
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const matrixGetterRef = useRef<(() => RiskMatrixSnapshot) | null>(null);
+  const onCloudWriteRef = useRef<CloudWriteHook | undefined>(options?.onCloudWrite);
+  useEffect(() => {
+    onCloudWriteRef.current = options?.onCloudWrite;
+  }, [options?.onCloudWrite]);
+
+  function maybePushCloud(next: MatrixWorkspaceV1): void {
+    const hook = onCloudWriteRef.current;
+    if (!hook) return;
+    if (next.activeKind !== "saved" || !next.activeSavedId) return;
+    const row = next.saved.find((s) => s.id === next.activeSavedId);
+    if (!row || !row.cloud) return;
+    hook({ cloud: row.cloud, snapshot: row.snapshot, title: row.title });
+  }
 
   const cancelPendingPersist = useCallback(() => {
     if (debounceTimerRef.current) {
@@ -110,15 +146,18 @@ export function useMatrixWorkspace(
     }
     const snap = matrixGetterRef.current?.();
     if (!snap) return;
+    let captured: MatrixWorkspaceV1 | null = null;
     setWorkspace((w) => {
-      const next = mergeSnapshotIntoWorkspace(
-        w,
-        snap,
-        identityRef.current,
-      );
-      repo.save(next);
+      const next = mergeSnapshotIntoWorkspace(w, snap, identityRef.current);
+      captured = next;
       return next;
     });
+    if (captured) {
+      // Side-effects live OUTSIDE the state-updater so they fire once per
+      // dispatch even under StrictMode's double-invocation.
+      repo.save(captured);
+      maybePushCloud(captured);
+    }
   }, [repo]);
 
   const schedulePersist = useCallback(
@@ -128,15 +167,16 @@ export function useMatrixWorkspace(
       }
       debounceTimerRef.current = setTimeout(() => {
         debounceTimerRef.current = null;
+        let captured: MatrixWorkspaceV1 | null = null;
         setWorkspace((w) => {
-          const next = mergeSnapshotIntoWorkspace(
-            w,
-            snap,
-            identityRef.current,
-          );
-          repo.save(next);
+          const next = mergeSnapshotIntoWorkspace(w, snap, identityRef.current);
+          captured = next;
           return next;
         });
+        if (captured) {
+          repo.save(captured);
+          maybePushCloud(captured);
+        }
       }, 400);
     },
     [repo],
@@ -180,6 +220,7 @@ export function useMatrixWorkspace(
       }
       const id = workspace.activeSavedId;
       if (!id) return;
+      let captured: MatrixWorkspaceV1 | null = null;
       setWorkspace((w) => {
         const next: MatrixWorkspaceV1 = {
           ...w,
@@ -187,11 +228,78 @@ export function useMatrixWorkspace(
             s.id === id ? { ...s, title } : s,
           ),
         };
+        captured = next;
+        return next;
+      });
+      if (captured) {
+        repo.save(captured);
+        maybePushCloud(captured);
+      }
+    },
+    [repo, workspace.activeKind, workspace.activeSavedId],
+  );
+
+  const setCloudMeta = useCallback(
+    (id: string, cloud: CloudMatrixMeta | null) => {
+      setWorkspace((w) => {
+        if (!w.saved.some((s) => s.id === id)) return w;
+        const next: MatrixWorkspaceV1 = {
+          ...w,
+          saved: w.saved.map((s) => {
+            if (s.id !== id) return s;
+            if (cloud === null) {
+              const nextRow: StoredMatrix = { ...s };
+              delete nextRow.cloud;
+              return nextRow;
+            }
+            return { ...s, cloud };
+          }),
+        };
         repo.save(next);
         return next;
       });
     },
-    [repo, workspace.activeKind, workspace.activeSavedId],
+    [repo],
+  );
+
+  const findSaved = useCallback(
+    (id: string) => workspace.saved.find((s) => s.id === id),
+    [workspace.saved],
+  );
+
+  const activeSavedMatrix = useMemo<StoredMatrix | null>(() => {
+    if (workspace.activeKind !== "saved" || !workspace.activeSavedId) return null;
+    return workspace.saved.find((s) => s.id === workspace.activeSavedId) ?? null;
+  }, [workspace.activeKind, workspace.activeSavedId, workspace.saved]);
+
+  const adoptSharedMatrix = useCallback(
+    (args: { title: string; snapshot: RiskMatrixSnapshot; cloud: CloudMatrixMeta }) => {
+      const id = crypto.randomUUID();
+      const now = new Date().toISOString();
+      const trimmed = args.title.trim() || DEFAULT_DRAFT_MATRIX_TITLE;
+      setWorkspace((w) => {
+        const next: MatrixWorkspaceV1 = {
+          ...w,
+          activeKind: "saved",
+          activeSavedId: id,
+          saved: [
+            ...w.saved,
+            {
+              id,
+              title: trimmed,
+              updatedAt: now,
+              snapshot: args.snapshot,
+              cloud: args.cloud,
+            },
+          ],
+        };
+        repo.save(next);
+        return next;
+      });
+      setSurfaceId(crypto.randomUUID());
+      return id;
+    },
+    [repo],
   );
 
   const recentSorted = useMemo(() => {
@@ -343,5 +451,9 @@ export function useMatrixWorkspace(
     openSaved,
     removeSavedMatrix,
     deleteActiveMatrix,
+    setCloudMeta,
+    findSaved,
+    activeSavedMatrix,
+    adoptSharedMatrix,
   };
 }
