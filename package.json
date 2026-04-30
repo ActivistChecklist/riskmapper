@@ -10,7 +10,11 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "db:up": "yarn --cwd server db:up",
+    "db:down": "yarn --cwd server db:down",
+    "db:logs": "yarn --cwd server db:logs",
+    "db:reset": "yarn --cwd server db:reset"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",

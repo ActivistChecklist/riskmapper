@@ -1,0 +1,26 @@
+# Local-development MongoDB. Not for production — no auth, exposed on
+# 127.0.0.1 only. Data persists in the named volume `riskmatrix-mongo-data`
+# so restarts don't wipe your test records.
+#
+# Usage: from repo root or server/, run `yarn db:up`. See server/README.md.
+
+services:
+  mongo:
+    image: mongo:7
+    container_name: riskmatrix-dev-mongo
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:27017:27017"
+    volumes:
+      - riskmatrix-mongo-data:/data/db
+    command: ["--bind_ip_all", "--quiet"]
+    healthcheck:
+      test:
+        ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  riskmatrix-mongo-data:
+    name: riskmatrix-mongo-data

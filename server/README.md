@@ -38,12 +38,26 @@ entry and the rate limiter becomes bypassable.
 ## Local development
 
 ```sh
+# From repo root: boot a local MongoDB in Docker (one-time install + persistent volume).
+yarn db:up
+
+# Then start the relay:
 cd server
 yarn install
 CORS_ALLOW_ORIGINS=http://localhost:3000 \
-MONGO_URI=mongodb://localhost:27017 \
+MONGO_URI=mongodb://127.0.0.1:27017 \
 yarn dev
 ```
+
+The Docker setup is in `server/docker-compose.dev.yml`. Useful commands
+(all available from the repo root):
+
+| Command | Effect |
+| --- | --- |
+| `yarn db:up` | Start the Mongo container in the background. Data persists in the `riskmatrix-mongo-data` volume. |
+| `yarn db:down` | Stop and remove the container. **Volume is preserved.** |
+| `yarn db:logs` | Tail Mongo logs. |
+| `yarn db:reset` | Stop the container **and delete the volume.** Wipes all dev data. |
 
 ## Deploy on Railway
 
