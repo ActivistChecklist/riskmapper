@@ -42,7 +42,7 @@ export function createFakeCollection(): AppCollection & {
       return doc ? { ...doc } : null;
     },
 
-    async findOneAndUpdate(filter, update, _options): Promise<MatrixDoc | null> {
+    async findOneAndUpdate(filter, update): Promise<MatrixDoc | null> {
       const doc = store.get(filter._id);
       if (!doc) return null;
       if (filter.version !== undefined && doc.version !== filter.version) {

@@ -7,8 +7,6 @@ const VALID_ID = "abcd1234efgh5678ijkl";
 const VALID_CT = "v1." + "A".repeat(80);
 const CORS_ORIGIN = "https://app.example";
 
-type Fake = ReturnType<typeof createFakeCollection>;
-
 function setup(opts?: {
   rateLimitPerMin?: number | false;
   maxCiphertextBytes?: number;
@@ -284,7 +282,6 @@ describe("DELETE /api/matrix/:id", () => {
   });
 
   it("is 204 for implausible ids without touching the DB", async () => {
-    const { app, coll } = setup();
     const calls: unknown[] = [];
     const fake: AppCollection = {
       async insertOne() { calls.push("insertOne"); return null; },
@@ -292,7 +289,6 @@ describe("DELETE /api/matrix/:id", () => {
       async findOneAndUpdate() { calls.push("findOneAndUpdate"); return null; },
       async deleteOne() { calls.push("deleteOne"); return null; },
     };
-    void coll;
     const isolated = createApp({
       getColl: async () => fake,
       corsOrigins: [CORS_ORIGIN],

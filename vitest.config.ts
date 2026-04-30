@@ -7,6 +7,9 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     include: ["**/*.test.{ts,tsx}"],
+    // server/ has its own vitest.config.ts targeting Node — don't run those
+    // here under jsdom by accident. Run them via `yarn --cwd server test`.
+    exclude: ["**/node_modules/**", "**/dist/**", "server/**"],
     passWithNoTests: false,
   },
   resolve: {
