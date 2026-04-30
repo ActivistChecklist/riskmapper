@@ -1,9 +1,8 @@
-import type { AppCollection } from "./app.js";
-import type { MatrixDoc } from "./db.js";
+import type { AppCollection, MatrixDoc } from "./types";
 
 /**
- * In-memory implementation of the small subset of MongoDB methods that
- * `createApp` needs. Used by tests and only by tests; behavior matches the
+ * In-memory implementation of the small subset of MongoDB methods that the
+ * cloud handlers use. Used by tests and only by tests; behavior matches the
  * real driver for the queries the app issues:
  *
  *   - `insertOne`: throws E11000 (`code: 11000`) on duplicate `_id`
