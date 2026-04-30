@@ -90,6 +90,12 @@ export function createCloudWriteQueue(opts: CloudWriteQueueOptions): CloudWriteQ
   let backoffAttempt = 0;
   let parkedOnConflict = false;
   let state: SyncState = { kind: "idle" };
+  // Authoritative latest server version observed by THIS queue. Updated on
+  // every successful PUT and on resolveConflict. Used to override stale
+  // `expectedVersion` values supplied by callers — React state can lag
+  // across the post-write/next-edit boundary, so we never trust the
+  // caller's value when we know the server has moved.
+  let lastKnownVersion: number | null = null;
 
   function setState(next: SyncState): void {
     state = next;
@@ -125,6 +131,7 @@ export function createCloudWriteQueue(opts: CloudWriteQueueOptions): CloudWriteQ
     setState({ kind: "syncing" });
     try {
       const out = await opts.repo.write(write);
+      lastKnownVersion = out.version;
       backoffAttempt = 0;
       opts.onSuccess?.({ recordId: write.handle.recordId, version: out.version });
       inFlight = null;
@@ -193,7 +200,16 @@ export function createCloudWriteQueue(opts: CloudWriteQueueOptions): CloudWriteQ
         pending = write;
         return;
       }
-      pending = write;
+      // The caller's expectedVersion is computed from React state; if it's
+      // older than what we already know the server is at, override.
+      const expected =
+        lastKnownVersion !== null && lastKnownVersion > write.expectedVersion
+          ? lastKnownVersion
+          : write.expectedVersion;
+      pending =
+        expected === write.expectedVersion
+          ? write
+          : { ...write, expectedVersion: expected };
       setState({ kind: "pending" });
       scheduleDrain(debounceMs);
     },
@@ -221,6 +237,8 @@ export function createCloudWriteQueue(opts: CloudWriteQueueOptions): CloudWriteQ
 
     resolveConflict(args: { expectedVersion: number; lamport: number }): void {
       parkedOnConflict = false;
+      // Trust the caller's resolved version as the authoritative value.
+      lastKnownVersion = args.expectedVersion;
       if (!pending) {
         setState({ kind: "idle" });
         return;
@@ -235,6 +253,7 @@ export function createCloudWriteQueue(opts: CloudWriteQueueOptions): CloudWriteQ
       pending = null;
       backoffAttempt = 0;
       parkedOnConflict = false;
+      lastKnownVersion = null;
       setState({ kind: "idle" });
     },
 

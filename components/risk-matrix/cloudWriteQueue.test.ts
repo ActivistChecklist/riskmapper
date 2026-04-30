@@ -97,6 +97,35 @@ describe("cloudWriteQueue", () => {
     expect(writeFn.mock.calls[1][0].title).toBe("third");
   });
 
+  it("ignores a stale caller expectedVersion when the server is known to be ahead", async () => {
+    // Reproduces the post-success conflict-loop bug: the React closure that
+    // computes `expectedVersion` lags behind the queue's actual knowledge
+    // for a render or two after a successful write. The queue must not
+    // re-send a stale version.
+    const writeFn = vi
+      .fn<MatrixCloudRepository["write"]>()
+      .mockResolvedValueOnce({ version: 2, lastWriteDate: null })
+      .mockResolvedValueOnce({ version: 3, lastWriteDate: null });
+
+    const q = createCloudWriteQueue({
+      repo: makeRepo({ writeImpl: writeFn }),
+      debounceMs: 0,
+    });
+
+    // 1st write succeeds; queue learns server is at version 2.
+    q.enqueue({ handle: HANDLE, snapshot: SAMPLE_SNAP, title: "a", expectedVersion: 1, lamport: 1 });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(writeFn).toHaveBeenCalledTimes(1);
+    expect(writeFn.mock.calls[0][0].expectedVersion).toBe(1);
+
+    // 2nd enqueue arrives with a STALE expectedVersion (caller's React
+    // state hasn't caught up). The queue must override it to 2.
+    q.enqueue({ handle: HANDLE, snapshot: SAMPLE_SNAP, title: "b", expectedVersion: 1, lamport: 2 });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(writeFn).toHaveBeenCalledTimes(2);
+    expect(writeFn.mock.calls[1][0].expectedVersion).toBe(2);
+  });
+
   it("parks on 409 and resumes via resolveConflict()", async () => {
     const conflict = new CloudConflictError({
       remoteCiphertext: "v1.AAAA",
