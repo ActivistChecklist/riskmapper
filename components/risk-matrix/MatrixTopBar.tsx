@@ -10,6 +10,8 @@ type Props = {
   workspace: MatrixWorkspaceApi;
   /** Copy / export control — receives compact mode when the toolbar switches to icon-only. */
   copyMenu?: (opts: { iconOnly: boolean }) => React.ReactNode;
+  /** Optional cloud share control rendered in the title row (right side). */
+  cloudShareControl?: React.ReactNode;
 };
 
 /** Invisible row matching full-label toolbar width — stable “does it fit?” probe (avoids compact/full flicker). */
@@ -44,7 +46,7 @@ function MatrixToolbarWidthProbe() {
   );
 }
 
-export default function MatrixTopBar({ workspace: ws, copyMenu }: Props) {
+export default function MatrixTopBar({ workspace: ws, copyMenu, cloudShareControl }: Props) {
   const toolbarRef = useRef<HTMLDivElement>(null);
   const measureRef = useRef<HTMLDivElement>(null);
   const [iconOnlyToolbar, setIconOnlyToolbar] = useState(false);
@@ -103,6 +105,11 @@ export default function MatrixTopBar({ workspace: ws, copyMenu }: Props) {
             aria-label="Matrix title"
             className="min-w-0 max-w-[min(100%,28rem)] flex-1 basis-[min(100%,18rem)] border-b border-black/20 bg-transparent pb-1 pl-0.5 pr-0.5 pt-1 text-sm font-medium text-rm-ink outline-none placeholder:opacity-45 focus-visible:border-rm-primary focus-visible:ring-2 focus-visible:ring-black/10"
           />
+          {cloudShareControl ? (
+            <div className="ml-auto flex items-center gap-2">
+              {cloudShareControl}
+            </div>
+          ) : null}
         </div>
 
         <div

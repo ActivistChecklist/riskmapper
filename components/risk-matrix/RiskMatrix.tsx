@@ -10,6 +10,9 @@ import React, {
 import { Copy } from "lucide-react";
 import ActionsAside from "./ActionsAside";
 import CategorizedRiskGroups from "./CategorizedRiskGroups";
+import CloudConflictDialog from "./CloudConflictDialog";
+import CloudShareControl from "./CloudShareControl";
+import { isCloudEnabled } from "./cloudConfig";
 import MitigationsTablePlaceholder from "./MitigationsTablePlaceholder";
 import DeleteRiskDialog from "./DeleteRiskDialog";
 import DragPreviewLayer from "./DragPreviewLayer";
@@ -19,6 +22,7 @@ import MatrixCopyDropdown from "./MatrixCopyDropdown";
 import MatrixHelpSection from "./MatrixHelpSection";
 import MatrixTopBar from "./MatrixTopBar";
 import RiskPoolSection from "./RiskPoolSection";
+import SharedMatrixSandboxBanner from "./SharedMatrixSandboxBanner";
 import StepSection from "./StepSection";
 import {
   MATRIX_READING_COLUMN_GRID_CHILD_CLASS,
@@ -38,14 +42,18 @@ import { hasMitigationsMarkdownExport } from "./mitigationsMarkdown";
 import { useRiskMatrix } from "./useRiskMatrix";
 import { useMatrixWorkspace } from "./useMatrixWorkspace";
 import type { MatrixWorkspaceApi } from "./useMatrixWorkspace";
+import { useCloudSyncManager } from "./useCloudSyncManager";
+import { useShareImport } from "./useShareImport";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { keyFromB64 } from "@/lib/e2ee";
 
 type CanvasProps = {
   workspace: MatrixWorkspaceApi;
+  cloud: ReturnType<typeof useCloudSyncManager>;
 };
 
-function RiskMatrixCanvas({ workspace: ws }: CanvasProps) {
+function RiskMatrixCanvas({ workspace: ws, cloud }: CanvasProps) {
   const m = useRiskMatrix({
     initialSnapshot: ws.initialSnapshot,
     onSnapshotChange: ws.onSnapshotChange,
@@ -56,6 +64,44 @@ function RiskMatrixCanvas({ workspace: ws }: CanvasProps) {
   useLayoutEffect(() => {
     matrixGetterRef.current = m.getSnapshot;
   }, [m.getSnapshot, matrixGetterRef]);
+
+  const activeSaved = ws.activeSavedMatrix;
+  const cloudMeta = activeSaved?.cloud ?? null;
+  const cloudCapable = isCloudEnabled() && activeSaved !== null;
+
+  const handleStopSharing = useCallback(async () => {
+    if (!activeSaved?.cloud) return;
+    const meta = activeSaved.cloud;
+    try {
+      await cloud.repo.delete({
+        recordId: meta.recordId,
+        key: keyFromB64(meta.keyB64),
+        schemaVersion: 1,
+      });
+    } finally {
+      cloud.cancel();
+      ws.setCloudMeta(activeSaved.id, null);
+    }
+  }, [activeSaved, cloud, ws]);
+
+  const handleConflictReload = useCallback(() => {
+    // Flush any debounced local snapshot before reloading so no unsaved edits
+    // are lost. The reload re-hydrates from local storage and pulls remote
+    // state via the share import flow.
+    ws.flushSave();
+    if (typeof window !== "undefined") {
+      window.location.reload();
+    }
+  }, [ws]);
+
+  const handleConflictKeepMine = useCallback(() => {
+    if (!cloud.pendingConflict) return;
+    const c = cloud.pendingConflict.conflict;
+    cloud.resolveConflict({
+      expectedVersion: c.remoteVersion,
+      lamport: c.remoteLamport + 1,
+    });
+  }, [cloud]);
 
   const canMit = useMemo(
     () => hasMitigationsMarkdownExport(m.grid),
@@ -187,6 +233,31 @@ function RiskMatrixCanvas({ workspace: ws }: CanvasProps) {
             onCopyActions={handleCopyActionsOnly}
           />
         )}
+        cloudShareControl={
+          cloudCapable && activeSaved ? (
+            <CloudShareControl
+              getSnapshot={m.getSnapshot}
+              matrixTitle={ws.activeTitle}
+              cloudMeta={cloudMeta}
+              syncState={cloud.syncState}
+              repo={cloud.repo}
+              onCloudMetaSet={(meta) => ws.setCloudMeta(activeSaved.id, meta)}
+              onStopSharing={handleStopSharing}
+              onAcknowledge={cloud.acknowledge}
+              onIndicatorAction={cloud.reopenConflict}
+            />
+          ) : null
+        }
+      />
+
+      <CloudConflictDialog
+        open={cloud.pendingConflict !== null}
+        onOpenChange={(o) => {
+          if (!o) cloud.acknowledge();
+        }}
+        matrixTitle={ws.activeTitle}
+        onReloadRemote={handleConflictReload}
+        onKeepMine={handleConflictKeepMine}
       />
 
       <MatrixHelpSection />
@@ -310,6 +381,128 @@ function RiskMatrixCanvas({ workspace: ws }: CanvasProps) {
 
 export default function RiskMatrix() {
   const repo = useMemo(() => createLocalMatrixRepository(), []);
-  const ws = useMatrixWorkspace(repo);
-  return <RiskMatrixCanvas key={ws.surfaceId} workspace={ws} />;
+  const cloud = useCloudSyncManager();
+  const onCloudWrite = useMemo(() => cloud.enqueueWrite, [cloud.enqueueWrite]);
+  const ws = useMatrixWorkspace(repo, { onCloudWrite });
+  const cloudEnabled = isCloudEnabled();
+  const importer = useShareImport({ repo: cloud.repo, enabled: cloudEnabled });
+
+  if (importer.state.kind === "loading") {
+    return (
+      <div className="grid min-h-[40vh] place-items-center text-sm text-rm-ink/70">
+        Loading shared matrix…
+      </div>
+    );
+  }
+  if (
+    importer.state.kind === "missing" ||
+    importer.state.kind === "rollback" ||
+    importer.state.kind === "error"
+  ) {
+    return (
+      <ShareImportFailure state={importer.state} onDismiss={importer.dismiss} />
+    );
+  }
+  if (importer.state.kind === "ready") {
+    const importState = importer.state;
+    return (
+      <SharedMatrixPreview
+        importState={importState}
+        onDismiss={importer.dismiss}
+        onAdoptToLibrary={() => {
+          ws.adoptSharedMatrix({
+            title: importState.result.title,
+            snapshot: importState.result.snapshot,
+            cloud: {
+              recordId: importState.handle.recordId,
+              keyB64: importState.keyB64,
+              lastSyncedVersion: importState.result.version,
+              lastSyncedLamport: importState.result.lamport,
+            },
+          });
+          importer.dismiss();
+        }}
+      />
+    );
+  }
+  return <RiskMatrixCanvas key={ws.surfaceId} workspace={ws} cloud={cloud} />;
+}
+
+function ShareImportFailure({
+  state,
+  onDismiss,
+}: {
+  state:
+    | { kind: "missing" }
+    | { kind: "rollback"; message: string }
+    | { kind: "error"; message: string };
+  onDismiss: () => void;
+}) {
+  const heading =
+    state.kind === "missing"
+      ? "This shared matrix is no longer available"
+      : state.kind === "rollback"
+        ? "This shared matrix may be older than what you saw before"
+        : "Couldn't open shared matrix";
+  const detail =
+    state.kind === "missing"
+      ? "The link may have expired (90 days of inactivity) or the owner stopped sharing."
+      : state.kind === "rollback"
+        ? "To protect your data, the version on the server hasn't been loaded — it appears older than a copy you previously opened. If you believe this is correct (for example, after a server restore), contact the person who shared the link."
+        : state.message;
+  return (
+    <div className="mx-auto mt-12 max-w-md px-4 text-center">
+      <h2 className="text-lg font-semibold text-rm-ink">{heading}</h2>
+      <p className="mt-2 text-sm text-rm-ink/80">{detail}</p>
+      <Button className="mt-4" type="button" onClick={onDismiss}>
+        Continue without it
+      </Button>
+    </div>
+  );
+}
+
+function SharedMatrixPreview({
+  importState,
+  onDismiss,
+  onAdoptToLibrary,
+}: {
+  importState: Extract<
+    ReturnType<typeof useShareImport>["state"],
+    { kind: "ready" }
+  >;
+  onDismiss: () => void;
+  onAdoptToLibrary: () => void;
+}) {
+  const { result, fingerprint } = importState;
+  return (
+    <div className="mx-auto min-h-screen w-full max-w-[1320px] bg-rm-canvas px-4 py-5 sm:px-6 lg:px-8">
+      <SharedMatrixSandboxBanner
+        matrixTitle={result.title}
+        fingerprint={fingerprint}
+        onSaveLocally={onAdoptToLibrary}
+        onDismiss={onDismiss}
+      />
+      <div className="rounded-lg border border-black/10 bg-white p-4 text-sm text-rm-ink">
+        <p className="text-base font-semibold">{result.title || "Untitled"}</p>
+        <p className="mt-1 text-rm-ink/70">
+          Read-only preview of a shared matrix. Click &ldquo;Save on this
+          device&rdquo; in the banner above to add it to your library and edit
+          it.
+        </p>
+        <dl className="mt-4 grid grid-cols-1 gap-y-1 text-xs text-rm-ink/70 sm:grid-cols-2">
+          <dt className="font-medium">Risks in pool</dt>
+          <dd>{result.snapshot.pool.length}</dd>
+          <dt className="font-medium">Cells with risks</dt>
+          <dd>
+            {Object.values(result.snapshot.grid).reduce(
+              (n, lines) => n + lines.length,
+              0,
+            )}
+          </dd>
+          <dt className="font-medium">Other actions</dt>
+          <dd>{result.snapshot.otherActions.length}</dd>
+        </dl>
+      </div>
+    </div>
+  );
 }
