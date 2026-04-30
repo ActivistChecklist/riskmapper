@@ -23,11 +23,26 @@ export type RiskMatrixSnapshot = {
   categorizedRevealHidden: CategorizedRevealHiddenState;
 };
 
+/**
+ * Local cache of cloud-sync metadata for a saved matrix. Present iff the user
+ * has opted into cloud sync for this matrix. Note that `keyB64` is **only**
+ * persisted after explicit user action ("Save on this device"); for an
+ * inbound shared link viewed in sandbox mode, the key lives in memory only.
+ */
+export type CloudMatrixMeta = {
+  recordId: string;
+  /** Base64url-no-pad XChaCha20-Poly1305 key. Empty string ⇒ session-only. */
+  keyB64: string;
+  lastSyncedVersion: number;
+  lastSyncedLamport: number;
+};
+
 export type StoredMatrix = {
   id: string;
   title: string;
   updatedAt: string;
   snapshot: RiskMatrixSnapshot;
+  cloud?: CloudMatrixMeta;
 };
 
 export type MatrixWorkspaceV1 = {

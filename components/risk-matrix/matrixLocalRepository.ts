@@ -54,14 +54,33 @@ function isRiskMatrixSnapshot(x: unknown): x is RiskMatrixSnapshot {
   return true;
 }
 
-function isStoredMatrix(x: unknown): x is import("./matrixTypes").StoredMatrix {
+function isCloudMatrixMeta(
+  x: unknown,
+): x is import("./matrixTypes").CloudMatrixMeta {
   if (!isRecord(x)) return false;
   return (
-    typeof x.id === "string" &&
-    typeof x.title === "string" &&
-    typeof x.updatedAt === "string" &&
-    isRiskMatrixSnapshot(x.snapshot)
+    typeof x.recordId === "string" &&
+    x.recordId.length > 0 &&
+    typeof x.keyB64 === "string" &&
+    typeof x.lastSyncedVersion === "number" &&
+    Number.isFinite(x.lastSyncedVersion) &&
+    typeof x.lastSyncedLamport === "number" &&
+    Number.isFinite(x.lastSyncedLamport)
   );
+}
+
+function isStoredMatrix(x: unknown): x is import("./matrixTypes").StoredMatrix {
+  if (!isRecord(x)) return false;
+  if (
+    typeof x.id !== "string" ||
+    typeof x.title !== "string" ||
+    typeof x.updatedAt !== "string" ||
+    !isRiskMatrixSnapshot(x.snapshot)
+  ) {
+    return false;
+  }
+  if (x.cloud !== undefined && !isCloudMatrixMeta(x.cloud)) return false;
+  return true;
 }
 
 function isWorkspaceV1(x: unknown): x is MatrixWorkspaceV1 {
