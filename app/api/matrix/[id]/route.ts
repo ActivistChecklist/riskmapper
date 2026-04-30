@@ -1,4 +1,4 @@
-import { MAX_CIPHERTEXT_BYTES, WRITE_RATE_LIMIT_PER_MIN } from "@/lib/cloud/config";
+import { getMaxCiphertextBytes, getWriteRateLimitPerMin } from "@/lib/cloud/config";
 import { getCollection } from "@/lib/cloud/db";
 import {
   internalError,
@@ -51,7 +51,7 @@ export async function GET(_req: Request, ctx: RouteParams) {
 }
 
 export async function PUT(req: Request, ctx: RouteParams) {
-  const limited = await rateLimit(req, WRITE_RATE_LIMIT_PER_MIN);
+  const limited = await rateLimit(req, getWriteRateLimitPerMin());
   if (limited) return limited;
 
   const { id } = await ctx.params;
@@ -69,7 +69,7 @@ export async function PUT(req: Request, ctx: RouteParams) {
   ) {
     return jsonError(400, "invalid body");
   }
-  if ((body?.ciphertext as string).length > MAX_CIPHERTEXT_BYTES) {
+  if ((body?.ciphertext as string).length > getMaxCiphertextBytes()) {
     return jsonError(413, "ciphertext too large");
   }
 
@@ -110,7 +110,7 @@ export async function PUT(req: Request, ctx: RouteParams) {
 }
 
 export async function DELETE(req: Request, ctx: RouteParams) {
-  const limited = await rateLimit(req, WRITE_RATE_LIMIT_PER_MIN);
+  const limited = await rateLimit(req, getWriteRateLimitPerMin());
   if (limited) return limited;
 
   const { id } = await ctx.params;

@@ -27,6 +27,7 @@ export type AppCollection = {
     options: { returnDocument: "after" },
   ): Promise<MatrixDoc | null>;
   deleteOne(filter: { _id: string }): Promise<unknown>;
+  deleteMany(filter: Record<string, unknown>): Promise<{ deletedCount?: number }>;
 };
 
 /** Today as `YYYY-MM-DD` (UTC). */

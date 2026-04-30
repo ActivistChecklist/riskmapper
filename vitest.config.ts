@@ -5,11 +5,13 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   plugins: [react()],
   test: {
+    // Most of the suite is React + DOM. The cloud/route-handler tests in
+    // lib/cloud/ run fine in jsdom too — they don't touch the DOM but jsdom
+    // is a superset of node for the WHATWG Request/Response globals we
+    // need.
     environment: "jsdom",
     include: ["**/*.test.{ts,tsx}"],
-    // server/ has its own vitest.config.ts targeting Node — don't run those
-    // here under jsdom by accident. Run them via `yarn --cwd server test`.
-    exclude: ["**/node_modules/**", "**/dist/**", "server/**"],
+    exclude: ["**/node_modules/**", "**/dist/**"],
     passWithNoTests: false,
   },
   resolve: {

@@ -1,15 +1,13 @@
-import { RETENTION_DAYS } from "./config.js";
-import { getCollection } from "./db.js";
+import { getRetentionDays } from "./config";
+import { getCollection } from "./db";
 
 /**
  * Purge records that have been silent (no read AND no write) for more than
- * RETENTION_DAYS.
- *
- * Run as a daily cron (Railway scheduled job, or simple setInterval in
- * single-instance deploys).
+ * `RETENTION_DAYS`. Intended to run as a daily cron — wire up via Vercel
+ * Cron (`/app/api/cron/purge/route.ts`) or your platform's equivalent.
  */
 export async function purgeStaleRecords(now: Date = new Date()): Promise<number> {
-  const cutoff = new Date(now.getTime() - RETENTION_DAYS * 86400_000)
+  const cutoff = new Date(now.getTime() - getRetentionDays() * 86400_000)
     .toISOString()
     .slice(0, 10);
   const coll = await getCollection();

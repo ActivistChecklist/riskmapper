@@ -10,13 +10,11 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:server": "yarn --cwd server test",
-    "test:all": "yarn test && yarn test:server",
     "typecheck": "tsc --noEmit",
-    "db:up": "yarn --cwd server db:up",
-    "db:down": "yarn --cwd server db:down",
-    "db:logs": "yarn --cwd server db:logs",
-    "db:reset": "yarn --cwd server db:reset"
+    "db:up": "docker compose -f docker-compose.dev.yml up -d",
+    "db:down": "docker compose -f docker-compose.dev.yml down",
+    "db:logs": "docker compose -f docker-compose.dev.yml logs -f mongo",
+    "db:reset": "docker compose -f docker-compose.dev.yml down -v"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",

@@ -305,11 +305,24 @@ describe("CloudConflictError", () => {
   });
 });
 
-describe("isCloudEnabled", () => {
-  it("is false when the env var is absent", async () => {
+describe("isCloudEnabled / cloudUrl", () => {
+  it("is enabled by default and uses same-origin (relative) URLs", async () => {
+    vi.stubEnv("NEXT_PUBLIC_CLOUD_SYNC_ENABLED", "");
     vi.stubEnv("NEXT_PUBLIC_CLOUD_API_URL", "");
     const mod = await import("./cloudConfig");
+    expect(mod.isCloudEnabled()).toBe(true);
+    expect(mod.cloudUrl("/api/matrix")).toBe("/api/matrix");
+  });
+
+  it("is false when explicitly disabled", async () => {
+    vi.stubEnv("NEXT_PUBLIC_CLOUD_SYNC_ENABLED", "false");
+    const mod = await import("./cloudConfig");
     expect(mod.isCloudEnabled()).toBe(false);
-    expect(() => mod.cloudUrl("/api/matrix")).toThrow(/Cloud sync is not configured/);
+  });
+
+  it("uses the override base URL when provided", async () => {
+    vi.stubEnv("NEXT_PUBLIC_CLOUD_API_URL", "https://api.example/");
+    const mod = await import("./cloudConfig");
+    expect(mod.cloudUrl("/api/matrix")).toBe("https://api.example/api/matrix");
   });
 });

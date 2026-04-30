@@ -60,6 +60,15 @@ export function createFakeCollection(): AppCollection & {
       return { acknowledged: true, deletedCount: existed ? 1 : 0 };
     },
 
+    async deleteMany(): Promise<{ deletedCount?: number }> {
+      // Used by purge.ts; tests don't exercise the predicate-matching path
+      // since purge() isn't called from any test today. If tests ever use
+      // it, expand this to evaluate the filter against `store`.
+      const n = store.size;
+      store.clear();
+      return { deletedCount: n };
+    },
+
     __dump(): MatrixDoc[] {
       return Array.from(store.values()).map((d) => ({ ...d }));
     },

@@ -172,10 +172,10 @@ describe("share-link import flow", () => {
     expect(screen.queryByText(/server returned an older version/i)).toBeNull();
   });
 
-  it("does NOT fire when cloud sync is disabled (no API URL)", async () => {
+  it("does NOT fire when cloud sync is explicitly disabled", async () => {
     const key = await generateKey();
     await setShareUrlInLocation(FAKE_RECORD_ID, key);
-    vi.stubEnv("NEXT_PUBLIC_CLOUD_API_URL", "");
+    vi.stubEnv("NEXT_PUBLIC_CLOUD_SYNC_ENABLED", "false");
     const readSpy = vi.fn();
     mockReadImpl = async () => {
       readSpy();

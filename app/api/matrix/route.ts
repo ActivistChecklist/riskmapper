@@ -1,4 +1,4 @@
-import { MAX_CIPHERTEXT_BYTES, WRITE_RATE_LIMIT_PER_MIN } from "@/lib/cloud/config";
+import { getMaxCiphertextBytes, getWriteRateLimitPerMin } from "@/lib/cloud/config";
 import { getCollection } from "@/lib/cloud/db";
 import {
   internalError,
@@ -28,13 +28,13 @@ import { todayUtc } from "@/lib/cloud/types";
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
-  const limited = await rateLimit(req, WRITE_RATE_LIMIT_PER_MIN);
+  const limited = await rateLimit(req, getWriteRateLimitPerMin());
   if (limited) return limited;
 
   const body = (await readJsonBody(req)) as { id?: unknown; ciphertext?: unknown } | null;
   const ct = body?.ciphertext;
   if (!validCiphertext(ct)) return jsonError(400, "invalid ciphertext");
-  if (ct.length > MAX_CIPHERTEXT_BYTES) return jsonError(413, "ciphertext too large");
+  if (ct.length > getMaxCiphertextBytes()) return jsonError(413, "ciphertext too large");
   if (typeof body?.id !== "string" || !isPlausibleId(body.id)) {
     return jsonError(400, "invalid id");
   }
