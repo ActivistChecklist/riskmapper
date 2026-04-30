@@ -67,7 +67,9 @@ function RiskMatrixCanvas({ workspace: ws, cloud }: CanvasProps) {
 
   const activeSaved = ws.activeSavedMatrix;
   const cloudMeta = activeSaved?.cloud ?? null;
-  const cloudCapable = isCloudEnabled() && activeSaved !== null;
+  // The Share button is always available when cloud is enabled. Drafts are
+  // promoted to saved rows on demand (see handleCloudMetaSet below).
+  const cloudCapable = isCloudEnabled();
 
   const handleStopSharing = useCallback(async () => {
     if (!activeSaved?.cloud) return;
@@ -234,14 +236,26 @@ function RiskMatrixCanvas({ workspace: ws, cloud }: CanvasProps) {
           />
         )}
         cloudShareControl={
-          cloudCapable && activeSaved ? (
+          cloudCapable ? (
             <CloudShareControl
               getSnapshot={m.getSnapshot}
               matrixTitle={ws.activeTitle}
               cloudMeta={cloudMeta}
               syncState={cloud.syncState}
               repo={cloud.repo}
-              onCloudMetaSet={(meta) => ws.setCloudMeta(activeSaved.id, meta)}
+              onCloudMetaSet={(meta) => {
+                // If we're on a draft when the user shares, promote it to a
+                // saved row first so there's something to attach the cloud
+                // meta to. Promotion uses the current draft title (defaults
+                // to "Untitled" if the user hasn't edited it).
+                let savedId = activeSaved?.id;
+                if (!savedId) {
+                  const newId = ws.promoteDraftToSaved(ws.activeTitle);
+                  if (!newId) return;
+                  savedId = newId;
+                }
+                ws.setCloudMeta(savedId, meta);
+              }}
               onStopSharing={handleStopSharing}
               onAcknowledge={cloud.acknowledge}
               onIndicatorAction={cloud.reopenConflict}

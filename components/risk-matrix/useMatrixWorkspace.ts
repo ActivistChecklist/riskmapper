@@ -88,6 +88,13 @@ export type MatrixWorkspaceApi = {
     snapshot: RiskMatrixSnapshot;
     cloud: CloudMatrixMeta;
   }) => string;
+  /**
+   * Promote the current draft (default surface) to a saved row using `name`,
+   * keep its current snapshot, and switch active to the new row. Used when
+   * the user clicks Share on an unsaved draft. Returns the new id, or
+   * `null` if there is no draft to promote (already on a saved row).
+   */
+  promoteDraftToSaved: (name: string) => string | null;
 };
 
 const EMPTY_WORKSPACE = normalizeLoadedWorkspace(normalizeWorkspace(null));
@@ -306,6 +313,41 @@ export function useMatrixWorkspace(
     [repo],
   );
 
+  const promoteDraftToSaved = useCallback(
+    (name: string): string | null => {
+      // Only valid from the default/draft surface — saved rows have nothing
+      // to promote. We DON'T re-render the canvas (no setSurfaceId) because
+      // the snapshot the user is editing is the one we're keeping; the
+      // surface stays mounted, just bound to a saved id now.
+      if (identityRef.current.kind !== "default") return null;
+      const snap = matrixGetterRef.current?.();
+      if (!snap) return null;
+      const id = crypto.randomUUID();
+      const now = new Date().toISOString();
+      const trimmed = name.trim() || DEFAULT_DRAFT_MATRIX_TITLE;
+      // Update identityRef synchronously so callers (e.g. setCloudMeta)
+      // running in the same tick see the new identity.
+      identityRef.current = { kind: "saved", id };
+      setWorkspace((w) => {
+        const next: MatrixWorkspaceV1 = {
+          ...w,
+          activeKind: "saved",
+          activeSavedId: id,
+          defaultSnapshot: null,
+          draftTitle: DEFAULT_DRAFT_MATRIX_TITLE,
+          saved: [
+            ...w.saved,
+            { id, title: trimmed, updatedAt: now, snapshot: snap },
+          ],
+        };
+        repo.save(next);
+        return next;
+      });
+      return id;
+    },
+    [repo],
+  );
+
   const recentSorted = useMemo(() => {
     return [...workspace.saved].sort(
       (a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt),
@@ -459,5 +501,6 @@ export function useMatrixWorkspace(
     findSaved,
     activeSavedMatrix,
     adoptSharedMatrix,
+    promoteDraftToSaved,
   };
 }
