@@ -2,9 +2,9 @@ import cors from "cors";
 import express, { type Response } from "express";
 import { rateLimit } from "express-rate-limit";
 import {
-  CORS_ALLOW_ORIGINS,
   MAX_CIPHERTEXT_BYTES,
   WRITE_RATE_LIMIT_PER_MIN,
+  getCorsAllowOrigins,
 } from "./config.js";
 import { getCollection, todayUtc, type MatrixDoc } from "./db.js";
 
@@ -23,33 +23,74 @@ import { getCollection, todayUtc, type MatrixDoc } from "./db.js";
  * matching the deployment), `req.ip` is the proxy-injected client IP and
  * resists `X-Forwarded-For` spoofing. See README for the trust-proxy note.
  */
-export function createApp() {
+
+/**
+ * Narrow interface over the MongoDB collection methods this app uses. Lets
+ * tests inject an in-memory fake without booting Mongo.
+ */
+export type AppCollection = {
+  insertOne(doc: MatrixDoc): Promise<unknown>;
+  findOne(filter: { _id: string }): Promise<MatrixDoc | null>;
+  findOneAndUpdate(
+    filter: { _id: string; version?: number },
+    update:
+      | { $set: Partial<MatrixDoc> }
+      | { $set: Partial<MatrixDoc>; $inc: { version: number } },
+    options: { returnDocument: "after" },
+  ): Promise<MatrixDoc | null>;
+  deleteOne(filter: { _id: string }): Promise<unknown>;
+};
+
+export type CreateAppOptions = {
+  /** Override the production Mongo collection. Tests pass a fake. */
+  getColl?: () => Promise<AppCollection>;
+  /** Override CORS_ALLOW_ORIGINS for tests. */
+  corsOrigins?: string[];
+  /** Override the write-endpoint rate limit; pass `false` to disable. */
+  rateLimitPerMin?: number | false;
+  /** Override the ciphertext byte cap. */
+  maxCiphertextBytes?: number;
+};
+
+export function createApp(options: CreateAppOptions = {}) {
+  const getColl = options.getColl ?? getCollection;
+  const corsOrigins = options.corsOrigins ?? getCorsAllowOrigins();
+  const maxCiphertextBytes = options.maxCiphertextBytes ?? MAX_CIPHERTEXT_BYTES;
+  const rateLimitPerMin =
+    options.rateLimitPerMin === undefined
+      ? WRITE_RATE_LIMIT_PER_MIN
+      : options.rateLimitPerMin;
+
   const app = express();
   // ONE proxy hop in front of the app (Railway's edge). If you deploy behind
   // a different topology (e.g. a CDN in front of a reverse proxy), update
   // this to match the actual hop count.
   app.set("trust proxy", 1);
-  app.use(express.json({ limit: MAX_CIPHERTEXT_BYTES + 1024 }));
+  app.use(express.json({ limit: maxCiphertextBytes + 1024 }));
 
   // CORS is required: a deployer who forgets `CORS_ALLOW_ORIGINS` would
   // otherwise ship an API responding to every origin's simple GETs. We
-  // fail-fast at startup instead (see config.ts assertion).
+  // fail fast at startup instead (see config.ts assertion).
   app.use(
     cors({
-      origin: CORS_ALLOW_ORIGINS,
+      origin: corsOrigins,
       methods: ["GET", "POST", "PUT", "DELETE"],
       allowedHeaders: ["Content-Type"],
       credentials: false,
     }),
   );
 
-  const writeLimiter = rateLimit({
-    windowMs: 60_000,
-    limit: WRITE_RATE_LIMIT_PER_MIN,
-    standardHeaders: "draft-7",
-    legacyHeaders: false,
-    message: { error: "rate limited" },
-  });
+  const writeLimiter =
+    rateLimitPerMin === false
+      ? (_req: express.Request, _res: express.Response, next: express.NextFunction) =>
+          next()
+      : rateLimit({
+          windowMs: 60_000,
+          limit: rateLimitPerMin,
+          standardHeaders: "draft-7",
+          legacyHeaders: false,
+          message: { error: "rate limited" },
+        });
 
   app.get("/healthz", (_req, res) => {
     res.json({ ok: true });
@@ -62,7 +103,7 @@ export function createApp() {
       res.status(400).json({ error: "invalid ciphertext" });
       return;
     }
-    if (ct.length > MAX_CIPHERTEXT_BYTES) {
+    if (ct.length > maxCiphertextBytes) {
       res.status(413).json({ error: "ciphertext too large" });
       return;
     }
@@ -82,7 +123,7 @@ export function createApp() {
       lastReadDate: null,
     };
     try {
-      const coll = await getCollection();
+      const coll = await getColl();
       await coll.insertOne(doc);
     } catch (err) {
       // Duplicate-key → astronomically unlikely with 128-bit randomUUID, but
@@ -110,7 +151,7 @@ export function createApp() {
       return;
     }
     try {
-      const coll = await getCollection();
+      const coll = await getColl();
       const today = todayUtc();
       const doc = await coll.findOneAndUpdate(
         { _id: id },
@@ -155,12 +196,12 @@ export function createApp() {
       res.status(400).json({ error: "invalid body" });
       return;
     }
-    if (body.ciphertext.length > MAX_CIPHERTEXT_BYTES) {
+    if (body.ciphertext.length > maxCiphertextBytes) {
       res.status(413).json({ error: "ciphertext too large" });
       return;
     }
     try {
-      const coll = await getCollection();
+      const coll = await getColl();
       const today = todayUtc();
       const expectedVersion = body.expectedVersion as number;
       const updated = await coll.findOneAndUpdate(
@@ -202,7 +243,7 @@ export function createApp() {
       return;
     }
     try {
-      const coll = await getCollection();
+      const coll = await getColl();
       await coll.deleteOne({ _id: id });
       res.status(204).end();
     } catch (err) {

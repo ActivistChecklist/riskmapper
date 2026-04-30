@@ -12,9 +12,13 @@ export const RETENTION_DAYS = Number(process.env.RETENTION_DAYS ?? 90);
 /**
  * Allow-list of origins for CORS. Comma-separated. Required: a deployer who
  * forgets to set this would otherwise ship an API responding to every
- * origin's simple GETs. We fail fast at module load to prevent that.
+ * origin's simple GETs. We fail fast at app construction to prevent that.
+ *
+ * Evaluated lazily (function, not a top-level constant) so test harnesses can
+ * import `createApp` without forcing CORS_ALLOW_ORIGINS to be set in the
+ * test environment.
  */
-export const CORS_ALLOW_ORIGINS = (() => {
+export function getCorsAllowOrigins(): string[] {
   const raw = (process.env.CORS_ALLOW_ORIGINS ?? "")
     .split(",")
     .map((o) => o.trim())
@@ -25,7 +29,7 @@ export const CORS_ALLOW_ORIGINS = (() => {
     );
   }
   return raw;
-})();
+}
 
 /** Per-IP request budget for write endpoints (window: 1 minute). */
 export const WRITE_RATE_LIMIT_PER_MIN = Number(
