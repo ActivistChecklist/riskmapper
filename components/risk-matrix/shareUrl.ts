@@ -3,73 +3,71 @@ import { keyFromB64, keyToB64 } from "@/lib/e2ee";
 /**
  * Share URL format:
  *
- *   <origin>/<basePath>?matrix=<RECORD_ID>#k=<KEY_B64URL>&v=1
+ *   <origin>/grid/<recordId>#<key-base64url>
  *
- * The fragment is never sent in the HTTP request line, so the key never
- * reaches the server in the share-link load. `?matrix=` is the visible
- * locator; `#k=` is the capability key.
+ * The capability key is the entire URL fragment — browsers don't include
+ * the fragment in HTTP request lines, so the key never reaches the server.
+ * The recordId is in the path so the server's request log shows which
+ * record was looked up but not the key. We don't include a URL-format
+ * version: if the format changes later, we'll detect the new shape by its
+ * own syntax rather than baking a version literal into every link.
  */
 
-export const SHARE_FRAGMENT_VERSION = 1;
-export const SHARE_QUERY_KEY = "matrix";
-const SHARE_FRAGMENT_KEY = "k";
-const SHARE_FRAGMENT_VERSION_KEY = "v";
+export const SHARE_PATH_PREFIX = "/grid/";
 
 export type ParsedShareLink = {
   recordId: string;
   key: Uint8Array;
-  fragmentVersion: number;
 };
 
 export function buildShareUrl(args: {
-  baseUrl: string;
+  origin: string;
   recordId: string;
   key: Uint8Array;
 }): string {
   if (!args.recordId) throw new Error("buildShareUrl: missing recordId");
   const keyB64 = keyToB64(args.key);
-  const url = new URL(args.baseUrl);
-  url.searchParams.set(SHARE_QUERY_KEY, args.recordId);
-  url.hash = `${SHARE_FRAGMENT_KEY}=${keyB64}&${SHARE_FRAGMENT_VERSION_KEY}=${SHARE_FRAGMENT_VERSION}`;
+  const url = new URL(args.origin);
+  // Replace any path on the origin with the canonical share path.
+  url.pathname = `${SHARE_PATH_PREFIX}${encodeURIComponent(args.recordId)}`;
+  url.search = "";
+  url.hash = keyB64;
   return url.toString();
 }
 
 export function parseShareLocation(loc: {
-  search: string;
+  pathname: string;
   hash: string;
 }): ParsedShareLink | null {
-  const params = new URLSearchParams(loc.search);
-  const recordId = params.get(SHARE_QUERY_KEY);
+  if (!loc.pathname.startsWith(SHARE_PATH_PREFIX)) return null;
+  const recordId = decodeURIComponent(
+    loc.pathname.slice(SHARE_PATH_PREFIX.length).replace(/\/$/, ""),
+  );
   if (!recordId) return null;
   const fragment = loc.hash.startsWith("#") ? loc.hash.slice(1) : loc.hash;
   if (!fragment) return null;
-  const fp = new URLSearchParams(fragment);
-  const k = fp.get(SHARE_FRAGMENT_KEY);
-  const v = fp.get(SHARE_FRAGMENT_VERSION_KEY);
-  if (!k || !v) return null;
-  const fragmentVersion = Number(v);
-  if (!Number.isInteger(fragmentVersion)) return null;
-  if (fragmentVersion !== SHARE_FRAGMENT_VERSION) return null;
   let key: Uint8Array;
   try {
-    key = keyFromB64(k);
+    key = keyFromB64(fragment);
   } catch {
     return null;
   }
-  return { recordId, key, fragmentVersion };
-}
-
-export function clearShareFromUrl(): void {
-  if (typeof window === "undefined") return;
-  const url = new URL(window.location.href);
-  url.searchParams.delete(SHARE_QUERY_KEY);
-  url.hash = "";
-  window.history.replaceState(null, "", url.toString());
+  return { recordId, key };
 }
 
 /**
- * The last 6 chars of the base64url key, suitable for showing as a fingerprint
- * to confirm a copy/paste went through cleanly.
+ * Replace the current URL with the app root, dropping the share-link path
+ * + fragment. Used after auto-importing a shared matrix so reloading the
+ * page doesn't re-trigger the import flow.
+ */
+export function clearShareFromUrl(): void {
+  if (typeof window === "undefined") return;
+  window.history.replaceState(null, "", "/");
+}
+
+/**
+ * The last 6 chars of the base64url key, suitable for showing as a
+ * fingerprint to confirm a copy/paste went through cleanly.
  */
 export function shareKeyFingerprint(key: Uint8Array): string {
   return keyToB64(key).slice(-6);

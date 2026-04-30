@@ -28,10 +28,6 @@ export type ShareMatrixDialogProps = {
   onStopSharing: () => void;
 };
 
-const TRUST_COPY =
-  "Anyone with this link can read and edit this matrix. The link expires after " +
-  `${RETENTION_DAYS} days of inactivity. We recommend sharing it via a private channel.`;
-
 export default function ShareMatrixDialog({
   open,
   onOpenChange,
@@ -68,7 +64,7 @@ export default function ShareMatrixDialog({
   const shareUrl =
     handle && typeof window !== "undefined"
       ? buildShareUrl({
-          baseUrl: window.location.origin + window.location.pathname,
+          origin: window.location.origin,
           recordId: handle.recordId,
           key: handle.key,
         })
@@ -99,9 +95,17 @@ export default function ShareMatrixDialog({
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Share &ldquo;{displayTitle}&rdquo; via link</DialogTitle>
-          <DialogDescription className="text-rm-ink/80">
-            {TRUST_COPY}
+          <DialogDescription className="font-semibold text-rm-ink">
+            Anyone with this link can read and edit this matrix.
           </DialogDescription>
+          <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-rm-ink/80">
+            <li>The link expires after {RETENTION_DAYS} days of inactivity.</li>
+            <li>Share it via a private channel.</li>
+            <li>
+              Risk Matrix data is end-to-end encrypted — we have nothing we
+              can read or turn over to law enforcement.
+            </li>
+          </ul>
         </DialogHeader>
 
         {error ? (
@@ -115,11 +119,6 @@ export default function ShareMatrixDialog({
 
         {!handle ? (
           <div className="mt-5 flex flex-col gap-3">
-            <p className="text-sm text-rm-ink/80">
-              Saving this matrix to the cloud creates an encrypted copy on our
-              server. The encryption key lives only in the URL fragment of the
-              share link, so the server cannot read your data.
-            </p>
             <div className="flex justify-end gap-2">
               <Button
                 variant="outline"

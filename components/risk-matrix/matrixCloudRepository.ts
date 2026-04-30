@@ -1,5 +1,6 @@
 import {
   SCHEMA_VERSION,
+  base64urlEncode,
   decryptPayload,
   encryptPayload,
   generateKey,
@@ -159,17 +160,20 @@ function checkSize(envelope: string): void {
 }
 
 /**
- * Mint a 128-bit record id in the server's expected shape (matches the
- * server's `^[A-Za-z0-9_-]{16,64}$` validator). Hyphenated UUIDv4 from
- * `crypto.randomUUID` is 36 chars and only uses `0-9a-f-`, so it passes.
+ * Mint a 96-bit record id encoded as 16 chars of base64url-no-pad. Matches
+ * the server's `^[A-Za-z0-9_-]{16,64}$` validator. 96 bits is well above
+ * any realistic collision risk for our scale; the trade-off vs a UUID is a
+ * shorter share URL.
  */
 function mintRecordId(): string {
-  if (typeof crypto === "undefined" || typeof crypto.randomUUID !== "function") {
+  if (typeof crypto === "undefined" || typeof crypto.getRandomValues !== "function") {
     throw new Error(
-      "crypto.randomUUID is unavailable; cloud sync requires a secure context.",
+      "crypto.getRandomValues is unavailable; cloud sync requires a secure context.",
     );
   }
-  return crypto.randomUUID();
+  const bytes = new Uint8Array(12);
+  crypto.getRandomValues(bytes);
+  return base64urlEncode(bytes);
 }
 
 async function readBodyJson(res: Response): Promise<unknown> {

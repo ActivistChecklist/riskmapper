@@ -56,7 +56,7 @@ export function useShareImport({ repo, enabled = true }: UseShareImportArgs) {
     if (typeof window === "undefined") return;
     let cancelled = false;
     const parsed = parseShareLocation({
-      search: window.location.search,
+      pathname: window.location.pathname,
       hash: window.location.hash,
     });
     if (!parsed) return;

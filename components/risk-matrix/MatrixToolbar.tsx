@@ -219,14 +219,20 @@ export function MatrixDocumentActions({
     </>
   );
 
-  const savedCluster = iconOnly ? (
-    <Tooltip>
-      <TooltipTrigger asChild>{savedBtn}</TooltipTrigger>
-      <TooltipContent side="bottom">Saved on your device</TooltipContent>
-    </Tooltip>
-  ) : (
-    savedBtn
-  );
+  // "Saved locally" is hidden when the active matrix is in share mode —
+  // calling a cloud-synced matrix "saved locally" reads as a contradiction,
+  // even though the underlying button opens a list of all saved rows.
+  const isShareMode = Boolean(ws.activeSavedMatrix?.cloud);
+  const savedCluster = isShareMode
+    ? null
+    : iconOnly ? (
+        <Tooltip>
+          <TooltipTrigger asChild>{savedBtn}</TooltipTrigger>
+          <TooltipContent side="bottom">Saved on your device</TooltipContent>
+        </Tooltip>
+      ) : (
+        savedBtn
+      );
 
   return (
     <>

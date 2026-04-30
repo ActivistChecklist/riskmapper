@@ -1,8 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 
-import { SCHEMA_VERSION, generateKey, keyToB64 } from "@/lib/e2ee";
+import { generateKey, keyToB64 } from "@/lib/e2ee";
 import { __resetRollbackStoreForTests } from "./cloudRollbackStore";
 import {
   CloudNotFoundError,
@@ -13,15 +12,16 @@ import {
 import type { RiskMatrixSnapshot } from "./matrixTypes";
 
 /**
- * Integration test for the share-link import flow.
+ * Integration test for the share-link import flow (auto-adopt model).
  *
  * The hook stack under test:
  *   useShareImport() reads window.location → repo.read(handle) → state.
- *   RiskMatrix root branches on that state into:
- *     - loading screen
- *     - SharedMatrixSandboxBanner (sandboxed preview)
- *     - ShareImportFailure (missing / rollback / error)
- *   "Save on this device" calls ws.adoptSharedMatrix and dismisses.
+ *   RiskMatrix root branches on that state:
+ *     - "loading" / "ready" → loading screen, then auto-adopt + render canvas
+ *     - "missing" / "rollback" / "error" → ShareImportFailure screen
+ *
+ * No sandbox preview, no "Save on this device" gesture — we trust the link
+ * the user clicked.
  *
  * We mock `createMatrixCloudRepository` so no fetch goes out and the test
  * controls exactly what `repo.read` returns.
@@ -64,21 +64,14 @@ vi.mock("./matrixCloudRepository", async (importActual) => {
 async function setShareUrlInLocation(recordId: string, key: Uint8Array) {
   const keyB64 = keyToB64(key);
   // Use replaceState rather than mutating window.location directly — JSDOM
-  // does not allow assignment to .search/.hash. The hook reads search +
-  // hash on mount.
-  window.history.replaceState(
-    null,
-    "",
-    `/?matrix=${encodeURIComponent(recordId)}#k=${keyB64}&v=1`,
-  );
+  // does not allow assignment to .pathname/.hash. The hook reads them on
+  // mount.
+  window.history.replaceState(null, "", `/grid/${encodeURIComponent(recordId)}#${keyB64}`);
 }
 
 beforeEach(() => {
   __resetRollbackStoreForTests();
   window.localStorage.clear();
-  // Cloud feature must be enabled for useShareImport to fire.
-  vi.stubEnv("NEXT_PUBLIC_CLOUD_API_URL", "https://api.example");
-  // Clean URL between tests.
   window.history.replaceState(null, "", "/");
 });
 
@@ -91,13 +84,12 @@ afterEach(() => {
 });
 
 describe("share-link import flow", () => {
-  it("renders the sandbox preview when an inbound share link is present", async () => {
+  it("auto-adopts the matrix into the local library on a /grid/ link", async () => {
     const key = await generateKey();
     await setShareUrlInLocation(FAKE_RECORD_ID, key);
-
     mockReadImpl = async () => ({
       snapshot: FAKE_SNAPSHOT,
-      title: "A shared matrix",
+      title: "Adopted matrix",
       version: 3,
       lamport: 2,
       lastWriteDate: "2026-04-29",
@@ -108,29 +100,90 @@ describe("share-link import flow", () => {
     const { default: RiskMatrix } = await import("./RiskMatrix");
     render(<RiskMatrix />);
 
-    // Either the loading flash or the banner shows up. Wait for the banner.
+    // Adoption happens on first render after the read resolves; the canvas
+    // renders the heading once we land on the SPA surface.
     await waitFor(() => {
-      expect(screen.getByText(/Viewing shared matrix/i)).toBeTruthy();
+      expect(
+        screen.getByRole("heading", { name: /risk matrix/i }),
+      ).toBeTruthy();
     });
-    // Title appears both in the banner and the preview heading.
-    expect(screen.getAllByText(/A shared matrix/).length).toBeGreaterThanOrEqual(1);
-    expect(
-      screen.getByRole("button", { name: /Save on this device/i }),
-    ).toBeTruthy();
-    expect(
-      screen.getByRole("button", { name: /Dismiss \(don.t save\)/i }),
-    ).toBeTruthy();
 
-    // Risk-count summary derived from the decrypted plaintext.
-    expect(screen.getByText("Risks in pool")).toBeTruthy();
-    // The "2" from FAKE_SNAPSHOT.pool.length appears in the dl.
-    const riskCountDt = screen.getByText("Risks in pool");
-    const riskCountDd = riskCountDt.nextElementSibling;
-    expect(riskCountDd?.textContent).toBe("2");
+    const stored = JSON.parse(
+      window.localStorage.getItem("riskmatrix.workspace.v1") ?? "null",
+    ) as {
+      saved?: Array<{
+        title: string;
+        cloud?: { recordId: string; keyB64: string; lastSyncedVersion: number; lastSyncedLamport: number };
+      }>;
+    } | null;
+    expect(stored).not.toBeNull();
+    expect(stored?.saved?.length).toBe(1);
+    const saved = stored!.saved![0];
+    expect(saved.title).toBe("Adopted matrix");
+    expect(saved.cloud?.recordId).toBe(FAKE_RECORD_ID);
+    expect(saved.cloud?.keyB64).toBe(keyToB64(key));
+    expect(saved.cloud?.lastSyncedVersion).toBe(3);
+    expect(saved.cloud?.lastSyncedLamport).toBe(2);
 
-    // The local library is still empty — sandbox does NOT auto-merge.
-    const stored = window.localStorage.getItem("riskmatrix.workspace.v1");
-    expect(stored === null || JSON.parse(stored).saved.length === 0).toBe(true);
+    // URL is cleaned so a refresh doesn't re-trigger the import.
+    expect(window.location.pathname).toBe("/");
+    expect(window.location.hash).toBe("");
+  });
+
+  it("dedupes when the recordId is already in the local library", async () => {
+    const key = await generateKey();
+    await setShareUrlInLocation(FAKE_RECORD_ID, key);
+    // Pre-seed localStorage with an existing saved row that already has
+    // this cloud recordId.
+    window.localStorage.setItem(
+      "riskmatrix.workspace.v1",
+      JSON.stringify({
+        v: 1,
+        activeKind: "default",
+        activeSavedId: null,
+        defaultSnapshot: null,
+        draftTitle: "Untitled",
+        saved: [
+          {
+            id: "local-id-1",
+            title: "Already here",
+            updatedAt: "2026-04-01T00:00:00Z",
+            snapshot: FAKE_SNAPSHOT,
+            cloud: {
+              recordId: FAKE_RECORD_ID,
+              keyB64: keyToB64(key),
+              lastSyncedVersion: 2,
+              lastSyncedLamport: 1,
+            },
+          },
+        ],
+      }),
+    );
+    mockReadImpl = async () => ({
+      snapshot: FAKE_SNAPSHOT,
+      title: "Newer name",
+      version: 3,
+      lamport: 2,
+      lastWriteDate: null,
+      lastReadDate: null,
+      createdDate: null,
+    });
+
+    const { default: RiskMatrix } = await import("./RiskMatrix");
+    render(<RiskMatrix />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("heading", { name: /risk matrix/i }),
+      ).toBeTruthy();
+    });
+
+    // Still exactly one saved row (no duplicate).
+    const stored = JSON.parse(
+      window.localStorage.getItem("riskmatrix.workspace.v1") ?? "null",
+    ) as { saved?: unknown[]; activeSavedId?: string };
+    expect(stored?.saved?.length).toBe(1);
+    expect(stored?.activeSavedId).toBe("local-id-1");
   });
 
   it("shows a friendly 'no longer available' screen when read returns 404", async () => {
@@ -144,9 +197,7 @@ describe("share-link import flow", () => {
     render(<RiskMatrix />);
 
     await waitFor(() => {
-      expect(
-        screen.getByText(/no longer available/i),
-      ).toBeTruthy();
+      expect(screen.getByText(/no longer available/i)).toBeTruthy();
     });
     expect(
       screen.getByRole("button", { name: /Continue without it/i }),
@@ -185,106 +236,11 @@ describe("share-link import flow", () => {
     const { default: RiskMatrix } = await import("./RiskMatrix");
     render(<RiskMatrix />);
 
-    // We should land on the main canvas, not the sandbox preview or any
-    // share-failure screen.
     await waitFor(() => {
       expect(
         screen.getByRole("heading", { name: /risk matrix/i }),
       ).toBeTruthy();
     });
-    expect(screen.queryByText(/Viewing shared matrix/i)).toBeNull();
     expect(readSpy).not.toHaveBeenCalled();
   });
-
-  it("'Save on this device' adopts the matrix into the local library and exits the sandbox", async () => {
-    const key = await generateKey();
-    await setShareUrlInLocation(FAKE_RECORD_ID, key);
-    mockReadImpl = async () => ({
-      snapshot: FAKE_SNAPSHOT,
-      title: "Adopted matrix",
-      version: 3,
-      lamport: 2,
-      lastWriteDate: "2026-04-29",
-      lastReadDate: "2026-04-29",
-      createdDate: "2026-04-01",
-    });
-
-    const user = userEvent.setup();
-    const { default: RiskMatrix } = await import("./RiskMatrix");
-    render(<RiskMatrix />);
-
-    await waitFor(() => {
-      expect(screen.getByText(/Viewing shared matrix/i)).toBeTruthy();
-    });
-
-    const saveBtn = screen.getByRole("button", { name: /Save on this device/i });
-    await user.click(saveBtn);
-
-    // Sandbox is gone — banner no longer rendered.
-    await waitFor(() => {
-      expect(screen.queryByText(/Viewing shared matrix/i)).toBeNull();
-    });
-
-    // The adopted matrix is now in localStorage.
-    const stored = JSON.parse(
-      window.localStorage.getItem("riskmatrix.workspace.v1") ?? "null",
-    ) as {
-      saved?: Array<{
-        title: string;
-        cloud?: { recordId: string; keyB64: string; lastSyncedVersion: number; lastSyncedLamport: number };
-      }>;
-    } | null;
-    expect(stored).not.toBeNull();
-    expect(stored?.saved?.length).toBe(1);
-    const saved = stored!.saved![0];
-    expect(saved.title).toBe("Adopted matrix");
-    expect(saved.cloud?.recordId).toBe(FAKE_RECORD_ID);
-    expect(saved.cloud?.keyB64).toBe(keyToB64(key));
-    expect(saved.cloud?.lastSyncedVersion).toBe(3);
-    expect(saved.cloud?.lastSyncedLamport).toBe(2);
-  });
-
-  it("'Dismiss' clears the share params from the URL without writing anything", async () => {
-    const key = await generateKey();
-    await setShareUrlInLocation(FAKE_RECORD_ID, key);
-    mockReadImpl = async () => ({
-      snapshot: FAKE_SNAPSHOT,
-      title: "x",
-      version: 1,
-      lamport: 1,
-      lastWriteDate: null,
-      lastReadDate: null,
-      createdDate: null,
-    });
-
-    const user = userEvent.setup();
-    const { default: RiskMatrix } = await import("./RiskMatrix");
-    render(<RiskMatrix />);
-
-    await waitFor(() => {
-      expect(screen.getByText(/Viewing shared matrix/i)).toBeTruthy();
-    });
-
-    const dismissBtn = screen.getByRole("button", { name: /Dismiss/i });
-    await user.click(dismissBtn);
-
-    await waitFor(() => {
-      expect(screen.queryByText(/Viewing shared matrix/i)).toBeNull();
-    });
-
-    // URL no longer carries the share params.
-    expect(window.location.search).toBe("");
-    expect(window.location.hash).toBe("");
-
-    // localStorage was not seeded with the dismissed matrix.
-    const stored = window.localStorage.getItem("riskmatrix.workspace.v1");
-    if (stored) {
-      const parsed = JSON.parse(stored) as { saved?: unknown[] };
-      expect(parsed.saved?.length ?? 0).toBe(0);
-    }
-  });
 });
-
-// Suppress the "unused" lint warning for the schemaVersion import — it's a
-// useful re-export we want kept in scope for any future test additions.
-void SCHEMA_VERSION;

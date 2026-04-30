@@ -5,6 +5,7 @@ import React, {
   useEffect,
   useLayoutEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { Copy } from "lucide-react";
@@ -22,7 +23,6 @@ import MatrixCopyDropdown from "./MatrixCopyDropdown";
 import MatrixHelpSection from "./MatrixHelpSection";
 import MatrixTopBar from "./MatrixTopBar";
 import RiskPoolSection from "./RiskPoolSection";
-import SharedMatrixSandboxBanner from "./SharedMatrixSandboxBanner";
 import StepSection from "./StepSection";
 import {
   MATRIX_READING_COLUMN_GRID_CHILD_CLASS,
@@ -70,6 +70,28 @@ function RiskMatrixCanvas({ workspace: ws, cloud }: CanvasProps) {
   // The Share button is always available when cloud is enabled. Drafts are
   // promoted to saved rows on demand (see handleCloudMetaSet below).
   const cloudCapable = isCloudEnabled();
+
+  // Whenever the queue reports a successful sync, persist the new version
+  // back to the saved row. Without this, localStorage's lastSyncedVersion
+  // would freeze at the value it had when the matrix was first shared,
+  // and the next page reload would re-trigger a 409 immediately on the
+  // first edit (the parked queue + 'Reload remote' loop).
+  useEffect(() => {
+    const synced = cloud.lastSynced;
+    if (!synced || !activeSaved?.cloud) return;
+    const meta = activeSaved.cloud;
+    if (
+      meta.lastSyncedVersion === synced.version &&
+      meta.lastSyncedLamport === synced.lamport
+    ) {
+      return;
+    }
+    ws.setCloudMeta(activeSaved.id, {
+      ...meta,
+      lastSyncedVersion: synced.version,
+      lastSyncedLamport: synced.lamport,
+    });
+  }, [cloud.lastSynced, activeSaved, ws]);
 
   const handleStopSharing = useCallback(async () => {
     if (!activeSaved?.cloud) return;
@@ -400,8 +422,39 @@ export default function RiskMatrix() {
   const ws = useMatrixWorkspace(repo, { onCloudWrite });
   const cloudEnabled = isCloudEnabled();
   const importer = useShareImport({ repo: cloud.repo, enabled: cloudEnabled });
+  const adoptedRef = useRef(false);
 
-  if (importer.state.kind === "loading") {
+  // Auto-adopt: when the share fetch resolves, drop the matrix straight into
+  // the local library and switch to it. If the recordId is already in the
+  // library (a previous import or the original sharer's own copy) we just
+  // open that row instead of creating a duplicate. After either case, clean
+  // the share path off the URL so a refresh doesn't re-trigger import.
+  useEffect(() => {
+    if (importer.state.kind !== "ready") return;
+    if (adoptedRef.current) return;
+    adoptedRef.current = true;
+    const { result, handle, keyB64 } = importer.state;
+    const existing = ws.workspace.saved.find(
+      (s) => s.cloud?.recordId === handle.recordId,
+    );
+    if (existing) {
+      ws.openSaved(existing.id);
+    } else {
+      ws.adoptSharedMatrix({
+        title: result.title,
+        snapshot: result.snapshot,
+        cloud: {
+          recordId: handle.recordId,
+          keyB64,
+          lastSyncedVersion: result.version,
+          lastSyncedLamport: result.lamport,
+        },
+      });
+    }
+    importer.dismiss();
+  }, [importer, ws]);
+
+  if (importer.state.kind === "loading" || importer.state.kind === "ready") {
     return (
       <div className="grid min-h-[40vh] place-items-center text-sm text-rm-ink/70">
         Loading shared matrix…
@@ -415,28 +468,6 @@ export default function RiskMatrix() {
   ) {
     return (
       <ShareImportFailure state={importer.state} onDismiss={importer.dismiss} />
-    );
-  }
-  if (importer.state.kind === "ready") {
-    const importState = importer.state;
-    return (
-      <SharedMatrixPreview
-        importState={importState}
-        onDismiss={importer.dismiss}
-        onAdoptToLibrary={() => {
-          ws.adoptSharedMatrix({
-            title: importState.result.title,
-            snapshot: importState.result.snapshot,
-            cloud: {
-              recordId: importState.handle.recordId,
-              keyB64: importState.keyB64,
-              lastSyncedVersion: importState.result.version,
-              lastSyncedLamport: importState.result.lamport,
-            },
-          });
-          importer.dismiss();
-        }}
-      />
     );
   }
   return <RiskMatrixCanvas key={ws.surfaceId} workspace={ws} cloud={cloud} />;
@@ -471,52 +502,6 @@ function ShareImportFailure({
       <Button className="mt-4" type="button" onClick={onDismiss}>
         Continue without it
       </Button>
-    </div>
-  );
-}
-
-function SharedMatrixPreview({
-  importState,
-  onDismiss,
-  onAdoptToLibrary,
-}: {
-  importState: Extract<
-    ReturnType<typeof useShareImport>["state"],
-    { kind: "ready" }
-  >;
-  onDismiss: () => void;
-  onAdoptToLibrary: () => void;
-}) {
-  const { result, fingerprint } = importState;
-  return (
-    <div className="mx-auto min-h-screen w-full max-w-[1320px] bg-rm-canvas px-4 py-5 sm:px-6 lg:px-8">
-      <SharedMatrixSandboxBanner
-        matrixTitle={result.title}
-        fingerprint={fingerprint}
-        onSaveLocally={onAdoptToLibrary}
-        onDismiss={onDismiss}
-      />
-      <div className="rounded-lg border border-black/10 bg-white p-4 text-sm text-rm-ink">
-        <p className="text-base font-semibold">{result.title || "Untitled"}</p>
-        <p className="mt-1 text-rm-ink/70">
-          Read-only preview of a shared matrix. Click &ldquo;Save on this
-          device&rdquo; in the banner above to add it to your library and edit
-          it.
-        </p>
-        <dl className="mt-4 grid grid-cols-1 gap-y-1 text-xs text-rm-ink/70 sm:grid-cols-2">
-          <dt className="font-medium">Risks in pool</dt>
-          <dd>{result.snapshot.pool.length}</dd>
-          <dt className="font-medium">Cells with risks</dt>
-          <dd>
-            {Object.values(result.snapshot.grid).reduce(
-              (n, lines) => n + lines.length,
-              0,
-            )}
-          </dd>
-          <dt className="font-medium">Other actions</dt>
-          <dd>{result.snapshot.otherActions.length}</dd>
-        </dl>
-      </div>
     </div>
   );
 }
