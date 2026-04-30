@@ -33,6 +33,8 @@ type Props = {
   toolbar?: boolean;
   /** Placed before “Saved locally” on the right side of the toolbar row. */
   toolbarCopyMenu?: ReactNode;
+  /** Share / sync control, rendered between Copy and Saved locally. */
+  toolbarShareControl?: ReactNode;
 };
 
 function needsMatrixNamePrompt(title: string): boolean {
@@ -47,6 +49,7 @@ export function MatrixDocumentActions({
   iconOnly = false,
   toolbar = false,
   toolbarCopyMenu,
+  toolbarShareControl,
 }: Props) {
   const [createOpen, setCreateOpen] = useState(false);
   const [recentOpen, setRecentOpen] = useState(false);
@@ -244,6 +247,7 @@ export function MatrixDocumentActions({
         </div>
         <div className="flex shrink-0 items-center gap-1 sm:gap-2">
           {toolbarCopyMenu}
+          {toolbarShareControl}
           {savedCluster}
         </div>
       </div>

@@ -105,11 +105,6 @@ export default function MatrixTopBar({ workspace: ws, copyMenu, cloudShareContro
             aria-label="Matrix title"
             className="min-w-0 max-w-[min(100%,28rem)] flex-1 basis-[min(100%,18rem)] border-b border-black/20 bg-transparent pb-1 pl-0.5 pr-0.5 pt-1 text-sm font-medium text-rm-ink outline-none placeholder:opacity-45 focus-visible:border-rm-primary focus-visible:ring-2 focus-visible:ring-black/10"
           />
-          {cloudShareControl ? (
-            <div className="ml-auto flex items-center gap-2">
-              {cloudShareControl}
-            </div>
-          ) : null}
         </div>
 
         <div
@@ -131,6 +126,7 @@ export default function MatrixTopBar({ workspace: ws, copyMenu, cloudShareContro
             toolbar
             workspace={ws}
             toolbarCopyMenu={copyMenu?.({ iconOnly: iconOnlyToolbar })}
+            toolbarShareControl={cloudShareControl}
           />
         </div>
       </div>
