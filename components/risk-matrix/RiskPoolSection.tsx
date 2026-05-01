@@ -45,6 +45,7 @@ export default function RiskPoolSection({
     <StepSection
       step={1}
       actions={step1Actions}
+      readingWidth={false}
       className="mb-6"
       title="What risks concern you the most right now?"
     >

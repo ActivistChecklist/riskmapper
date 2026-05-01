@@ -2,7 +2,6 @@
 
 import React, { useLayoutEffect, useRef, useState } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { MATRIX_READING_COLUMN_CLASS } from "./constants";
 import { MatrixDocumentActions } from "./MatrixToolbar";
 import type { MatrixWorkspaceApi } from "./useMatrixWorkspace";
 
@@ -10,7 +9,8 @@ type Props = {
   workspace: MatrixWorkspaceApi;
   /** Copy / export control — receives compact mode when the toolbar switches to icon-only. */
   copyMenu?: (opts: { iconOnly: boolean }) => React.ReactNode;
-  /** Cloud share control, rendered on the right side of the toolbar. */
+  /** Cloud share control. Rendered in the title row's far right (Google
+   *  Docs style), not in the toolbar. */
   cloudShareControl?: React.ReactNode;
   /** Status indicator (Saved locally / Synced / …), rendered to the right
    *  of the title in the title row. */
@@ -41,10 +41,6 @@ function MatrixToolbarWidthProbe() {
           Copy
         </span>
       </div>
-      <span className={chip}>
-        <span className="inline-block w-[15px] shrink-0" />
-        Share
-      </span>
     </div>
   );
 }
@@ -111,19 +107,22 @@ export default function MatrixTopBar({
             }}
             placeholder="Matrix title"
             aria-label="Matrix title"
-            className="min-w-0 w-[min(100%,18rem)] shrink-0 border-b border-black/20 bg-transparent pb-1 pl-0.5 pr-0.5 pt-1 text-sm font-medium text-rm-ink outline-none placeholder:opacity-45 focus-visible:border-rm-primary focus-visible:ring-2 focus-visible:ring-black/10"
+            className="min-w-0 w-[min(100%,22rem)] shrink-0 truncate border-b border-black/20 bg-transparent pb-1 pl-0.5 pr-0.5 pt-1 text-lg font-semibold text-rm-ink outline-none placeholder:opacity-45 focus-visible:border-rm-primary focus-visible:ring-2 focus-visible:ring-black/10 sm:text-xl"
           />
           {statusIndicator ? (
             <div className="shrink-0">{statusIndicator}</div>
+          ) : null}
+          {cloudShareControl ? (
+            // Anchored to the title row's far right (Google Docs style).
+            <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
+              {cloudShareControl}
+            </div>
           ) : null}
         </div>
 
         <div
           ref={toolbarRef}
-          className={[
-            MATRIX_READING_COLUMN_CLASS,
-            "relative flex min-h-10 min-w-0 flex-nowrap items-center rounded-lg border border-black/10 bg-white/85 px-1.5 py-1 shadow-[0_1px_2px_rgba(0,0,0,0.04)]",
-          ].join(" ")}
+          className="relative flex min-h-10 w-full min-w-0 flex-nowrap items-center rounded-lg border border-black/10 bg-white/85 px-1.5 py-1 shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
         >
           <div
             ref={measureRef}
@@ -137,7 +136,6 @@ export default function MatrixTopBar({
             toolbar
             workspace={ws}
             toolbarCopyMenu={copyMenu?.({ iconOnly: iconOnlyToolbar })}
-            toolbarShareControl={cloudShareControl}
           />
         </div>
       </div>

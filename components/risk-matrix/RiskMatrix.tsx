@@ -343,7 +343,7 @@ function RiskMatrixCanvas({ workspace: ws, cloud }: CanvasProps) {
           readingWidth={false}
           className="w-full max-w-none"
           actions={step2Copy}
-          title="Drag the risks from the pool into the matrix when you are ready to categorize them."
+          title="Drag the risks into the matrix"
         >
           <LikelihoodImpactMatrix
             grid={m.grid}

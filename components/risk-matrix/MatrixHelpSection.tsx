@@ -2,19 +2,13 @@
 
 import React, { useState } from "react";
 import { ChevronDown, ChevronRight, CircleHelp } from "lucide-react";
-import { MATRIX_READING_COLUMN_CLASS } from "./constants";
 
 /** Expandable help copy — sits below the document toolbar and above step 1. */
 export default function MatrixHelpSection() {
   const [open, setOpen] = useState(false);
 
   return (
-    <section
-      className={[
-        MATRIX_READING_COLUMN_CLASS,
-        "mb-5 rounded-lg border border-black/10 bg-zinc-100/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)]",
-      ].join(" ")}
-    >
+    <section className="mb-5 w-full rounded-lg border border-black/10 bg-zinc-100/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)]">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}

@@ -33,8 +33,6 @@ type Props = {
   toolbar?: boolean;
   /** Copy / export menu, rendered in the LEFT cluster after Delete. */
   toolbarCopyMenu?: ReactNode;
-  /** Share control, rendered on the RIGHT of the toolbar. */
-  toolbarShareControl?: ReactNode;
 };
 
 function needsMatrixNamePrompt(title: string): boolean {
@@ -49,7 +47,6 @@ export function MatrixDocumentActions({
   iconOnly = false,
   toolbar = false,
   toolbarCopyMenu,
-  toolbarShareControl,
 }: Props) {
   const [createOpen, setCreateOpen] = useState(false);
   const [recentOpen, setRecentOpen] = useState(false);
@@ -199,22 +196,11 @@ export function MatrixDocumentActions({
       <div
         className={cn(
           "flex min-w-0 flex-nowrap items-center",
-          toolbar && "w-full justify-between gap-2 sm:gap-4",
-          !toolbar && "gap-2",
+          toolbar ? "w-full gap-1" : "gap-2",
         )}
       >
-        <div
-          className={cn(
-            "flex min-w-0 flex-nowrap items-center",
-            toolbar ? "gap-1" : "gap-2",
-          )}
-        >
-          {leftCluster}
-          {toolbarCopyMenu}
-        </div>
-        <div className="flex shrink-0 items-center gap-1 sm:gap-2">
-          {toolbarShareControl}
-        </div>
+        {leftCluster}
+        {toolbarCopyMenu}
       </div>
 
       <Dialog open={recentOpen} onOpenChange={setRecentOpen}>
