@@ -403,16 +403,12 @@ function RiskMatrixCanvas({ workspace: ws, cloud }: CanvasProps) {
             )}
           </StepSection>
         </div>
-        {/* Row 1 col 2: invisible cell shares row 1 height so Actions starts with the table */}
-        <div
-          className="hidden min-h-0 xl:col-start-2 xl:row-start-1 xl:block"
-          aria-hidden
-        />
-        {/* Row 2 col 2: Actions — max-xl:mt-5 adds to gap-y-3 so stack matches previous gap-8 */}
+        {/* Actions sits at top of right column at xl+; on small screens it
+            continues to stack below mitigations with the existing top margin. */}
         <div
           className={[
             MATRIX_READING_COLUMN_GRID_CHILD_CLASS,
-            "min-w-0 max-xl:mt-5 xl:col-start-2 xl:row-start-2 xl:mt-0",
+            "min-w-0 max-xl:mt-5 xl:col-start-2 xl:row-start-1 xl:mt-0",
           ].join(" ")}
         >
           <ActionsAside
