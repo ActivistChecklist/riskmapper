@@ -98,11 +98,19 @@ export function useCloudSyncManager(): UseCloudSyncManagerResult {
         schemaVersion: SCHEMA_VERSION,
       };
       lamportRef.current = lamportRef.current + 1;
+      const expectedVersion = lastSynced?.version ?? cloud.lastSyncedVersion;
+      console.info("[cloud] enqueueWrite", {
+        recordId: cloud.recordId,
+        cloudMetaLastSyncedVersion: cloud.lastSyncedVersion,
+        hookLastSyncedVersion: lastSynced?.version ?? null,
+        expectedVersion,
+        lamport: lamportRef.current,
+      });
       q.enqueue({
         handle,
         snapshot,
         title,
-        expectedVersion: lastSynced?.version ?? cloud.lastSyncedVersion,
+        expectedVersion,
         lamport: lamportRef.current,
       });
     },

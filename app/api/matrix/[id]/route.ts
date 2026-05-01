@@ -97,6 +97,13 @@ export async function PUT(req: Request, ctx: RouteParams) {
     }
     const current = await coll.findOne({ _id: id });
     if (!current) return jsonError(404, "not found");
+    console.warn("[cloud-409] PUT version mismatch", {
+      id,
+      clientExpectedVersion: expectedVersion,
+      serverVersion: current.version,
+      clientLamport: body?.lamport,
+      serverLamport: current.lamport,
+    });
     // Existing record + version mismatch → 409 Conflict; client decides
     // whether to overwrite or reload.
     return json(409, {

@@ -109,6 +109,12 @@ function RiskMatrixCanvas({ workspace: ws, cloud }: CanvasProps) {
   }, [activeSaved, cloud, ws]);
 
   const handleConflictReload = useCallback(() => {
+    console.info("[cloud] handleConflictReload", {
+      activeRecordId: activeSaved?.cloud?.recordId ?? null,
+      localLastSyncedVersion: activeSaved?.cloud?.lastSyncedVersion ?? null,
+      remoteVersionAtConflict:
+        cloud.pendingConflict?.conflict.remoteVersion ?? null,
+    });
     // Flush any debounced local snapshot before reloading so no unsaved edits
     // are lost. The reload re-hydrates from local storage and pulls remote
     // state via the share import flow.
@@ -116,11 +122,15 @@ function RiskMatrixCanvas({ workspace: ws, cloud }: CanvasProps) {
     if (typeof window !== "undefined") {
       window.location.reload();
     }
-  }, [ws]);
+  }, [activeSaved, cloud.pendingConflict, ws]);
 
   const handleConflictKeepMine = useCallback(() => {
     if (!cloud.pendingConflict) return;
     const c = cloud.pendingConflict.conflict;
+    console.info("[cloud] handleConflictKeepMine", {
+      remoteVersion: c.remoteVersion,
+      remoteLamport: c.remoteLamport,
+    });
     cloud.resolveConflict({
       expectedVersion: c.remoteVersion,
       lamport: c.remoteLamport + 1,
@@ -438,6 +448,14 @@ export default function RiskMatrix() {
     const existing = ws.workspace.saved.find(
       (s) => s.cloud?.recordId === handle.recordId,
     );
+    console.info("[cloud] auto-adopt", {
+      recordId: handle.recordId,
+      remoteVersion: result.version,
+      remoteLamport: result.lamport,
+      branch: existing ? "open-existing" : "new-row",
+      existingLastSyncedVersion: existing?.cloud?.lastSyncedVersion ?? null,
+      existingLastSyncedLamport: existing?.cloud?.lastSyncedLamport ?? null,
+    });
     if (existing) {
       ws.openSaved(existing.id);
     } else {

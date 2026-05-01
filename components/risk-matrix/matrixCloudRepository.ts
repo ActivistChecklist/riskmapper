@@ -232,10 +232,19 @@ export function createMatrixCloudRepository(args?: {
     if (res.status === 413) throw new CloudPayloadTooLargeError(body.ciphertext.length);
     if (res.status === 409) {
       const data = (await readBodyJson(res)) as ServerConflictResponse;
+      const remoteVersion = asInt(data.version, "version");
+      const remoteLamport = asInt(data.lamport, "lamport");
+      console.warn("[cloud-409] PUT response", {
+        recordId,
+        sentExpectedVersion: body.expectedVersion,
+        sentLamport: body.lamport,
+        remoteVersion,
+        remoteLamport,
+      });
       throw new CloudConflictError({
         remoteCiphertext: asNonEmptyString(data.ciphertext, "ciphertext"),
-        remoteVersion: asInt(data.version, "version"),
-        remoteLamport: asInt(data.lamport, "lamport"),
+        remoteVersion,
+        remoteLamport,
       });
     }
     if (!res.ok) {

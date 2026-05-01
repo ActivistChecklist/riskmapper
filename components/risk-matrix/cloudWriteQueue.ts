@@ -149,6 +149,14 @@ export function createCloudWriteQueue(opts: CloudWriteQueueOptions): CloudWriteQ
       inFlight = null;
       if (err instanceof CloudConflictError) {
         parkedOnConflict = true;
+        console.warn("[cloud-409] queue parked on conflict", {
+          recordId: write.handle.recordId,
+          sentExpectedVersion: write.expectedVersion,
+          sentLamport: write.lamport,
+          remoteVersion: err.conflict.remoteVersion,
+          remoteLamport: err.conflict.remoteLamport,
+          queueLastKnownVersion: lastKnownVersion,
+        });
         setState({ kind: "conflict", conflict: err });
         opts.onConflict?.({ recordId: write.handle.recordId, conflict: err });
         return;
@@ -206,6 +214,14 @@ export function createCloudWriteQueue(opts: CloudWriteQueueOptions): CloudWriteQ
         lastKnownVersion !== null && lastKnownVersion > write.expectedVersion
           ? lastKnownVersion
           : write.expectedVersion;
+      if (expected !== write.expectedVersion) {
+        console.info("[cloud] enqueue overrode caller expectedVersion", {
+          recordId: write.handle.recordId,
+          callerExpectedVersion: write.expectedVersion,
+          queueLastKnownVersion: lastKnownVersion,
+          using: expected,
+        });
+      }
       pending =
         expected === write.expectedVersion
           ? write
@@ -236,6 +252,11 @@ export function createCloudWriteQueue(opts: CloudWriteQueueOptions): CloudWriteQ
     },
 
     resolveConflict(args: { expectedVersion: number; lamport: number }): void {
+      console.info("[cloud] queue.resolveConflict", {
+        expectedVersion: args.expectedVersion,
+        lamport: args.lamport,
+        hadPending: !!pending,
+      });
       parkedOnConflict = false;
       // Trust the caller's resolved version as the authoritative value.
       lastKnownVersion = args.expectedVersion;
