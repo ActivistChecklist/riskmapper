@@ -111,10 +111,10 @@ export default function MatrixTopBar({
             }}
             placeholder="Matrix title"
             aria-label="Matrix title"
-            className="min-w-0 max-w-[min(100%,18rem)] flex-1 basis-[min(100%,12rem)] border-b border-black/20 bg-transparent pb-1 pl-0.5 pr-0.5 pt-1 text-sm font-medium text-rm-ink outline-none placeholder:opacity-45 focus-visible:border-rm-primary focus-visible:ring-2 focus-visible:ring-black/10"
+            className="min-w-0 w-[min(100%,18rem)] shrink-0 border-b border-black/20 bg-transparent pb-1 pl-0.5 pr-0.5 pt-1 text-sm font-medium text-rm-ink outline-none placeholder:opacity-45 focus-visible:border-rm-primary focus-visible:ring-2 focus-visible:ring-black/10"
           />
           {statusIndicator ? (
-            <div className="ml-auto shrink-0">{statusIndicator}</div>
+            <div className="shrink-0">{statusIndicator}</div>
           ) : null}
         </div>
 
