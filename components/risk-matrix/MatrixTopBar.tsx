@@ -1,7 +1,13 @@
 "use client";
 
 import React, { useLayoutEffect, useRef, useState } from "react";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import Image from "next/image";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { MatrixDocumentActions } from "./MatrixToolbar";
 import type { MatrixWorkspaceApi } from "./useMatrixWorkspace";
 
@@ -17,6 +23,8 @@ type Props = {
    *  of the title in the title row. */
   statusIndicator?: React.ReactNode;
 };
+
+const SITE_NAME = "Risk Matrix";
 
 /** Invisible row matching full-label toolbar width — stable “does it fit?” probe (avoids compact/full flicker). */
 function MatrixToolbarWidthProbe() {
@@ -78,16 +86,23 @@ export default function MatrixTopBar({
     <TooltipProvider delayDuration={400}>
       <div className="mb-3 flex flex-col gap-3">
         <div className="flex min-h-10 min-w-0 flex-nowrap items-center gap-x-3 sm:gap-x-4">
-          <h1
-            className={[
-              "inline-flex shrink-0 items-center rounded-lg border border-black/12",
-              "bg-white px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-rm-ink",
-              "shadow-[0_1px_2px_rgba(0,0,0,0.05),inset_0_1px_0_rgba(255,255,255,0.9)]",
-              "sm:px-3.5 sm:py-2 sm:text-sm",
-            ].join(" ")}
-          >
-            risk matrix
-          </h1>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="shrink-0">
+                <Image
+                  src="/icon.svg"
+                  alt={SITE_NAME}
+                  width={140}
+                  height={32}
+                  className="h-7 w-auto sm:h-8"
+                  priority
+                />
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              Currently just the site name: {SITE_NAME}
+            </TooltipContent>
+          </Tooltip>
           <input
             type="text"
             value={ws.activeTitle}
