@@ -35,7 +35,7 @@ const ActionRow = React.memo(function ActionRow({
   return (
     <div
       className={[
-        "my-1.5 flex items-start rounded-[5px] border border-black/12 bg-white py-1.5 pr-2.5 pl-2.5",
+        "my-1.5 flex items-start rounded-[5px] border border-black/12 bg-white py-1.5 pr-2.5 pl-2.5 transition-[background,border-color,box-shadow] duration-150 hover:border-black/30 hover:bg-white hover:ring-1 hover:ring-black/12 focus-within:border-rm-primary focus-within:ring-2 focus-within:ring-rm-primary/20",
       ].join(" ")}
     >
       <span

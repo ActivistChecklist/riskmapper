@@ -66,16 +66,20 @@ const MitigationLineRow = React.memo(function MitigationLineRow({
           strokeWidth={starred ? 1.5 : 2.2}
         />
       </span>
-      <AutoTextarea
-        subLineId={subLine.id}
-        value={subLine.text}
-        placeholder={placeholder}
-        onChange={(e) =>
-          onChange(cellKey, parentLineId, subType, subLine.id, e.target.value)
-        }
-        onKeyDown={(e) => onKeyDown(e, cellKey, parentLineId, subType, subLine)}
-        className="max-sm:pl-0 max-sm:pr-1 sm:pl-1.5 sm:pr-1.5"
-      />
+      <div className="min-w-0 flex-1 rounded-[5px] border border-transparent transition-[background,border-color,box-shadow] duration-150 hover:border-black/30 hover:bg-white/85 hover:ring-1 hover:ring-black/12 focus-within:border-rm-primary focus-within:bg-white focus-within:ring-2 focus-within:ring-rm-primary/20">
+        <AutoTextarea
+          subLineId={subLine.id}
+          value={subLine.text}
+          placeholder={placeholder}
+          onChange={(e) =>
+            onChange(cellKey, parentLineId, subType, subLine.id, e.target.value)
+          }
+          onKeyDown={(e) =>
+            onKeyDown(e, cellKey, parentLineId, subType, subLine)
+          }
+          className="pt-1.5 pr-1.5 pb-1 pl-1.5"
+        />
+      </div>
     </div>
   );
 });

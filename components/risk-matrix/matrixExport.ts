@@ -1,6 +1,7 @@
 import { formatAllForClipboard } from "./actionsClipboard";
 import { COL_LABELS, ROW_LABELS } from "./constants";
 import { formatAllMitigationsMarkdown } from "./mitigationsMarkdown";
+import { cellKeyToTone, prependToneCircle } from "./riskTone";
 import type { CellKey, GridLine, OtherAction, PoolLine, StarredAction } from "./types";
 
 export function canCopyPool(pool: PoolLine[]): boolean {
@@ -28,11 +29,12 @@ export function formatMatrixRisksPlain(
       const key = `${row}-${col}` as CellKey;
       const lines = (grid[key] ?? []).filter((l) => l.text.trim());
       if (lines.length === 0) continue;
-      const header = `${ROW_LABELS[row]} · ${COL_LABELS[col]}`;
+      const tone = cellKeyToTone(key);
+      const header = prependToneCircle(`${ROW_LABELS[row]} · ${COL_LABELS[col]}`, tone);
       const body = lines
-        .map((l, i) => `${i + 1}. ${l.text.trim()}`)
+        .map((l, i) => `${i + 1}. ${prependToneCircle(l.text.trim(), tone)}`)
         .join("\n");
-      parts.push(`${header}\n${body}`);
+      parts.push(`### ${header}\n\n${body}`);
     }
   }
   if (parts.length === 0) return "(No risks on the matrix.)";
@@ -47,6 +49,37 @@ export function formatMitigationsMarkdownBody(
   return full.replace(/^# All mitigations\s*\n+/, "").trimEnd();
 }
 
+function shiftMarkdownHeadingDepth(markdown: string, depth: number): string {
+  if (!markdown.trim() || depth <= 0) return markdown;
+  return markdown.replace(/^(#{1,6})(\s+)/gm, (_, hashes: string, space: string) => {
+    const nextDepth = Math.min(6, hashes.length + depth);
+    return `${"#".repeat(nextDepth)}${space}`;
+  });
+}
+
+function formatActionsMarkdownSection(
+  allActions: StarredAction[],
+  otherActions: OtherAction[],
+): string {
+  const starredPart = formatAllForClipboard(allActions, []).trim();
+  const otherNonEmpty = otherActions
+    .map((o) => o.text.trim())
+    .filter((t) => t.length > 0);
+  if (!starredPart && otherNonEmpty.length === 0) {
+    return "(No actions listed yet.)";
+  }
+  const chunks: string[] = [];
+  if (starredPart) {
+    chunks.push("### Prioritized actions", "", starredPart);
+  }
+  if (otherNonEmpty.length > 0) {
+    const otherBlock = otherNonEmpty.map((t, i) => `${i + 1}. ${t}`).join("\n\n");
+    if (chunks.length > 0) chunks.push("");
+    chunks.push("### Other actions", "", otherBlock);
+  }
+  return chunks.join("\n");
+}
+
 export function buildFullPlainReport(args: {
   title: string;
   pool: PoolLine[];
@@ -56,26 +89,26 @@ export function buildFullPlainReport(args: {
 }): string {
   const { title, pool, grid, allActions, otherActions } = args;
   const head = title.trim() || "Untitled";
-  const mitBody = formatMitigationsMarkdownBody(grid);
-  const actionsPlain = formatAllForClipboard(allActions, otherActions).trim();
+  const mitBody = shiftMarkdownHeadingDepth(formatMitigationsMarkdownBody(grid), 1);
+  const actionsBody = formatActionsMarkdownSection(allActions, otherActions);
   const chunks: string[] = [
-    head,
+    `# ${head}`,
     "",
-    "— Risk pool —",
+    "## Risk pool",
     "",
     formatRiskPoolPlain(pool),
     "",
-    "— Likelihood × impact —",
+    "## Risk matrix",
     "",
     formatMatrixRisksPlain(grid),
     "",
-    "— Mitigations & preparations —",
+    "## Mitigations & preparations",
     "",
     mitBody.length > 0 ? mitBody : "(No mitigations yet.)",
     "",
-    "— Actions —",
+    "## Actions",
     "",
-    actionsPlain.length > 0 ? actionsPlain : "(No actions listed yet.)",
+    actionsBody,
   ];
   return chunks.join("\n").trimEnd();
 }
@@ -98,11 +131,18 @@ export function buildSummaryPlain(args: {
     matrixN += lines.filter((l) => l.text.trim()).length;
   }
   const parts: string[] = [`# ${titleLine}`, ""];
+  parts.push("## Risk pool", "", `- Total lines: ${poolN}`, "");
+  parts.push("## Risk matrix", "", `- Total risks on matrix: ${matrixN}`, "");
+  parts.push(
+    "## Mitigations & preparations",
+    "",
+    "- Included in full worksheet export.",
+    "",
+  );
   if (actionsPlain) {
-    parts.push("## Actions", "", actionsPlain, "");
+    parts.push("## Actions", "", actionsPlain);
   } else {
-    parts.push("_No prioritized actions yet._", "");
+    parts.push("## Actions", "", "_No prioritized actions yet._");
   }
-  parts.push("---", "", `Risk pool lines: ${poolN}; risks on matrix: ${matrixN}`);
   return parts.join("\n");
 }

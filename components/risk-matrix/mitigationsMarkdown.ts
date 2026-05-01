@@ -1,4 +1,5 @@
 import { COL_LABELS, ROW_LABELS } from "./constants";
+import { cellKeyToTone, prependToneCircle } from "./riskTone";
 import type { CellKey, GridLine, SubLine } from "./types";
 
 /** One line of text safe to use after `- ` (and optional ⭐) in a Markdown bullet. */
@@ -22,7 +23,7 @@ function riskHeadingTitle(line: GridLine): string {
 }
 
 /** Markdown for one risk line’s mitigations, or null if none to export. */
-function formatRiskMitigationsBlock(line: GridLine): string | null {
+function formatRiskMitigationsBlock(line: GridLine, cellKey: CellKey): string | null {
   const reduceArr = line.reduce ?? [];
   const prepareArr = line.prepare ?? [];
   const reduceBullets = reduceArr
@@ -33,7 +34,11 @@ function formatRiskMitigationsBlock(line: GridLine): string | null {
     .filter((b): b is string => b != null);
   if (reduceBullets.length === 0 && prepareBullets.length === 0) return null;
 
-  const chunks: string[] = [`### ${riskHeadingTitle(line)}`, ""];
+  const tone = cellKeyToTone(cellKey);
+  const chunks: string[] = [
+    `### ${prependToneCircle(riskHeadingTitle(line), tone)}`,
+    "",
+  ];
   if (reduceBullets.length > 0) {
     chunks.push("**Reductions**", "");
     for (const b of reduceBullets) chunks.push(b, "");
@@ -58,11 +63,11 @@ export function formatAllMitigationsMarkdown(
       const key = `${row}-${col}` as CellKey;
       const lines = grid[key] ?? [];
       const riskBlocks = lines
-        .map(formatRiskMitigationsBlock)
+        .map((line) => formatRiskMitigationsBlock(line, key))
         .filter((b): b is string => b != null);
       if (riskBlocks.length === 0) continue;
       cellSections.push(
-        `## ${ROW_LABELS[row]} · ${COL_LABELS[col]}\n\n${riskBlocks.join("\n\n")}`,
+        `## ${prependToneCircle(`${ROW_LABELS[row]} · ${COL_LABELS[col]}`, cellKeyToTone(key))}\n\n${riskBlocks.join("\n\n")}`,
       );
     }
   }

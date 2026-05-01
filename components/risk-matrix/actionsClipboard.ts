@@ -1,3 +1,4 @@
+import { prependToneCircle } from "./riskTone";
 import type { OtherAction, StarredAction } from "./types";
 
 /** Escape text for safe inclusion in `text/html` clipboard payloads. */
@@ -14,7 +15,10 @@ function formatStarredForClipboard(actions: StarredAction[]): string {
   return actions
     .map((a, i) => {
       const kind = a.subType === "reduce" ? "Reduction for" : "Preparation for";
-      const risk = a.parentText.trim() || "Untitled risk";
+      const risk = prependToneCircle(
+        a.parentText.trim() || "Untitled risk",
+        a.groupTone,
+      );
       const body = a.subLine.text.trim() || "(empty)";
       return `${i + 1}. ${body}\n   ${kind} ${risk}`;
     })
@@ -45,7 +49,10 @@ function formatStarredForClipboardHtml(actions: StarredAction[]): string {
     .map((a) => {
       const kind =
         a.subType === "reduce" ? "Reduction for" : "Preparation for";
-      const risk = a.parentText.trim() || "Untitled risk";
+      const risk = prependToneCircle(
+        a.parentText.trim() || "Untitled risk",
+        a.groupTone,
+      );
       const body = a.subLine.text.trim() || "(empty)";
       return (
         `<li style="margin:0 0 0.65em 0;list-style-position:outside;">` +

@@ -42,13 +42,14 @@ const LineRow = React.memo(function LineRow({
     <div
       data-row-id={line.id}
       className={[
-        `${verticalMargin} flex items-start gap-0 p-0 rounded-[5px] transition-[background,border-color] duration-150 sm:gap-0.5`,
+        `${verticalMargin} flex items-start gap-0 rounded-[5px] border p-0 transition-[background,border-color,box-shadow] duration-150 sm:gap-0.5`,
         isDragging ? "opacity-35" : "opacity-100",
         isEmpty
-          ? "border border-transparent bg-transparent"
+          ? "border-transparent bg-transparent"
           : inCell
-            ? "border border-black/8 bg-white/55"
-            : "border border-black/8 bg-rm-line",
+            ? "border-black/8 bg-white/55"
+            : "border-black/8 bg-rm-line",
+        "hover:border-black/30 hover:bg-white/85 hover:ring-1 hover:ring-black/12 focus-within:border-rm-primary focus-within:bg-white focus-within:ring-2 focus-within:ring-rm-primary/20",
       ].join(" ")}
     >
       <span

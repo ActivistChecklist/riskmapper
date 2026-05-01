@@ -6,6 +6,7 @@ import {
   CircleCheck,
   CloudOff,
   Loader2,
+  LockKeyhole,
   RefreshCw,
   ShieldAlert,
 } from "lucide-react";
@@ -184,10 +185,10 @@ function describeSyncState(state: SyncState): Display {
   switch (state.kind) {
     case "idle":
       return {
-        label: "Synced",
-        title: "All edits saved to the cloud.",
+        label: "End-to-end encrypted",
+        title: "All edits saved and end-to-end encrypted.",
         tone: "border-emerald-200 bg-emerald-50 text-emerald-900",
-        icon: <CircleCheck className="size-3.5 text-emerald-600" />,
+        icon: <LockKeyhole className="size-3.5 text-emerald-600" />,
       };
     case "loading":
       return {
