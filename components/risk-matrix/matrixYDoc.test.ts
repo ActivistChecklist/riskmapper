@@ -31,6 +31,7 @@ const EMPTY_SNAPSHOT: RiskMatrixSnapshot = {
   otherActions: [],
   hiddenCategorizedRiskKeys: [],
   categorizedRevealHidden: { red: false, orange: false, yellow: false, green: false },
+  notes: "",
 };
 
 const SAMPLE_SNAPSHOT: RiskMatrixSnapshot = {
@@ -56,6 +57,7 @@ const SAMPLE_SNAPSHOT: RiskMatrixSnapshot = {
   ],
   hiddenCategorizedRiskKeys: ["1-1:g-1"],
   categorizedRevealHidden: { red: false, orange: false, yellow: false, green: false },
+  notes: "",
 };
 
 function newDoc(): Y.Doc {

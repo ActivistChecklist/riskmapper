@@ -11,6 +11,7 @@ const EMPTY: RiskMatrixSnapshot = {
   otherActions: [],
   hiddenCategorizedRiskKeys: [],
   categorizedRevealHidden: { red: false, orange: false, yellow: false, green: false },
+  notes: "",
 };
 
 function newSeededDoc(snap: RiskMatrixSnapshot, title = ""): Y.Doc {
@@ -316,5 +317,31 @@ describe("applySnapshotDiff", () => {
     };
     applySnapshotDiff(doc, null, next);
     expect(snapshotFromDoc(doc).snapshot.pool).toEqual([{ id: "a", text: "new" }]);
+  });
+
+  it("notes round-trip: seed, edit, idempotent re-apply", () => {
+    const doc = newSeededDoc({ ...EMPTY, notes: "# Initial heading\n\nA paragraph." });
+    expect(snapshotFromDoc(doc).snapshot.notes).toBe(
+      "# Initial heading\n\nA paragraph.",
+    );
+
+    let ops = 0;
+    doc.on("update", () => {
+      ops += 1;
+    });
+
+    // Re-applying the same snapshot must be a no-op.
+    applySnapshotDiff(doc, null, {
+      title: "",
+      snapshot: { ...EMPTY, notes: "# Initial heading\n\nA paragraph." },
+    });
+    expect(ops).toBe(0);
+
+    // Editing the notes flows through.
+    applySnapshotDiff(doc, null, {
+      title: "",
+      snapshot: { ...EMPTY, notes: "# Heading\n\n- bullet" },
+    });
+    expect(snapshotFromDoc(doc).snapshot.notes).toBe("# Heading\n\n- bullet");
   });
 });

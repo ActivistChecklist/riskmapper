@@ -50,6 +50,7 @@ function emptySnapshot(): RiskMatrixSnapshot {
     otherActions: [],
     hiddenCategorizedRiskKeys: [],
     categorizedRevealHidden: { ...INITIAL_CATEGORIZED_REVEAL_HIDDEN },
+    notes: "",
   };
 }
 

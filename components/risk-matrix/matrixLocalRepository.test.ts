@@ -28,6 +28,7 @@ function minimalSnapshot(): RiskMatrixSnapshot {
       yellow: false,
       green: false,
     },
+    notes: "",
   };
 }
 

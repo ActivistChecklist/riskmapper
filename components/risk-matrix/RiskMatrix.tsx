@@ -22,6 +22,7 @@ import LikelihoodImpactMatrix from "./LikelihoodImpactMatrix";
 import MatrixCopyDropdown from "./MatrixCopyDropdown";
 import MatrixHelpSection from "./MatrixHelpSection";
 import MatrixTopBar from "./MatrixTopBar";
+import NotesEditor from "./NotesEditor";
 import RiskPoolSection from "./RiskPoolSection";
 import StepSection from "./StepSection";
 import {
@@ -89,6 +90,7 @@ function RiskMatrixCanvas({ workspace: ws, cloud }: CanvasProps) {
           grid: snap.grid,
           otherActions: snap.otherActions,
           hiddenCategorizedRiskKeys: snap.hiddenCategorizedRiskKeys,
+          notes: snap.notes,
         },
       };
       const prevPoolCount = prev?.snapshot.pool.length ?? 0;
@@ -421,6 +423,15 @@ function RiskMatrixCanvas({ workspace: ws, cloud }: CanvasProps) {
             onOtherKeyDown={m.handleOtherKeyDown}
             onOtherBlur={m.handleOtherBlur}
           />
+          {/* Free-form Markdown notes — shares the same right-hand
+              column as Actions on wide screens, stacks under it on
+              narrower ones. */}
+          <section className="mt-5">
+            <h2 className="mb-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-rm-ink/70">
+              Notes
+            </h2>
+            <NotesEditor value={m.notes} onChange={m.setNotes} />
+          </section>
         </div>
       </div>
 
@@ -474,6 +485,7 @@ export default function RiskMatrix() {
           grid: view.snapshot.grid,
           otherActions: view.snapshot.otherActions,
           hiddenCategorizedRiskKeys: view.snapshot.hiddenCategorizedRiskKeys,
+          notes: view.snapshot.notes,
         };
         ws.applyCloudSync(row.id, {
           cloud: meta,

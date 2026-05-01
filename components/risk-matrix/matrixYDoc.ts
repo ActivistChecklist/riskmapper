@@ -44,6 +44,7 @@ const TITLE = "title";
 const RISKS = "risks";
 const OTHER_ACTIONS = "otherActions";
 const HIDDEN = "hiddenRiskKeys";
+const NOTES = "notes";
 
 const RISK_TEXT = "text";
 const RISK_LOCATION = "location";
@@ -113,6 +114,9 @@ export function seedYDoc(
     for (const k of args.snapshot.hiddenCategorizedRiskKeys) {
       hidden.set(k, true);
     }
+    if (args.snapshot.notes) {
+      root.set(NOTES, args.snapshot.notes);
+    }
   });
   return getRoot(doc);
 }
@@ -138,9 +142,16 @@ export function getRoot(doc: Y.Doc): MatrixYRoot {
 }
 
 /** Derive a snapshot + title from the Y.Doc state. Pure read. */
-export function readMatrix(doc: Y.Doc): { title: string; snapshot: Pick<RiskMatrixSnapshot, "pool" | "grid" | "otherActions" | "hiddenCategorizedRiskKeys"> } {
+export function readMatrix(doc: Y.Doc): {
+  title: string;
+  snapshot: Pick<
+    RiskMatrixSnapshot,
+    "pool" | "grid" | "otherActions" | "hiddenCategorizedRiskKeys" | "notes"
+  >;
+} {
   const r = getRoot(doc);
   const title = (r.root.get(TITLE) as string | undefined) ?? "";
+  const notes = (r.root.get(NOTES) as string | undefined) ?? "";
 
   // Bucket risks by location, sort each bucket by (order, riskId) so identical
   // orders still produce a deterministic outcome across replicas.
@@ -183,13 +194,18 @@ export function readMatrix(doc: Y.Doc): { title: string; snapshot: Pick<RiskMatr
 
   return {
     title,
-    snapshot: { pool, grid, otherActions, hiddenCategorizedRiskKeys },
+    snapshot: { pool, grid, otherActions, hiddenCategorizedRiskKeys, notes },
   };
 }
 
 // — title —
 export function setTitle(doc: Y.Doc, title: string): void {
   getRoot(doc).root.set(TITLE, title);
+}
+
+// — notes —
+export function setNotes(doc: Y.Doc, notes: string): void {
+  getRoot(doc).root.set(NOTES, notes);
 }
 
 // — risks —

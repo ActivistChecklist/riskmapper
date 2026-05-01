@@ -20,6 +20,13 @@ export type RiskMatrixSnapshot = {
   /** `cellKey:lineId` keys hidden from the categorized mitigations list until revealed. */
   hiddenCategorizedRiskKeys: string[];
   categorizedRevealHidden: CategorizedRevealHiddenState;
+  /**
+   * Free-form Markdown notes, rendered through a WYSIWYG editor below
+   * the Actions panel. Stored as Markdown so exports / round-trips
+   * stay inspectable; concurrent edits resolve last-writer-wins
+   * (debounced) — same model as the risk text fields.
+   */
+  notes: string;
 };
 
 /**

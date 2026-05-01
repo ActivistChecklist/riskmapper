@@ -50,6 +50,9 @@ function isRiskMatrixSnapshot(x: unknown): x is RiskMatrixSnapshot {
   if (x.categorizedRevealHidden !== undefined) {
     if (!isCategorizedRevealHidden(x.categorizedRevealHidden)) return false;
   }
+  if (x.notes !== undefined && typeof x.notes !== "string") {
+    return false;
+  }
   return true;
 }
 

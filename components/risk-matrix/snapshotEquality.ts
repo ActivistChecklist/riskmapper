@@ -12,8 +12,14 @@ import type { RiskMatrixSnapshot } from "./matrixTypes";
  * are constructed with different key insertion orders.
  */
 export function sharedSnapshotFieldsEqual(
-  a: Pick<RiskMatrixSnapshot, "pool" | "grid" | "otherActions" | "hiddenCategorizedRiskKeys">,
-  b: Pick<RiskMatrixSnapshot, "pool" | "grid" | "otherActions" | "hiddenCategorizedRiskKeys">,
+  a: Pick<
+    RiskMatrixSnapshot,
+    "pool" | "grid" | "otherActions" | "hiddenCategorizedRiskKeys" | "notes"
+  >,
+  b: Pick<
+    RiskMatrixSnapshot,
+    "pool" | "grid" | "otherActions" | "hiddenCategorizedRiskKeys" | "notes"
+  >,
 ): boolean {
   if (!poolListsEqual(a.pool, b.pool)) return false;
   if (!gridsEqual(a.grid, b.grid)) return false;
@@ -21,6 +27,7 @@ export function sharedSnapshotFieldsEqual(
   if (!stringSetsEqual(a.hiddenCategorizedRiskKeys, b.hiddenCategorizedRiskKeys)) {
     return false;
   }
+  if (a.notes !== b.notes) return false;
   return true;
 }
 

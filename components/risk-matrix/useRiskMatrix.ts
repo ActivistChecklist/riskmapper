@@ -105,6 +105,9 @@ export function useRiskMatrix(options: UseRiskMatrixOptions = {}) {
       ...INITIAL_CATEGORIZED_REVEAL_HIDDEN,
       ...(initialSnapshot?.categorizedRevealHidden ?? {}),
     }));
+  const [notes, setNotes] = useState<string>(
+    () => initialSnapshot?.notes ?? "",
+  );
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const pendingDeleteActionRef = useRef<null | (() => void)>(null);
 
@@ -1275,6 +1278,7 @@ export function useRiskMatrix(options: UseRiskMatrixOptions = {}) {
       otherActions,
       hiddenCategorizedRiskKeys,
       categorizedRevealHidden,
+      notes,
     };
   }, [
     pool,
@@ -1283,6 +1287,7 @@ export function useRiskMatrix(options: UseRiskMatrixOptions = {}) {
     otherActions,
     hiddenCategorizedRiskKeys,
     categorizedRevealHidden,
+    notes,
   ]);
 
   useEffect(() => {
@@ -1326,6 +1331,8 @@ export function useRiskMatrix(options: UseRiskMatrixOptions = {}) {
     updateSubText,
     handleSubKeyDown,
     toggleStar,
+    notes,
+    setNotes,
     getSnapshot,
   };
 }

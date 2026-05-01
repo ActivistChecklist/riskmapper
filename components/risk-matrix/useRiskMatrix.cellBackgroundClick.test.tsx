@@ -21,6 +21,7 @@ function snapshotOneLineInCell(cellKey: string): RiskMatrixSnapshot {
     otherActions: [],
     hiddenCategorizedRiskKeys: [],
     categorizedRevealHidden: { ...INITIAL_CATEGORIZED_REVEAL_HIDDEN },
+    notes: "",
   };
 }
 

@@ -58,6 +58,7 @@ type SnapshotPart = {
   grid: Record<string, GridLine[]>;
   otherActions: OtherAction[];
   hiddenCategorizedRiskKeys: string[];
+  notes: string;
 };
 
 export function applySnapshotDiff(
@@ -180,6 +181,17 @@ export function applySnapshotDiff(
       prev?.snapshot.hiddenCategorizedRiskKeys ?? [],
       next.snapshot.hiddenCategorizedRiskKeys,
     );
+
+    // --- notes diff (LWW on whole field) ---
+    // Compare against the doc's live value so a stale prev (null after
+    // a remount) doesn't reset the notes. Concurrent edits clobber on
+    // the whole-field set; the typing debounce upstream means
+    // collisions only occur when two devices type into the notes
+    // editor in the SAME ~300 ms window.
+    const currentNotes = (root.root.get("notes") as string | undefined) ?? "";
+    if (currentNotes !== next.snapshot.notes) {
+      root.root.set("notes", next.snapshot.notes);
+    }
   });
 }
 
@@ -190,7 +202,10 @@ export function applySnapshotDiff(
  */
 export function snapshotFromDoc(doc: Y.Doc): {
   title: string;
-  snapshot: Pick<RiskMatrixSnapshot, "pool" | "grid" | "otherActions" | "hiddenCategorizedRiskKeys">;
+  snapshot: Pick<
+    RiskMatrixSnapshot,
+    "pool" | "grid" | "otherActions" | "hiddenCategorizedRiskKeys" | "notes"
+  >;
 } {
   return readMatrix(doc);
 }
