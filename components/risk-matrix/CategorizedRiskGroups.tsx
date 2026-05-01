@@ -217,20 +217,7 @@ export default function CategorizedRiskGroups({
                   </span>
                 </div>
                 <div className="flex max-w-[min(100%,20rem)] shrink-0 flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-2">
-                  {hiddenInGroupCount > 0 && !isCollapsed ? (
-                    <button
-                      type="button"
-                      className="w-full rounded-sm px-1 py-0.5 text-left text-[11px] font-medium text-zinc-800 underline decoration-zinc-600/90 underline-offset-2 hover:bg-black/[0.04] hover:text-zinc-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500/40 sm:w-auto sm:text-right sm:text-xs"
-                      aria-pressed={reveal}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onToggleCategorizedRevealHidden(group.key);
-                      }}
-                    >
-                      {reveal ? "Hide hidden risks" : "Show hidden risks"}
-                    </button>
-                  ) : null}
-                  {group.key === "green" && isCollapsed && hiddenInGroupCount === 0 ? (
+                  {group.key === "green" && isCollapsed ? (
                     <span className="max-w-[min(100%,12rem)] text-right text-[11px] font-normal normal-case leading-snug tracking-normal text-zinc-600 sm:text-xs">
                       Hidden by default. Click to show.
                     </span>
@@ -253,7 +240,7 @@ export default function CategorizedRiskGroups({
                       <div
                         key={r.line.id}
                         className={[
-                          "group/riskrow grid items-start gap-4 px-3 py-2 [grid-template-columns:minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)]",
+                          "group/riskrow grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] items-start gap-4 px-3 py-2",
                           stripe,
                           i === 0 ? "" : "border-t border-black/5",
                         ].join(" ")}
@@ -412,6 +399,23 @@ export default function CategorizedRiskGroups({
                       </div>
                     );
                   })}
+                  {hiddenInGroupCount > 0 ? (
+                    <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] items-start gap-4 px-3 pt-1 pb-2">
+                      <div className="min-w-0">
+                        <button
+                          type="button"
+                          className="rounded-sm px-1 py-0.5 text-left text-[11px] font-medium text-zinc-800 underline decoration-zinc-600/90 underline-offset-2 hover:bg-black/4 hover:text-zinc-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500/40 sm:text-xs"
+                          aria-pressed={reveal}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onToggleCategorizedRevealHidden(group.key);
+                          }}
+                        >
+                          {reveal ? "Hide hidden risks" : "Show hidden risks"}
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
               )}
             </section>
