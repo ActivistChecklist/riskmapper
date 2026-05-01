@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, type ReactNode } from "react";
-import { CircleCheck, FilePlus, History, Trash2 } from "lucide-react";
+import { FilePlus, History, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -31,9 +31,9 @@ type Props = {
   iconOnly?: boolean;
   /** Document actions on the top strip — ghost-style buttons on a panel background. */
   toolbar?: boolean;
-  /** Placed before “Saved locally” on the right side of the toolbar row. */
+  /** Copy / export menu, rendered in the LEFT cluster after Delete. */
   toolbarCopyMenu?: ReactNode;
-  /** Share / sync control, rendered between Copy and Saved locally. */
+  /** Share control, rendered on the RIGHT of the toolbar. */
   toolbarShareControl?: ReactNode;
 };
 
@@ -53,7 +53,6 @@ export function MatrixDocumentActions({
 }: Props) {
   const [createOpen, setCreateOpen] = useState(false);
   const [recentOpen, setRecentOpen] = useState(false);
-  const [savedLocallyOpen, setSavedLocallyOpen] = useState(false);
   const [nameInput, setNameInput] = useState("");
   const [pendingDelete, setPendingDelete] = useState<PendingMatrixDelete>(null);
   const hasRecent = ws.recentSorted.length > 0;
@@ -143,30 +142,6 @@ export function MatrixDocumentActions({
     </Tooltip>
   );
 
-  const savedBtn = (
-    <Button
-      variant={surface}
-      size="sm"
-      type="button"
-      onClick={() => setSavedLocallyOpen(true)}
-      className={cn(
-        iconBtn,
-        toolbar &&
-          "text-emerald-900 hover:bg-emerald-50 hover:text-emerald-950 active:bg-emerald-100/80",
-        !toolbar && "text-zinc-700",
-      )}
-      aria-label="Saved locally: where your work is kept"
-    >
-      <CircleCheck
-        size={15}
-        strokeWidth={2}
-        aria-hidden
-        className={toolbar ? "text-emerald-600" : undefined}
-      />
-      {!iconOnly ? "Saved locally" : null}
-    </Button>
-  );
-
   const deleteBtn = (
     <Button
       variant={toolbar ? "ghost" : "destructiveOutline"}
@@ -219,21 +194,6 @@ export function MatrixDocumentActions({
     </>
   );
 
-  // "Saved locally" is hidden when the active matrix is in share mode —
-  // calling a cloud-synced matrix "saved locally" reads as a contradiction,
-  // even though the underlying button opens a list of all saved rows.
-  const isShareMode = Boolean(ws.activeSavedMatrix?.cloud);
-  const savedCluster = isShareMode
-    ? null
-    : iconOnly ? (
-        <Tooltip>
-          <TooltipTrigger asChild>{savedBtn}</TooltipTrigger>
-          <TooltipContent side="bottom">Saved on your device</TooltipContent>
-        </Tooltip>
-      ) : (
-        savedBtn
-      );
-
   return (
     <>
       <div
@@ -250,40 +210,12 @@ export function MatrixDocumentActions({
           )}
         >
           {leftCluster}
+          {toolbarCopyMenu}
         </div>
         <div className="flex shrink-0 items-center gap-1 sm:gap-2">
-          {toolbarCopyMenu}
           {toolbarShareControl}
-          {savedCluster}
         </div>
       </div>
-
-      <Dialog open={savedLocallyOpen} onOpenChange={setSavedLocallyOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Saved on your device</DialogTitle>
-            <DialogDescription asChild>
-              <div className="space-y-3 pt-1 text-sm leading-relaxed text-rm-ink opacity-90">
-                <p>
-                  Nothing you type here is sent over the internet or stored on our
-                  servers or in the cloud. Your risks, notes, and saved matrices stay
-                  in this browser on this computer, like notes in a notebook that never
-                  leave your desk.
-                </p>
-                <p>
-                  If you clear this site&apos;s data in your browser, the data will be
-                  deleted.
-                </p>
-              </div>
-            </DialogDescription>
-          </DialogHeader>
-          <div className="mt-4 flex justify-end">
-            <Button type="button" onClick={() => setSavedLocallyOpen(false)}>
-              Got it
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       <Dialog open={recentOpen} onOpenChange={setRecentOpen}>
         <DialogContent>

@@ -12,6 +12,7 @@ import { Copy } from "lucide-react";
 import ActionsAside from "./ActionsAside";
 import CategorizedRiskGroups from "./CategorizedRiskGroups";
 import CloudShareControl from "./CloudShareControl";
+import MatrixStatusIndicator from "./MatrixStatusIndicator";
 import { isCloudEnabled } from "./cloudConfig";
 import MitigationsTablePlaceholder from "./MitigationsTablePlaceholder";
 import DeleteRiskDialog from "./DeleteRiskDialog";
@@ -44,6 +45,7 @@ import type { MatrixWorkspaceApi } from "./useMatrixWorkspace";
 import { useCloudMatrix } from "./useCloudMatrix";
 import { useShareImport } from "./useShareImport";
 import { applySnapshotDiff, snapshotFromDoc } from "./snapshotDiff";
+import { clearShareFromUrl, setShareUrlInAddressBar } from "./shareUrl";
 import { base64urlEncode, keyFromB64 } from "@/lib/e2ee";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -266,6 +268,13 @@ function RiskMatrixCanvas({ workspace: ws, cloud }: CanvasProps) {
             onCopyActions={handleCopyActionsOnly}
           />
         )}
+        statusIndicator={
+          <MatrixStatusIndicator
+            shared={Boolean(cloudMeta)}
+            syncState={cloud.syncState}
+            onIndicatorAction={cloud.reopenAction}
+          />
+        }
         cloudShareControl={
           cloudCapable ? (
             <CloudShareControl
@@ -462,6 +471,29 @@ export default function RiskMatrix() {
   const cloudEnabled = isCloudEnabled();
   const importer = useShareImport({ repo: cloud.repo, enabled: cloudEnabled });
   const adoptedRef = useRef(false);
+
+  // Address bar mirrors the active matrix's share state. When a matrix is
+  // shared and active, the URL becomes the canonical share link the user
+  // can paste from the address bar. When the active matrix is unshared
+  // (no cloud meta or no key persisted), strip the share path so the user
+  // can't accidentally share an unshared matrix.
+  const activeRecordId = ws.activeSavedMatrix?.cloud?.recordId;
+  const activeKeyB64 = ws.activeSavedMatrix?.cloud?.keyB64;
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (importer.state.kind === "loading" || importer.state.kind === "ready") {
+      // The share-import flow owns the URL while it's resolving.
+      return;
+    }
+    if (activeRecordId && activeKeyB64) {
+      setShareUrlInAddressBar({
+        recordId: activeRecordId,
+        key: keyFromB64(activeKeyB64),
+      });
+    } else if (window.location.pathname.startsWith("/grid/")) {
+      clearShareFromUrl();
+    }
+  }, [activeRecordId, activeKeyB64, importer.state.kind]);
 
   // Auto-adopt: when the share fetch resolves, drop the matrix straight into
   // the local library and switch to it. If the recordId is already in the

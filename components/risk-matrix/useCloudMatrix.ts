@@ -48,6 +48,15 @@ import type { SyncState } from "./CloudSyncIndicator";
 const REMOTE_ORIGIN = "remote";
 const INITIAL_BACKOFF_MS = 1000;
 const MAX_BACKOFF_MS = 30_000;
+/**
+ * Trailing-edge debounce for the outbox drain. Local Y.Doc ops merge
+ * via Y.mergeUpdates while the timer is pending, so a continuous typing
+ * burst ships as ONE POST after the user pauses for this long. Tuned
+ * for "snappy but not crippling": 300 ms feels live (under one second
+ * of latency to other devices) while keeping a fast typer well under
+ * the per-IP write rate limit.
+ */
+const LOCAL_DRAIN_DEBOUNCE_MS = 300;
 
 type Live = {
   handle: CloudMatrixHandle;
@@ -58,6 +67,8 @@ type Live = {
   inFlight: boolean;
   backoffMs: number;
   backoffTimer: ReturnType<typeof setTimeout> | null;
+  /** Trailing-edge timer that fires drainOutbox after a quiet period. */
+  drainTimer: ReturnType<typeof setTimeout> | null;
   subscription: Subscription | null;
   cancelled: boolean;
   waiters: Array<{ resolve: () => void; reject: (err: Error) => void }>;
@@ -143,6 +154,7 @@ export function useCloudMatrix(
       inFlight: false,
       backoffMs: INITIAL_BACKOFF_MS,
       backoffTimer: null,
+      drainTimer: null,
       subscription: null,
       cancelled: false,
       waiters: [],
@@ -156,7 +168,14 @@ export function useCloudMatrix(
       live.pending = live.pending
         ? Y.mergeUpdates([live.pending, update])
         : update;
-      void drainOutbox(live, repo, setSyncState, callbacksRef);
+      // Trailing-edge debounce: every keystroke extends the timer, so a
+      // typing burst collapses into one POST once the user pauses.
+      if (live.drainTimer) clearTimeout(live.drainTimer);
+      live.drainTimer = setTimeout(() => {
+        live.drainTimer = null;
+        if (live.cancelled) return;
+        void drainOutbox(live, repo, setSyncState, callbacksRef);
+      }, LOCAL_DRAIN_DEBOUNCE_MS);
     };
     yDoc.on("update", onLocalUpdate);
 
@@ -173,12 +192,22 @@ export function useCloudMatrix(
       {
         onUpdate(event) {
           if (live.cancelled) return;
-          Y.applyUpdate(yDoc, event.bytes, REMOTE_ORIGIN);
+          // Server fans every update back to the originator too. Skip
+          // self-echoes: applyUpdate would be an idempotent no-op, but
+          // firing onChange would bump the consumer's `remoteRev` and
+          // remount the canvas — losing focus inside the textarea
+          // currently being typed in.
+          const isSelf = event.clientId === live.clientId;
+          if (!isSelf) {
+            Y.applyUpdate(yDoc, event.bytes, REMOTE_ORIGIN);
+          }
           if (event.seq > live.lastHeadSeq) {
             live.lastHeadSeq = event.seq;
             persistMetaFromLive(live, callbacksRef);
           }
-          callbacksRef.current.onChange?.(yDoc);
+          if (!isSelf) {
+            callbacksRef.current.onChange?.(yDoc);
+          }
         },
         onError() {
           if (live.cancelled) return;
@@ -240,6 +269,11 @@ export function useCloudMatrix(
   const flush = useCallback(async (): Promise<void> => {
     const live = liveRef.current;
     if (!live) return;
+    // Cancel any pending debounce — flush wants the bytes out NOW.
+    if (live.drainTimer) {
+      clearTimeout(live.drainTimer);
+      live.drainTimer = null;
+    }
     if (!live.pending && !live.inFlight) return;
     return new Promise<void>((resolve, reject) => {
       live.waiters.push({ resolve, reject });
@@ -369,6 +403,10 @@ function teardown(live: Live | null): void {
   if (live.backoffTimer) {
     clearTimeout(live.backoffTimer);
     live.backoffTimer = null;
+  }
+  if (live.drainTimer) {
+    clearTimeout(live.drainTimer);
+    live.drainTimer = null;
   }
   live.subscription?.close();
   live.subscription = null;

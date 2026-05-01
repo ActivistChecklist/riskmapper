@@ -25,7 +25,14 @@ export function getRetentionDays(): number {
   return Number(process.env.RETENTION_DAYS ?? 90);
 }
 
-/** Per-IP request budget for write endpoints (window: 1 minute). */
+/**
+ * Per-IP request budget for write endpoints (window: 1 minute).
+ *
+ * The append path debounces local edits by 300ms client-side, so a
+ * single fast typer caps around 200 POSTs/min in practice. We budget
+ * 240/min (4/sec) per IP — comfortably above one user, and a multi-tab
+ * user from the same IP gets shared headroom too.
+ */
 export function getWriteRateLimitPerMin(): number {
-  return Number(process.env.WRITE_RATE_LIMIT_PER_MIN ?? 30);
+  return Number(process.env.WRITE_RATE_LIMIT_PER_MIN ?? 240);
 }

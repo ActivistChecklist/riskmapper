@@ -10,8 +10,11 @@ type Props = {
   workspace: MatrixWorkspaceApi;
   /** Copy / export control — receives compact mode when the toolbar switches to icon-only. */
   copyMenu?: (opts: { iconOnly: boolean }) => React.ReactNode;
-  /** Optional cloud share control rendered in the title row (right side). */
+  /** Cloud share control, rendered on the right side of the toolbar. */
   cloudShareControl?: React.ReactNode;
+  /** Status indicator (Saved locally / Synced / …), rendered to the right
+   *  of the title in the title row. */
+  statusIndicator?: React.ReactNode;
 };
 
 /** Invisible row matching full-label toolbar width — stable “does it fit?” probe (avoids compact/full flicker). */
@@ -33,20 +36,25 @@ function MatrixToolbarWidthProbe() {
           <span className="inline-block w-[15px] shrink-0" />
           Delete
         </span>
+        <span className={chip}>
+          <span className="inline-block w-[15px] shrink-0" />
+          Copy
+        </span>
       </div>
       <span className={chip}>
         <span className="inline-block w-[15px] shrink-0" />
-        Copy
-      </span>
-      <span className={chip}>
-        <span className="inline-block w-[15px] shrink-0" />
-        Saved locally
+        Share
       </span>
     </div>
   );
 }
 
-export default function MatrixTopBar({ workspace: ws, copyMenu, cloudShareControl }: Props) {
+export default function MatrixTopBar({
+  workspace: ws,
+  copyMenu,
+  cloudShareControl,
+  statusIndicator,
+}: Props) {
   const toolbarRef = useRef<HTMLDivElement>(null);
   const measureRef = useRef<HTMLDivElement>(null);
   const [iconOnlyToolbar, setIconOnlyToolbar] = useState(false);
@@ -105,6 +113,9 @@ export default function MatrixTopBar({ workspace: ws, copyMenu, cloudShareContro
             aria-label="Matrix title"
             className="min-w-0 max-w-[min(100%,28rem)] flex-1 basis-[min(100%,18rem)] border-b border-black/20 bg-transparent pb-1 pl-0.5 pr-0.5 pt-1 text-sm font-medium text-rm-ink outline-none placeholder:opacity-45 focus-visible:border-rm-primary focus-visible:ring-2 focus-visible:ring-black/10"
           />
+          {statusIndicator ? (
+            <div className="ml-auto shrink-0">{statusIndicator}</div>
+          ) : null}
         </div>
 
         <div

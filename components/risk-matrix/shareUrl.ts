@@ -66,6 +66,25 @@ export function clearShareFromUrl(): void {
 }
 
 /**
+ * Replace the current URL with the canonical share link for `recordId`
+ * + `key` so the address bar matches what the user can paste to share.
+ * Idempotent — already-correct URLs aren't rewritten.
+ */
+export function setShareUrlInAddressBar(args: {
+  recordId: string;
+  key: Uint8Array;
+}): void {
+  if (typeof window === "undefined") return;
+  const next = buildShareUrl({
+    origin: window.location.origin,
+    recordId: args.recordId,
+    key: args.key,
+  });
+  if (window.location.href === next) return;
+  window.history.replaceState(null, "", next);
+}
+
+/**
  * The last 6 chars of the base64url key, suitable for showing as a
  * fingerprint to confirm a copy/paste went through cleanly.
  */
