@@ -281,7 +281,6 @@ function RiskMatrixCanvas({ workspace: ws, cloud }: CanvasProps) {
               getSnapshot={m.getSnapshot}
               matrixTitle={ws.activeTitle}
               cloudMeta={cloudMeta}
-              syncState={cloud.syncState}
               repo={cloud.repo}
               onCloudMetaSet={(meta) => {
                 // If we're on a draft when the user shares, promote it to a
@@ -298,7 +297,6 @@ function RiskMatrixCanvas({ workspace: ws, cloud }: CanvasProps) {
               }}
               onStopSharing={handleStopSharing}
               onAcknowledge={cloud.acknowledge}
-              onIndicatorAction={cloud.reopenAction}
             />
           ) : null
         }

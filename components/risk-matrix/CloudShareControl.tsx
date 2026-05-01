@@ -5,7 +5,6 @@ import { Loader2, Share2 } from "lucide-react";
 import * as Y from "yjs";
 import { Button } from "@/components/ui/button";
 import { keyFromB64, keyToB64, SCHEMA_VERSION } from "@/lib/e2ee";
-import CloudSyncIndicator, { type SyncState } from "./CloudSyncIndicator";
 import ShareMatrixDialog from "./ShareMatrixDialog";
 import { seedYDoc } from "./matrixYDoc";
 import { encodeYDocStateForMeta } from "./useShareImport";
@@ -21,8 +20,6 @@ export type CloudShareControlProps = {
   matrixTitle: string;
   /** Active saved matrix's cloud meta, if it has one. */
   cloudMeta: CloudMatrixMeta | null;
-  /** Sync state of the active matrix (loading/syncing/offline/…). */
-  syncState: SyncState;
   repo: MatrixCloudRepository;
   /** Persist new cloud meta after successful share creation. */
   onCloudMetaSet: (meta: CloudMatrixMeta) => void;
@@ -30,8 +27,6 @@ export type CloudShareControlProps = {
   onStopSharing: () => Promise<void> | void;
   /** Reset error state once dismissed. */
   onAcknowledge: () => void;
-  /** Surface terminal indicator states (rollback/missing/error). */
-  onIndicatorAction?: () => void;
   /** Disabled when there's no active saved matrix to share. */
   disabled?: boolean;
 };
@@ -44,19 +39,19 @@ export type CloudShareControlProps = {
  * keyB64, and shows the link. The local keyB64 is only persisted after
  * this explicit user action.
  *
- * For shared matrices: shows the sync indicator + "Manage sharing" button.
- * Click re-opens the dialog so the user can copy the link or stop sharing.
+ * For shared matrices: shows a "Manage sharing" button. Click re-opens
+ * the dialog so the user can copy the link or stop sharing. The live
+ * sync indicator (Synced / Syncing / Offline) lives next to the title
+ * via MatrixStatusIndicator — not duplicated here.
  */
 export default function CloudShareControl({
   getSnapshot,
   matrixTitle,
   cloudMeta,
-  syncState,
   repo,
   onCloudMetaSet,
   onStopSharing,
   onAcknowledge,
-  onIndicatorAction,
   disabled,
 }: CloudShareControlProps) {
   const [open, setOpen] = useState(false);
@@ -137,9 +132,6 @@ export default function CloudShareControl({
 
   return (
     <>
-      {cloudMeta ? (
-        <CloudSyncIndicator state={syncState} onAction={onIndicatorAction} />
-      ) : null}
       <Button
         type="button"
         variant={cloudMeta ? "outline" : "primary"}

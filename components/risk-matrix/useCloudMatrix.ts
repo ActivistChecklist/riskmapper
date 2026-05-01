@@ -57,6 +57,15 @@ const MAX_BACKOFF_MS = 30_000;
  * the per-IP write rate limit.
  */
 const LOCAL_DRAIN_DEBOUNCE_MS = 300;
+/**
+ * Delay before transient states ("loading", "syncing") visibly
+ * appear. Most network ops on localhost / a healthy connection finish
+ * in <100 ms; flashing the indicator for 50 ms then back to "Synced"
+ * looks nervous. We only show the transient state if the operation is
+ * still in flight after this delay — otherwise we go straight from
+ * idle → idle and the indicator never moves.
+ */
+const TRANSIENT_DISPLAY_DELAY_MS = 600;
 
 type Live = {
   handle: CloudMatrixHandle;
@@ -69,6 +78,8 @@ type Live = {
   backoffTimer: ReturnType<typeof setTimeout> | null;
   /** Trailing-edge timer that fires drainOutbox after a quiet period. */
   drainTimer: ReturnType<typeof setTimeout> | null;
+  /** Delay timer for showing a transient state ("loading"/"syncing"). */
+  transientDisplayTimer: ReturnType<typeof setTimeout> | null;
   subscription: Subscription | null;
   cancelled: boolean;
   waiters: Array<{ resolve: () => void; reject: (err: Error) => void }>;
@@ -125,7 +136,12 @@ export function useCloudMatrix(
       return;
     }
 
-    setSyncState({ kind: "loading" });
+    // Only show "loading" upfront when we have nothing to display yet.
+    // If yDocStateB64 hydrates the doc, the user can interact while
+    // catch-up runs in the background — show "loading" only if catch-up
+    // is unusually slow.
+    const hasCachedDoc = Boolean(activeMeta.yDocStateB64);
+    setSyncState(hasCachedDoc ? { kind: "idle" } : { kind: "loading" });
 
     const handle: CloudMatrixHandle = {
       recordId: activeMeta.recordId,
@@ -155,6 +171,7 @@ export function useCloudMatrix(
       backoffMs: INITIAL_BACKOFF_MS,
       backoffTimer: null,
       drainTimer: null,
+      transientDisplayTimer: null,
       subscription: null,
       cancelled: false,
       waiters: [],
@@ -227,6 +244,16 @@ export function useCloudMatrix(
       },
     );
 
+    // For the cached-doc case, schedule a "loading" indicator only if
+    // catch-up takes longer than the transient-display delay.
+    if (hasCachedDoc) {
+      live.transientDisplayTimer = setTimeout(() => {
+        live.transientDisplayTimer = null;
+        if (live.cancelled) return;
+        setSyncState({ kind: "loading" });
+      }, TRANSIENT_DISPLAY_DELAY_MS);
+    }
+
     // Fetch baseline + catch-up.
     void (async () => {
       try {
@@ -245,9 +272,17 @@ export function useCloudMatrix(
         }
         persistMetaFromLive(live, callbacksRef);
         callbacksRef.current.onChange?.(yDoc);
+        if (live.transientDisplayTimer) {
+          clearTimeout(live.transientDisplayTimer);
+          live.transientDisplayTimer = null;
+        }
         setSyncState({ kind: "idle" });
       } catch (err) {
         if (live.cancelled) return;
+        if (live.transientDisplayTimer) {
+          clearTimeout(live.transientDisplayTimer);
+          live.transientDisplayTimer = null;
+        }
         if (err instanceof CloudNotFoundError) {
           setSyncState({ kind: "missing" });
         } else {
@@ -328,6 +363,13 @@ function persistMetaFromLive(
   });
 }
 
+function clearTransientDisplay(live: Live): void {
+  if (live.transientDisplayTimer) {
+    clearTimeout(live.transientDisplayTimer);
+    live.transientDisplayTimer = null;
+  }
+}
+
 async function drainOutbox(
   live: Live,
   repo: MatrixCloudRepository,
@@ -338,7 +380,16 @@ async function drainOutbox(
   if (live.inFlight) return;
   if (!live.pending) return;
   live.inFlight = true;
-  setSyncState({ kind: "syncing" });
+  // Don't flash "syncing" for fast POSTs. Schedule the indicator for
+  // TRANSIENT_DISPLAY_DELAY_MS — if the POST returns first we cancel
+  // the timer and the indicator never moves off "Synced".
+  clearTransientDisplay(live);
+  live.transientDisplayTimer = setTimeout(() => {
+    live.transientDisplayTimer = null;
+    if (live.cancelled) return;
+    if (!live.inFlight) return;
+    setSyncState({ kind: "syncing" });
+  }, TRANSIENT_DISPLAY_DELAY_MS);
   const send = live.pending;
   live.pending = null;
   try {
@@ -356,13 +407,22 @@ async function drainOutbox(
     live.inFlight = false;
     for (const w of live.waiters.splice(0)) w.resolve();
     if (live.pending) {
+      // Another batch is already queued; chain into the next drain
+      // without bouncing through "idle". Let the next drain decide
+      // whether to schedule a fresh syncing indicator.
+      clearTransientDisplay(live);
       void drainOutbox(live, repo, setSyncState, callbacksRef);
     } else {
-      setSyncState({ kind: "idle" });
+      clearTransientDisplay(live);
+      // Only step down from "syncing" → "idle". Any other state
+      // (loading/offline/missing/…) was set by something else and we
+      // shouldn't clobber it from the success path.
+      setSyncState((s) => (s.kind === "syncing" ? { kind: "idle" } : s));
     }
   } catch (err) {
     if (live.cancelled) return;
     live.inFlight = false;
+    clearTransientDisplay(live);
     if (err instanceof CloudNotFoundError) {
       setSyncState({ kind: "missing" });
       for (const w of live.waiters.splice(0)) {
@@ -407,6 +467,10 @@ function teardown(live: Live | null): void {
   if (live.drainTimer) {
     clearTimeout(live.drainTimer);
     live.drainTimer = null;
+  }
+  if (live.transientDisplayTimer) {
+    clearTimeout(live.transientDisplayTimer);
+    live.transientDisplayTimer = null;
   }
   live.subscription?.close();
   live.subscription = null;
