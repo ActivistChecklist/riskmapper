@@ -395,7 +395,7 @@ export default function CategorizedRiskGroups({
                     );
                   })}
                   {hiddenInGroupCount > 0 ? (
-                    <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] items-start gap-4 px-3 pt-1 pb-2">
+                    <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] items-start gap-4 bg-zinc-100/90 px-3 pt-1 pb-2">
                       <div className="min-w-0">
                         <button
                           type="button"
