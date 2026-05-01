@@ -34,14 +34,18 @@ describe("formatAllMitigationsMarkdown", () => {
     } as Record<CellKey, GridLine[]>;
     const md = formatAllMitigationsMarkdown(grid);
     expect(md).toMatch(/^# All mitigations\n\n/);
-    expect(md).toContain("## High likelihood · High impact");
-    expect(md).toContain("### Data breach");
+    // Headings now carry a tone-circle emoji between the `##` /
+    // `###` prefix and the label (see riskTone.prependToneCircle).
+    // Match with `(?:\S+ )?` so we accept either the emoji or no
+    // prefix, decoupling the test from the specific emoji set.
+    expect(md).toMatch(/## (?:\S+ )?High likelihood · High impact/);
+    expect(md).toMatch(/### (?:\S+ )?Data breach/);
     expect(md).toContain("**Reductions**");
     expect(md).toContain("- Encrypt PII");
     expect(md).toContain("**Preparations**");
     expect(md).toContain("- Incident runbooks");
-    expect(md).toContain("## Low likelihood · Low impact");
-    expect(md).toContain("### Vendor delay");
+    expect(md).toMatch(/## (?:\S+ )?Low likelihood · Low impact/);
+    expect(md).toMatch(/### (?:\S+ )?Vendor delay/);
     expect(md).toContain("- Dual-source");
     const hiIdx = md.indexOf("High likelihood · High impact");
     const loIdx = md.indexOf("Low likelihood · Low impact");

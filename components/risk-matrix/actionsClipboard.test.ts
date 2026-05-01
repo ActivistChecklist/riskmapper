@@ -36,7 +36,12 @@ describe("actionsClipboard", () => {
     const plain = formatAllForClipboard(starredActions, []);
     const inner = formatAllForClipboardHtmlInner(starredActions, []);
     expect(plain).toContain("1. Do X");
-    expect(plain).toContain("Reduction for Risk A");
+    // The exporter now prepends a tone-circle emoji to the risk name
+    // (see riskTone.prependToneCircle). Allow any non-whitespace
+    // prefix token between "Reduction for " and the risk text so this
+    // assertion stays meaningful without coupling to the specific
+    // emoji set.
+    expect(plain).toMatch(/Reduction for (?:\S+ )?Risk A/);
     expect(inner).toContain("Do X");
     expect(inner).toContain("Reduction for");
     expect(inner).toContain("Risk A");
