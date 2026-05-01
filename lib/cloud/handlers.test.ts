@@ -1,41 +1,55 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createFakeCollection } from "./fakeCollection";
+import {
+  createFakeCollection,
+  createFakeUpdatesCollection,
+  type FakeCollection,
+  type FakeUpdatesCollection,
+} from "./fakeCollection";
 import { __resetRateLimiterForTests } from "./rateLimit";
+import { __resetPubSubForTests, subscribe, type UpdateEvent } from "./pubsub";
 
 /**
- * Route-handler tests for `app/api/matrix/**`. We mock the Mongo singleton
- * (`@/lib/cloud/db`) so route logic exercises a deterministic in-memory
- * collection, and we control the rate limiter directly via env stubs +
+ * Route-handler tests for `app/api/matrix/**`. We mock the Mongo accessors
+ * (`@/lib/cloud/db`) so route logic exercises deterministic in-memory
+ * collections, and we control the rate limiter directly via env stubs +
  * `__resetRateLimiterForTests` so the budget is fresh for each case.
  */
 
 const VALID_ID = "abcd1234efgh5678ijkl";
 const VALID_CT = "v1." + "A".repeat(80);
 
-// Hoisted holder so the vi.mock factory below can reach `current` at call time.
 const collHolder = vi.hoisted(() => ({
-  current: null as ReturnType<typeof createFakeCollection> | null,
+  matrices: null as FakeCollection | null,
+  updates: null as FakeUpdatesCollection | null,
 }));
 
 vi.mock("./db", () => ({
   getCollection: async () => {
-    if (!collHolder.current) {
-      throw new Error("test setup forgot to seed the fake collection");
+    if (!collHolder.matrices) {
+      throw new Error("test setup forgot to seed the fake matrices collection");
     }
-    return collHolder.current;
+    return collHolder.matrices;
+  },
+  getUpdatesCollection: async () => {
+    if (!collHolder.updates) {
+      throw new Error("test setup forgot to seed the fake updates collection");
+    }
+    return collHolder.updates;
   },
 }));
 
 beforeEach(() => {
-  collHolder.current = createFakeCollection();
-  // High default budget so most tests don't accidentally trip 429.
+  collHolder.matrices = createFakeCollection();
+  collHolder.updates = createFakeUpdatesCollection();
   vi.stubEnv("WRITE_RATE_LIMIT_PER_MIN", "10000");
   __resetRateLimiterForTests();
+  __resetPubSubForTests();
 });
 
 afterEach(() => {
   vi.unstubAllEnvs();
   __resetRateLimiterForTests();
+  __resetPubSubForTests();
 });
 
 function jsonRequest(url: string, init: RequestInit & { json?: unknown }): Request {
@@ -44,6 +58,18 @@ function jsonRequest(url: string, init: RequestInit & { json?: unknown }): Reque
     ...rest,
     headers: { "Content-Type": "application/json", ...(rest.headers ?? {}) },
     body: json !== undefined ? JSON.stringify(json) : (rest.body as BodyInit | null | undefined),
+  });
+}
+
+function seedMatrix(opts?: { headSeq?: number; baselineSeq?: number }): void {
+  collHolder.matrices!.__seed({
+    _id: VALID_ID,
+    baseline: VALID_CT,
+    baselineSeq: opts?.baselineSeq ?? 0,
+    headSeq: opts?.headSeq ?? 0,
+    createdDate: "2026-01-01",
+    lastWriteDate: "2026-01-01",
+    lastReadDate: null,
   });
 }
 
@@ -57,26 +83,27 @@ describe("GET /api/healthz", () => {
 });
 
 describe("POST /api/matrix", () => {
-  it("creates a record with the client-minted id", async () => {
+  it("creates a record at headSeq=0 with the client-minted id", async () => {
     const { POST } = await import("@/app/api/matrix/route");
     const res = await POST(
       jsonRequest("http://localhost/api/matrix", {
         method: "POST",
-        json: { id: VALID_ID, ciphertext: VALID_CT },
+        json: { id: VALID_ID, baseline: VALID_CT },
       }),
     );
     expect(res.status).toBe(201);
     const body = await res.json();
     expect(body.id).toBe(VALID_ID);
-    expect(body.version).toBe(1);
+    expect(body.baselineSeq).toBe(0);
+    expect(body.headSeq).toBe(0);
     expect(body.lastReadDate).toBe(null);
     expect(body.createdDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    const stored = collHolder.current!.__dump();
+    const stored = collHolder.matrices!.__dump();
     expect(stored).toHaveLength(1);
     expect(stored[0]._id).toBe(VALID_ID);
-    expect(stored[0].ciphertext).toBe(VALID_CT);
-    expect(stored[0].version).toBe(1);
-    expect(stored[0].lamport).toBe(1);
+    expect(stored[0].baseline).toBe(VALID_CT);
+    expect(stored[0].headSeq).toBe(0);
+    expect(stored[0].baselineSeq).toBe(0);
   });
 
   it("rejects an id that doesn't match the plausible-id regex", async () => {
@@ -85,59 +112,50 @@ describe("POST /api/matrix", () => {
       const res = await POST(
         jsonRequest("http://localhost/api/matrix", {
           method: "POST",
-          json: { id, ciphertext: VALID_CT },
+          json: { id, baseline: VALID_CT },
         }),
       );
       expect(res.status).toBe(400);
       expect(await res.json()).toEqual({ error: "invalid id" });
     }
-    expect(collHolder.current!.__dump()).toHaveLength(0);
+    expect(collHolder.matrices!.__dump()).toHaveLength(0);
   });
 
-  it("rejects a missing or non-envelope ciphertext", async () => {
+  it("rejects a missing or non-envelope baseline", async () => {
     const { POST } = await import("@/app/api/matrix/route");
     const cases: Array<unknown> = [undefined, 42, "no-dot-prefix", ""];
-    for (const ct of cases) {
+    for (const baseline of cases) {
       const res = await POST(
         jsonRequest("http://localhost/api/matrix", {
           method: "POST",
-          json: { id: VALID_ID, ciphertext: ct },
+          json: { id: VALID_ID, baseline },
         }),
       );
       expect(res.status).toBe(400);
-      expect(await res.json()).toEqual({ error: "invalid ciphertext" });
+      expect(await res.json()).toEqual({ error: "invalid baseline" });
     }
   });
 
-  it("returns 413 when ciphertext exceeds the cap", async () => {
+  it("returns 413 when baseline exceeds the cap", async () => {
     vi.stubEnv("MAX_CIPHERTEXT_BYTES", "100");
     const { POST } = await import("@/app/api/matrix/route");
-    const ct = "v1." + "A".repeat(200);
     const res = await POST(
       jsonRequest("http://localhost/api/matrix", {
         method: "POST",
-        json: { id: VALID_ID, ciphertext: ct },
+        json: { id: VALID_ID, baseline: "v1." + "A".repeat(200) },
       }),
     );
     expect(res.status).toBe(413);
-    expect(await res.json()).toEqual({ error: "ciphertext too large" });
+    expect(await res.json()).toEqual({ error: "baseline too large" });
   });
 
   it("returns 409 on duplicate id", async () => {
-    collHolder.current!.__seed({
-      _id: VALID_ID,
-      ciphertext: VALID_CT,
-      lamport: 1,
-      version: 1,
-      createdDate: "2026-01-01",
-      lastWriteDate: "2026-01-01",
-      lastReadDate: null,
-    });
+    seedMatrix();
     const { POST } = await import("@/app/api/matrix/route");
     const res = await POST(
       jsonRequest("http://localhost/api/matrix", {
         method: "POST",
-        json: { id: VALID_ID, ciphertext: VALID_CT },
+        json: { id: VALID_ID, baseline: VALID_CT },
       }),
     );
     expect(res.status).toBe(409);
@@ -145,46 +163,97 @@ describe("POST /api/matrix", () => {
   });
 
   it("returns 500 on unexpected DB failure (not duplicate)", async () => {
-    collHolder.current!.__setInsertError(new Error("connection lost"));
+    collHolder.matrices!.__setInsertError(new Error("connection lost"));
     const { POST } = await import("@/app/api/matrix/route");
     const res = await POST(
       jsonRequest("http://localhost/api/matrix", {
         method: "POST",
-        json: { id: VALID_ID, ciphertext: VALID_CT },
+        json: { id: VALID_ID, baseline: VALID_CT },
       }),
     );
     expect(res.status).toBe(500);
-    expect(await res.json()).toEqual({ error: "internal" });
   });
 });
 
 describe("GET /api/matrix/[id]", () => {
-  async function get(id: string) {
+  async function get(id: string, search = "") {
     const { GET } = await import("@/app/api/matrix/[id]/route");
-    return GET(new Request(`http://localhost/api/matrix/${id}`), {
+    return GET(new Request(`http://localhost/api/matrix/${id}${search}`), {
       params: Promise.resolve({ id }),
     });
   }
 
-  it("returns the record and bumps lastReadDate to today", async () => {
-    collHolder.current!.__seed({
-      _id: VALID_ID,
-      ciphertext: VALID_CT,
-      lamport: 4,
-      version: 7,
-      createdDate: "2026-01-01",
-      lastWriteDate: "2026-01-15",
-      lastReadDate: "2025-12-30",
+  it("returns baseline + all updates and bumps lastReadDate to today", async () => {
+    seedMatrix({ headSeq: 2 });
+    collHolder.updates!.__seed({
+      recordId: VALID_ID,
+      seq: 1,
+      ciphertext: "v1." + "B".repeat(80),
+      clientId: "c-1",
+      createdAt: "2026-01-02T00:00:00Z",
+    });
+    collHolder.updates!.__seed({
+      recordId: VALID_ID,
+      seq: 2,
+      ciphertext: "v1." + "C".repeat(80),
+      clientId: "c-2",
+      createdAt: "2026-01-03T00:00:00Z",
     });
     const res = await get(VALID_ID);
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.ciphertext).toBe(VALID_CT);
-    expect(body.version).toBe(7);
-    expect(body.lamport).toBe(4);
+    expect(body.baseline).toBe(VALID_CT);
+    expect(body.baselineSeq).toBe(0);
+    expect(body.headSeq).toBe(2);
+    expect(body.updates).toEqual([
+      { seq: 1, ciphertext: "v1." + "B".repeat(80), clientId: "c-1" },
+      { seq: 2, ciphertext: "v1." + "C".repeat(80), clientId: "c-2" },
+    ]);
     expect(body.lastReadDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    expect(body.lastReadDate).not.toBe("2025-12-30");
-    expect(collHolder.current!.__dump()[0].lastReadDate).toBe(body.lastReadDate);
+    expect(collHolder.matrices!.__dump()[0].lastReadDate).toBe(body.lastReadDate);
+  });
+
+  it("with ?since=N >= baselineSeq, omits baseline and returns only updates past N", async () => {
+    seedMatrix({ headSeq: 3 });
+    for (const seq of [1, 2, 3]) {
+      collHolder.updates!.__seed({
+        recordId: VALID_ID,
+        seq,
+        ciphertext: `v1.${"X".repeat(20)}-${seq}`,
+        clientId: "c",
+        createdAt: "2026-01-01T00:00:00Z",
+      });
+    }
+    const res = await get(VALID_ID, "?since=1");
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.baseline).toBeNull();
+    expect(body.baselineSeq).toBe(0);
+    expect(body.headSeq).toBe(3);
+    expect(body.updates.map((u: { seq: number }) => u.seq)).toEqual([2, 3]);
+  });
+
+  it("with ?since=N < baselineSeq, includes baseline (since the caller is too far behind)", async () => {
+    seedMatrix({ headSeq: 5, baselineSeq: 4 });
+    collHolder.updates!.__seed({
+      recordId: VALID_ID,
+      seq: 5,
+      ciphertext: "v1.UPD",
+      clientId: "c",
+      createdAt: "2026-01-01T00:00:00Z",
+    });
+    const res = await get(VALID_ID, "?since=2");
+    const body = await res.json();
+    expect(body.baseline).toBe(VALID_CT);
+    expect(body.updates.map((u: { seq: number }) => u.seq)).toEqual([5]);
+  });
+
+  it("rejects invalid since", async () => {
+    seedMatrix();
+    for (const v of ["nope", "-1", "1.5"]) {
+      const res = await get(VALID_ID, `?since=${v}`);
+      expect(res.status).toBe(400);
+    }
   });
 
   it("returns 404 for an implausible id", async () => {
@@ -198,112 +267,68 @@ describe("GET /api/matrix/[id]", () => {
   });
 });
 
-describe("PUT /api/matrix/[id]", () => {
-  async function put(id: string, body: unknown) {
-    const { PUT } = await import("@/app/api/matrix/[id]/route");
-    return PUT(
-      jsonRequest(`http://localhost/api/matrix/${id}`, { method: "PUT", json: body }),
+describe("POST /api/matrix/[id]/updates", () => {
+  async function post(id: string, body: unknown) {
+    const { POST } = await import("@/app/api/matrix/[id]/updates/route");
+    return POST(
+      jsonRequest(`http://localhost/api/matrix/${id}/updates`, {
+        method: "POST",
+        json: body,
+      }),
       { params: Promise.resolve({ id }) },
     );
   }
 
-  it("updates the record and increments version when expectedVersion matches", async () => {
-    collHolder.current!.__seed({
-      _id: VALID_ID,
-      ciphertext: "v1.OLD",
-      lamport: 1,
-      version: 3,
-      createdDate: "2026-01-01",
-      lastWriteDate: "2026-01-01",
-      lastReadDate: null,
-    });
-    const newCt = "v1." + "B".repeat(80);
-    const res = await put(VALID_ID, {
-      ciphertext: newCt,
-      lamport: 2,
-      expectedVersion: 3,
-    });
-    expect(res.status).toBe(200);
-    expect((await res.json()).version).toBe(4);
-    const stored = collHolder.current!.__dump()[0];
-    expect(stored.ciphertext).toBe(newCt);
-    expect(stored.version).toBe(4);
-    expect(stored.lamport).toBe(2);
+  it("appends one update and assigns a monotonic seq", async () => {
+    seedMatrix();
+    const res1 = await post(VALID_ID, { ciphertext: "v1.U1", clientId: "alice" });
+    expect(res1.status).toBe(201);
+    expect(await res1.json()).toEqual({ seq: 1 });
+    const res2 = await post(VALID_ID, { ciphertext: "v1.U2", clientId: "bob" });
+    expect(await res2.json()).toEqual({ seq: 2 });
+
+    const stored = collHolder.updates!.__dump();
+    expect(stored.map((u) => u.seq)).toEqual([1, 2]);
+    expect(stored[0].clientId).toBe("alice");
+    expect(stored[1].clientId).toBe("bob");
+    expect(collHolder.matrices!.__dump()[0].headSeq).toBe(2);
   });
 
-  it("returns 409 + remote payload when expectedVersion mismatches", async () => {
-    collHolder.current!.__seed({
-      _id: VALID_ID,
-      ciphertext: "v1.REMOTE",
-      lamport: 9,
-      version: 5,
-      createdDate: "2026-01-01",
-      lastWriteDate: "2026-01-15",
-      lastReadDate: null,
-    });
-    const res = await put(VALID_ID, {
-      ciphertext: VALID_CT,
-      lamport: 8,
-      expectedVersion: 3,
-    });
-    expect(res.status).toBe(409);
-    expect(await res.json()).toEqual({
-      ciphertext: "v1.REMOTE",
-      version: 5,
-      lamport: 9,
-    });
-    expect(collHolder.current!.__dump()[0].ciphertext).toBe("v1.REMOTE");
+  it("publishes each update to subscribers", async () => {
+    seedMatrix();
+    const received: UpdateEvent[] = [];
+    const off = subscribe(VALID_ID, (e) => received.push(e));
+    await post(VALID_ID, { ciphertext: "v1.U", clientId: "alice" });
+    off();
+    expect(received).toEqual([{ seq: 1, ciphertext: "v1.U", clientId: "alice" }]);
   });
 
-  it("returns 404 when the record does not exist", async () => {
-    const res = await put(VALID_ID, {
-      ciphertext: VALID_CT,
-      lamport: 1,
-      expectedVersion: 1,
-    });
+  it("returns 404 when the matrix does not exist", async () => {
+    const res = await post(VALID_ID, { ciphertext: "v1.X", clientId: "c" });
     expect(res.status).toBe(404);
+    expect(collHolder.updates!.__dump()).toHaveLength(0);
   });
 
   it("returns 400 on invalid body", async () => {
-    collHolder.current!.__seed({
-      _id: VALID_ID,
-      ciphertext: "v1.OLD",
-      lamport: 1,
-      version: 1,
-      createdDate: "2026-01-01",
-      lastWriteDate: "2026-01-01",
-      lastReadDate: null,
-    });
-    const cases = [
-      { ciphertext: VALID_CT, lamport: -1, expectedVersion: 1 },
-      { ciphertext: VALID_CT, lamport: 1, expectedVersion: -1 },
-      { ciphertext: VALID_CT, lamport: 1.5, expectedVersion: 1 },
-      { ciphertext: VALID_CT, expectedVersion: 1 },
-      { ciphertext: "not-an-envelope", lamport: 1, expectedVersion: 1 },
-    ];
-    for (const body of cases) {
-      const res = await put(VALID_ID, body);
+    seedMatrix();
+    for (const body of [
+      { ciphertext: "no-prefix", clientId: "c" },
+      { ciphertext: "v1.OK" },
+      { ciphertext: "v1.OK", clientId: "" },
+      { ciphertext: "v1.OK", clientId: "x".repeat(100) },
+    ]) {
+      const res = await post(VALID_ID, body);
       expect(res.status).toBe(400);
-      expect(await res.json()).toEqual({ error: "invalid body" });
     }
-    expect(collHolder.current!.__dump()[0].ciphertext).toBe("v1.OLD");
+    expect(collHolder.matrices!.__dump()[0].headSeq).toBe(0);
   });
 
-  it("returns 413 when the ciphertext exceeds the cap", async () => {
-    vi.stubEnv("MAX_CIPHERTEXT_BYTES", "100");
-    collHolder.current!.__seed({
-      _id: VALID_ID,
-      ciphertext: "v1.OLD",
-      lamport: 1,
-      version: 1,
-      createdDate: "2026-01-01",
-      lastWriteDate: "2026-01-01",
-      lastReadDate: null,
-    });
-    const res = await put(VALID_ID, {
-      ciphertext: "v1." + "X".repeat(200),
-      lamport: 1,
-      expectedVersion: 1,
+  it("returns 413 on oversized ciphertext", async () => {
+    vi.stubEnv("MAX_CIPHERTEXT_BYTES", "50");
+    seedMatrix();
+    const res = await post(VALID_ID, {
+      ciphertext: "v1." + "Y".repeat(200),
+      clientId: "c",
     });
     expect(res.status).toBe(413);
   });
@@ -317,19 +342,26 @@ describe("DELETE /api/matrix/[id]", () => {
     });
   }
 
-  it("removes the record and returns 204", async () => {
-    collHolder.current!.__seed({
-      _id: VALID_ID,
-      ciphertext: VALID_CT,
-      lamport: 1,
-      version: 1,
-      createdDate: "2026-01-01",
-      lastWriteDate: "2026-01-01",
-      lastReadDate: null,
+  it("removes the record AND its updates and returns 204", async () => {
+    seedMatrix({ headSeq: 2 });
+    collHolder.updates!.__seed({
+      recordId: VALID_ID,
+      seq: 1,
+      ciphertext: "v1.U",
+      clientId: "c",
+      createdAt: "2026-01-01T00:00:00Z",
+    });
+    collHolder.updates!.__seed({
+      recordId: VALID_ID,
+      seq: 2,
+      ciphertext: "v1.U",
+      clientId: "c",
+      createdAt: "2026-01-01T00:00:00Z",
     });
     const res = await del(VALID_ID);
     expect(res.status).toBe(204);
-    expect(collHolder.current!.__dump()).toHaveLength(0);
+    expect(collHolder.matrices!.__dump()).toHaveLength(0);
+    expect(collHolder.updates!.__dump()).toHaveLength(0);
   });
 
   it("is idempotent for unknown ids (still 204)", async () => {
@@ -338,9 +370,8 @@ describe("DELETE /api/matrix/[id]", () => {
   });
 
   it("is 204 for implausible ids without touching the DB", async () => {
-    // Force getCollection to throw if it gets called — the implausible-id
-    // short-circuit must skip the DB entirely.
-    collHolder.current = null;
+    collHolder.matrices = null;
+    collHolder.updates = null;
     const res = await del("short");
     expect(res.status).toBe(204);
   });
@@ -356,14 +387,12 @@ describe("rate limiting", () => {
         jsonRequest("http://localhost/api/matrix", {
           method: "POST",
           headers: { "x-forwarded-for": "10.0.0.1" },
-          json: { id: VALID_ID, ciphertext: VALID_CT },
+          json: { id: VALID_ID, baseline: VALID_CT },
         }),
       );
     const r1 = await fire();
     const r2 = await fire();
     const r3 = await fire();
-    // The first hits 201, the second hits 409 (duplicate id); both consume
-    // a token. The third must be throttled.
     expect([201, 409]).toContain(r1.status);
     expect([201, 409]).toContain(r2.status);
     expect(r3.status).toBe(429);
@@ -374,15 +403,7 @@ describe("rate limiting", () => {
   it("does NOT throttle reads (only writes)", async () => {
     vi.stubEnv("WRITE_RATE_LIMIT_PER_MIN", "1");
     __resetRateLimiterForTests();
-    collHolder.current!.__seed({
-      _id: VALID_ID,
-      ciphertext: VALID_CT,
-      lamport: 1,
-      version: 1,
-      createdDate: "2026-01-01",
-      lastWriteDate: "2026-01-01",
-      lastReadDate: null,
-    });
+    seedMatrix();
     const { GET } = await import("@/app/api/matrix/[id]/route");
     for (let i = 0; i < 5; i++) {
       const res = await GET(new Request(`http://localhost/api/matrix/${VALID_ID}`), {

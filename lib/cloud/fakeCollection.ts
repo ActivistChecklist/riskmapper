@@ -1,22 +1,28 @@
-import type { AppCollection, MatrixDoc } from "./types";
+import type {
+  AppCollection,
+  MatrixDoc,
+  MatrixUpdate,
+  UpdatesCollection,
+} from "./types";
 
 /**
- * In-memory implementation of the small subset of MongoDB methods that the
- * cloud handlers use. Used by tests and only by tests; behavior matches the
- * real driver for the queries the app issues:
- *
- *   - `insertOne`: throws E11000 (`code: 11000`) on duplicate `_id`
- *   - `findOne({ _id })`: returns the doc or null
- *   - `findOneAndUpdate({ _id, version? }, { $set, $inc? })`: applies the
- *     update IFF the version predicate matches (or is absent), returning
- *     the resulting doc
- *   - `deleteOne({ _id })`: removes the doc, no-op if absent
+ * In-memory implementations of the Mongo surfaces the cloud handlers use.
+ * Used by tests only; behavior matches the real driver for the queries the
+ * app actually issues.
  */
-export function createFakeCollection(): AppCollection & {
+
+export type FakeCollection = AppCollection & {
   __dump(): MatrixDoc[];
   __seed(doc: MatrixDoc): void;
   __setInsertError(err: unknown): void;
-} {
+};
+
+export type FakeUpdatesCollection = UpdatesCollection & {
+  __dump(): MatrixUpdate[];
+  __seed(doc: MatrixUpdate): void;
+};
+
+export function createFakeCollection(): FakeCollection {
   const store = new Map<string, MatrixDoc>();
   let injectedInsertError: unknown = null;
 
@@ -44,12 +50,14 @@ export function createFakeCollection(): AppCollection & {
     async findOneAndUpdate(filter, update): Promise<MatrixDoc | null> {
       const doc = store.get(filter._id);
       if (!doc) return null;
-      if (filter.version !== undefined && doc.version !== filter.version) {
-        return null;
+      const next: MatrixDoc = { ...doc };
+      if ("$set" in update && update.$set) {
+        Object.assign(next, update.$set);
       }
-      const next: MatrixDoc = { ...doc, ...update.$set };
-      if ("$inc" in update && update.$inc?.version !== undefined) {
-        next.version = doc.version + update.$inc.version;
+      if ("$inc" in update && update.$inc) {
+        if (typeof update.$inc.headSeq === "number") {
+          next.headSeq = doc.headSeq + update.$inc.headSeq;
+        }
       }
       store.set(doc._id, next);
       return { ...next };
@@ -77,6 +85,51 @@ export function createFakeCollection(): AppCollection & {
     },
     __setInsertError(err: unknown): void {
       injectedInsertError = err;
+    },
+  };
+}
+
+export function createFakeUpdatesCollection(): FakeUpdatesCollection {
+  const store: MatrixUpdate[] = [];
+
+  return {
+    async insertOne(doc: MatrixUpdate): Promise<unknown> {
+      const dup = store.find(
+        (u) => u.recordId === doc.recordId && u.seq === doc.seq,
+      );
+      if (dup) {
+        const err = new Error("E11000 duplicate key");
+        Object.assign(err, { code: 11000 });
+        throw err;
+      }
+      store.push({ ...doc });
+      return { acknowledged: true };
+    },
+
+    async findSorted(filter): Promise<MatrixUpdate[]> {
+      const min = filter.minSeqExclusive ?? -Infinity;
+      return store
+        .filter((u) => u.recordId === filter.recordId && u.seq > min)
+        .sort((a, b) => a.seq - b.seq)
+        .map((u) => ({ ...u }));
+    },
+
+    async deleteMany(filter): Promise<{ deletedCount?: number }> {
+      let removed = 0;
+      for (let i = store.length - 1; i >= 0; i--) {
+        if (store[i].recordId === filter.recordId) {
+          store.splice(i, 1);
+          removed += 1;
+        }
+      }
+      return { deletedCount: removed };
+    },
+
+    __dump(): MatrixUpdate[] {
+      return store.map((u) => ({ ...u })).sort((a, b) => a.seq - b.seq);
+    },
+    __seed(doc: MatrixUpdate): void {
+      store.push({ ...doc });
     },
   };
 }

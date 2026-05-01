@@ -12,6 +12,8 @@
 export const MONGO_URI = process.env.MONGO_URI ?? "";
 export const MONGO_DB = process.env.MONGO_DB ?? "riskmatrix";
 export const MONGO_COLLECTION = process.env.MONGO_COLLECTION ?? "matrices";
+export const MONGO_UPDATES_COLLECTION =
+  process.env.MONGO_UPDATES_COLLECTION ?? "matrix_updates";
 
 /** Hard cap on ciphertext bytes per record. Mirrored client-side. */
 export function getMaxCiphertextBytes(): number {
