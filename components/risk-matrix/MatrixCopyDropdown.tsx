@@ -50,50 +50,44 @@ export default function MatrixCopyDropdown({
 }: MatrixCopyDropdownProps) {
   // The dropdown trigger lives in the title row alongside Share — keep
   // it neutral (outline) so Share remains the visual primary CTA.
-  // `toolbar` is unused for the variant now but kept on the API for
-  // compatibility with existing callers.
+  // `iconOnly` and `toolbar` are kept on the API for compatibility, but
+  // label visibility is now driven by Tailwind responsive classes
+  // matching the title-row collapse sequence (label hidden below md).
   void toolbar;
-  const iconBtn = iconOnly ? "gap-0 px-2" : "";
+  void iconOnly;
 
   const triggerButton = (
     <Button
       type="button"
       variant="outline"
       size="default"
-      className={cn(
-        "gap-2 px-4 text-[15px]",
-        iconBtn,
-      )}
-      aria-label={iconOnly ? "Copy worksheet" : undefined}
+      className={cn("gap-2 px-3 text-[15px] sm:px-4")}
+      aria-label="Copy worksheet"
       aria-haspopup="menu"
     >
       <Copy size={18} strokeWidth={2} aria-hidden />
-      {!iconOnly ? (
-        <>
-          Copy
-          <ChevronDown
-            size={14}
-            strokeWidth={2}
-            aria-hidden
-            className="opacity-70"
-          />
-        </>
-      ) : null}
+      <span className="hidden md:inline-flex md:items-center md:gap-1">
+        Copy
+        <ChevronDown
+          size={14}
+          strokeWidth={2}
+          aria-hidden
+          className="opacity-70"
+        />
+      </span>
     </Button>
   );
 
   return (
     <DropdownMenu>
-      {iconOnly ? (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <DropdownMenuTrigger asChild>{triggerButton}</DropdownMenuTrigger>
-          </TooltipTrigger>
-          <TooltipContent side="bottom">Copy worksheet</TooltipContent>
-        </Tooltip>
-      ) : (
-        <DropdownMenuTrigger asChild>{triggerButton}</DropdownMenuTrigger>
-      )}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <DropdownMenuTrigger asChild>{triggerButton}</DropdownMenuTrigger>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" className="md:hidden">
+          Copy worksheet
+        </TooltipContent>
+      </Tooltip>
       <DropdownMenuContent align="end" className="min-w-[13.5rem]">
         <DropdownMenuLabel>Copy as text</DropdownMenuLabel>
         <DropdownMenuItem

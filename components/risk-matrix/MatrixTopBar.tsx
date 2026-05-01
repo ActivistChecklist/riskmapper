@@ -77,7 +77,7 @@ export default function MatrixTopBar({
   return (
     <TooltipProvider delayDuration={400}>
       <div className="mb-3 flex flex-col gap-3">
-        <div className="flex min-h-10 flex-wrap items-center gap-x-4 gap-y-2">
+        <div className="flex min-h-10 min-w-0 flex-nowrap items-center gap-x-3 sm:gap-x-4">
           <h1
             className={[
               "inline-flex shrink-0 items-center rounded-lg border border-black/12",
@@ -104,7 +104,7 @@ export default function MatrixTopBar({
             }}
             placeholder="Matrix title"
             aria-label="Matrix title"
-            className="min-w-0 w-[min(100%,22rem)] shrink-0 truncate border-b border-black/20 bg-transparent pb-1 pl-0.5 pr-0.5 pt-1 text-lg font-semibold text-rm-ink outline-none placeholder:opacity-45 focus-visible:border-rm-primary focus-visible:ring-2 focus-visible:ring-black/10 sm:text-xl"
+            className="min-w-0 max-w-[22rem] flex-1 truncate border-b border-black/20 bg-transparent pb-1 pl-0.5 pr-0.5 pt-1 text-lg font-semibold text-rm-ink outline-none placeholder:opacity-45 focus-visible:border-rm-primary focus-visible:ring-2 focus-visible:ring-black/10 sm:text-xl"
           />
           {statusIndicator ? (
             <div className="shrink-0">{statusIndicator}</div>
@@ -114,6 +114,10 @@ export default function MatrixTopBar({
               primary CTA. */}
           {copyMenu || cloudShareControl ? (
             <div className="ml-auto flex shrink-0 items-center gap-2">
+              {/* iconOnly is the small-screen hint; child components also
+                  use Tailwind responsive classes to hide labels at the
+                  same breakpoint, so the rendered DOM matches the layout
+                  decision at every width. */}
               {copyMenu ? copyMenu({ iconOnly: false }) : null}
               {cloudShareControl}
             </div>

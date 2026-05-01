@@ -74,7 +74,10 @@ export default function MatrixStatusIndicator({
           )}
         >
           <CircleCheck className="size-3.5 text-emerald-600" aria-hidden />
-          <span>Saved locally</span>
+          {/* Label collapses to icon-only below lg so the title row keeps
+              the right-hand cluster on a single line on narrower screens.
+              The button still has aria-label + native title for tooltip. */}
+          <span className="hidden lg:inline">Saved locally</span>
         </Button>
         <Dialog open={infoOpen} onOpenChange={setInfoOpen}>
           <DialogContent>
@@ -126,7 +129,7 @@ export default function MatrixStatusIndicator({
         <span aria-hidden className="grid place-items-center">
           {meta.icon}
         </span>
-        <span>{meta.label}</span>
+        <span className="hidden lg:inline">{meta.label}</span>
       </button>
     );
   }
@@ -141,7 +144,7 @@ export default function MatrixStatusIndicator({
       <span aria-hidden className="grid place-items-center">
         {meta.icon}
       </span>
-      <span>{meta.label}</span>
+      <span className="hidden lg:inline">{meta.label}</span>
     </div>
   );
 }

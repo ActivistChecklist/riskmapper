@@ -4,6 +4,11 @@ import React, { useCallback, useState } from "react";
 import { Loader2, UserPlus } from "lucide-react";
 import * as Y from "yjs";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { keyFromB64, keyToB64, SCHEMA_VERSION } from "@/lib/e2ee";
 import ShareMatrixDialog from "./ShareMatrixDialog";
 import { seedYDoc } from "./matrixYDoc";
@@ -128,21 +133,33 @@ export default function CloudShareControl({
 
   return (
     <>
-      <Button
-        type="button"
-        variant="primary"
-        size="default"
-        className="gap-2 px-4 text-[15px]"
-        onClick={() => setOpen(true)}
-        disabled={disabled}
-      >
-        {busy ? (
-          <Loader2 className="size-[18px] animate-spin motion-reduce:animate-none" aria-hidden />
-        ) : (
-          <UserPlus className="size-[18px]" aria-hidden />
-        )}
-        {busy ? "Sharing…" : "Share"}
-      </Button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            type="button"
+            variant="primary"
+            size="default"
+            className="gap-2 px-3 text-[15px] sm:px-4"
+            onClick={() => setOpen(true)}
+            disabled={disabled}
+            aria-label={busy ? "Sharing" : "Share"}
+          >
+            {busy ? (
+              <Loader2 className="size-[18px] animate-spin motion-reduce:animate-none" aria-hidden />
+            ) : (
+              <UserPlus className="size-[18px]" aria-hidden />
+            )}
+            {/* Label collapses to icon-only below md as the final
+                graceful step in the title-row narrowing sequence. */}
+            <span className="hidden md:inline">
+              {busy ? "Sharing…" : "Share"}
+            </span>
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" className="md:hidden">
+          Share
+        </TooltipContent>
+      </Tooltip>
       <ShareMatrixDialog
         open={open}
         onOpenChange={onOpenChange}
