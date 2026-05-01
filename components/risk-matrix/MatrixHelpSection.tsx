@@ -21,49 +21,51 @@ export default function MatrixHelpSection() {
           <ChevronRight size={18} className="shrink-0 opacity-70" aria-hidden />
         )}
         <CircleHelp size={17} className="shrink-0 opacity-80" aria-hidden />
-        <span>How to use this matrix</span>
+        <span>How to do risk mapping</span>
       </button>
       {open ? (
         <div className="border-t border-black/10 px-3 pb-3.5 pt-4 text-sm leading-relaxed text-rm-ink/90 sm:px-4 sm:pb-4 sm:pt-5">
-          <p className="mb-3 opacity-95">
-            Capture risks in the top pool, then drag each item into the matrix
-            cell that matches likelihood and impact.
-          </p>
-          <p className="mb-3">
-            Add mitigation ideas under each categorized risk, then star key items
-            to also list them in the Actions panel.
-          </p>
-          <p className="mb-3">
-            Keep each line short and specific so your priority actions stay easy
-            to review.
-          </p>
-          <p>
-            <span className="font-medium text-rm-ink">Pool shortcut:</span> end a
-            pool line with{" "}
-            <code className="rounded bg-black/6 px-1 py-0.5 font-mono text-[13px]">
-              impact / likelihood
-            </code>{" "}
-            (impact, slash, likelihood) to move that risk into the matching
-            cell—e.g.{" "}
-            <code className="rounded bg-black/6 px-1 py-0.5 font-mono text-[13px]">
-              HI/HL
-            </code>{" "}
-            or{" "}
-            <code className="rounded bg-black/6 px-1 py-0.5 font-mono text-[13px]">
-              LI/LL
-            </code>
-            . Use short codes only—the token before the slash is impact (e.g.{" "}
-            <span className="font-mono text-[13px]">HI</span>,{" "}
-            <span className="font-mono text-[13px]">MI</span>,{" "}
-            <span className="font-mono text-[13px]">LI</span>
-            ), after the slash is likelihood (e.g.{" "}
-            <span className="font-mono text-[13px]">HL</span>,{" "}
-            <span className="font-mono text-[13px]">ML</span>,{" "}
-            <span className="font-mono text-[13px]">LL</span>
-            ). Alternate spellings like{" "}
-            <span className="font-mono text-[13px]">IL</span> or{" "}
-            <span className="font-mono text-[13px]">LH</span> work too.
-          </p>
+          <div className="mx-auto max-w-3xl">
+            <h2 className="mb-3 text-base font-semibold leading-tight text-rm-ink sm:text-lg">
+              How to do risk mapping
+            </h2>
+            <p className="mb-3 opacity-95">
+              Good organizing means taking strategic risks. A risk assessment
+              isn't about eliminating risk, it helps your group take bolder
+              action with clearer eyes by naming what you're actually facing,
+              deciding what matters most, and choosing what's worth preparing
+              for. It works best done with a few people on your team.
+            </p>
+            <p className="mb-3">
+              <span className="font-medium text-rm-ink">Name the risks.</span> Be
+              concrete: <em>who</em> could do <em>what</em>. ("A
+              counter-protester could try to provoke a fight." "Police
+              could arrest participants for trespassing." "A leader
+              could be doxxed because their name is on the sign-up page.")
+              Don't try to list every possibility. Focus on what feels
+              concerning for this group, this action, this place, this moment.
+            </p>
+            <p className="mb-3">
+              <span className="font-medium text-rm-ink">
+                Place each risk by impact and likelihood.
+              </span>{" "}
+              Impact is how bad it would be if it happened. Likelihood is how
+              likely it is to actually happen for a group like yours. If you're
+              unsure how likely something is, ask people doing similar work in
+              your area. Grounding the estimate in real experience pulls you
+              out of reactive fear.
+            </p>
+            <p className="mb-3">
+              <span className="font-medium text-rm-ink">Add mitigations.</span>{" "}
+              Under each categorized risk, brainstorm two kinds of action: ways
+              to <em>reduce the likelihood</em> it happens (vet new members, use
+              Signal, secure your accounts) and ways to{" "}
+              <em>prepare to respond</em> if it does (know-your-rights training,
+              exit routes, legal hotline saved). Star the most important ones to
+              surface them in the Actions panel as your shortlist of what to
+              actually go do.
+            </p>
+          </div>
         </div>
       ) : null}
     </section>
