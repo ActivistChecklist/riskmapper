@@ -16,13 +16,13 @@ const MitigationsTableHeaderRow = React.forwardRef<HTMLDivElement>(
         <div className="px-1 py-0.5 sm:px-2">
           <span className="sm:hidden">Reduce likelihood</span>
           <span className="hidden sm:inline">
-            What can we do to reduce the likelihood of this happening?
+            How can we reduce the likelihood of this happening?
           </span>
         </div>
         <div className="px-1 py-0.5 sm:px-2">
           <span className="sm:hidden">Prepare if it happens</span>
           <span className="hidden sm:inline">
-            What can we do to prepare for if it does happen?
+            How can we limit the harm if it happens?
           </span>
         </div>
       </div>

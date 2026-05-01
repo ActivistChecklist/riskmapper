@@ -371,9 +371,10 @@ function RiskMatrixCanvas({ workspace: ws, cloud }: CanvasProps) {
           <StepSection
             step={3}
             readingWidth={false}
+            allowOverflow
             className="w-full max-w-none"
             actions={step3Copy}
-            title="Brainstorm ways you can mitigate and prepare for these risks. Star an item you intend to act on."
+            title="Brainstorm ways you can prepare for these risks. Star the items you intend to act on."
           >
             {m.anyRisks ? (
               <CategorizedRiskGroups

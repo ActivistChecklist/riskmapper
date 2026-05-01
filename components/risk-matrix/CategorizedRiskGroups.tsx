@@ -245,7 +245,8 @@ export default function CategorizedRiskGroups({
                         key={r.line.id}
                         className={[
                           "group/riskrow grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] items-start gap-4 px-3 py-2",
-                          dimHiddenButRevealed ? "bg-zinc-100/90" : stripe,
+                          dimHiddenButRevealed ? "bg-zinc-100/90" : GROUP_HEADER_CLASS[group.key],
+                          stripe,
                           i === 0 ? "" : "border-t border-black/5",
                         ].join(" ")}
                       >
