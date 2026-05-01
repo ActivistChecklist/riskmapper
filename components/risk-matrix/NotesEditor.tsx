@@ -7,6 +7,7 @@ import { Link } from "@tiptap/extension-link";
 import { Markdown } from "tiptap-markdown";
 import {
   Bold,
+  FileText,
   Heading1,
   Heading2,
   Italic,
@@ -18,29 +19,32 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 /**
- * WYSIWYG Markdown notes editor.
+ * WYSIWYG notes editor for the right-hand sidebar.
  *
- * - Wire format: Markdown. The `value` prop and the `onChange` payload
- *   are both raw Markdown strings; the editor parses and serialises
- *   on either side via the `tiptap-markdown` extension.
- * - Toolbar: minimal — bold, italic, two heading levels, two list
- *   types, link.
- * - Concurrency: shares the same LWW + 300 ms outbox debounce as the
- *   rest of the app's text fields. Two devices typing into the
- *   notes editor in the SAME ~300 ms window will clobber on the
- *   whole-field set; otherwise edits made "near each other" survive
- *   because each commit is debounced and the doc state vector
- *   advances monotonically.
+ * Wire format: HTML, not Markdown. The original implementation tried
+ * to keep `value` as Markdown (per the user-stated preference) but
+ * Markdown can't faithfully represent the editor's structure: two
+ * consecutive empty paragraphs serialize to two `\n\n` runs, which
+ * any CommonMark parser collapses back to a single paragraph
+ * separator. Pressing Enter on an empty line then either failed to
+ * sync (unchanged Markdown output) or got dropped on the receiving
+ * client (collapse on parse). HTML preserves `<p></p><p></p>`
+ * verbatim through the editor's round-trip, so multi-newline edits
+ * survive sync and render the same on every device.
  *
- * The editor is uncontrolled internally — we only push `value` in via
- * `commands.setContent` when it changes from outside (catch-up after
- * a remount, or initial hydrate). User typing flows out via
- * `onChange`; we do not push that same string back in.
+ * tiptap-markdown stays loaded so existing data stored as Markdown
+ * (during the brief window before this switch) is still parsed
+ * correctly on first hydrate; new writes always emit HTML.
+ *
+ * Concurrency: shares the same LWW + 300 ms outbox debounce as the
+ * rest of the app's text fields. Two devices typing into the notes
+ * editor in the SAME ~300 ms window will clobber on the whole-field
+ * set; otherwise edits made "near each other" survive.
  */
 
 export type NotesEditorProps = {
   value: string;
-  onChange: (markdown: string) => void;
+  onChange: (html: string) => void;
   placeholder?: string;
   className?: string;
 };
@@ -56,14 +60,9 @@ export default function NotesEditor({
     onChangeRef.current = onChange;
   }, [onChange]);
 
-  // The Markdown extension stamps the editor's content from a Markdown
-  // string at init and exposes editor.storage.markdown.getMarkdown()
-  // for the reverse direction.
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
-        // We don't want code blocks / horizontal rules / blockquotes in
-        // the simple toolbar; keep the schema lean.
         codeBlock: false,
         blockquote: false,
         horizontalRule: false,
@@ -77,6 +76,8 @@ export default function NotesEditor({
           class: "underline underline-offset-2 text-rm-primary",
         },
       }),
+      // Loaded so legacy Markdown content can hydrate cleanly. Not
+      // used on the write path — onUpdate emits HTML.
       Markdown.configure({
         html: false,
         breaks: true,
@@ -86,20 +87,14 @@ export default function NotesEditor({
     content: value,
     immediatelyRender: false,
     onUpdate({ editor }) {
-      // Pull markdown via the storage helper exposed by tiptap-markdown.
-      // The cast is needed because @types/tiptap doesn't know about the
-      // third-party extension's storage shape.
-      const md = (
-        editor.storage as { markdown?: { getMarkdown: () => string } }
-      ).markdown?.getMarkdown();
-      if (md !== undefined) onChangeRef.current(md);
+      onChangeRef.current(editor.getHTML());
     },
     editorProps: {
       attributes: {
         class:
           // min-h sized to feel like a textarea you'd actually write
-          // a paragraph or two into, not a single-line input. The
-          // editor still grows past this as you type.
+          // a paragraph or two into. The editor still grows past
+          // this as you type.
           "min-h-[12rem] outline-none prose prose-sm max-w-none text-rm-ink " +
           "[&_h1]:text-lg [&_h1]:font-semibold [&_h1]:mt-0 [&_h1]:mb-2 " +
           "[&_h2]:text-base [&_h2]:font-semibold [&_h2]:mt-3 [&_h2]:mb-1.5 " +
@@ -109,15 +104,14 @@ export default function NotesEditor({
     },
   });
 
-  // Sync external value changes (e.g., remote update on a shared
-  // matrix) into the editor without bouncing back to onChange. A
-  // simple round-trip equality check avoids resetting the editor on
-  // every parent render.
+  // Sync external value changes (catch-up after a remount, initial
+  // hydrate, or remote update on a shared matrix) into the editor
+  // without bouncing back to onChange. setContent accepts either
+  // HTML or Markdown — tiptap-markdown's parser handles strings that
+  // don't start with a tag, so legacy Markdown payloads still hydrate.
   useEffect(() => {
     if (!editor) return;
-    const current = (
-      editor.storage as { markdown?: { getMarkdown: () => string } }
-    ).markdown?.getMarkdown();
+    const current = editor.getHTML();
     if (current === value) return;
     editor.commands.setContent(value, { emitUpdate: false });
   }, [editor, value]);
@@ -152,10 +146,18 @@ export default function NotesEditor({
   return (
     <div
       className={cn(
-        "rounded-md border border-black/10 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)]",
+        "flex flex-col overflow-hidden rounded-md border border-black/10 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)]",
         className,
       )}
     >
+      {/* Step-style header bar — same shape ActionsAside uses, so the
+          two siblings in the right column read as a pair. */}
+      <div className="flex shrink-0 items-center gap-1.5 border-b border-white/25 bg-rm-primary px-2 py-2 text-rm-primary-fg sm:px-3">
+        <FileText size={13} strokeWidth={2} aria-hidden />
+        <span className="min-w-0 flex-1 text-xs font-semibold uppercase tracking-wide sm:text-sm">
+          Notes
+        </span>
+      </div>
       <div
         className="flex flex-wrap items-center gap-0.5 border-b border-black/10 bg-zinc-50/80 px-1.5 py-1"
         role="toolbar"
@@ -210,7 +212,8 @@ export default function NotesEditor({
             // to stay simple, and a custom inline popover would carry
             // its own focus / keyboard / a11y burden that doesn't pay
             // for itself in a notes-side affordance.
-            const url = typeof window !== "undefined" ? window.prompt("URL", prev) : prev;
+            const url =
+              typeof window !== "undefined" ? window.prompt("URL", prev) : prev;
             if (url === null) return;
             if (url === "") {
               editor.chain().focus().unsetLink().run();
@@ -228,13 +231,11 @@ export default function NotesEditor({
       <div className="px-3 py-2.5">
         <EditorContent
           editor={editor}
-          data-empty-placeholder={
-            editor.isEmpty ? placeholder : undefined
-          }
+          data-empty-placeholder={editor.isEmpty ? placeholder : undefined}
           className="[&_.ProseMirror]:min-h-[12rem] [&_.ProseMirror]:outline-none"
         />
-        {/* Empty-state placeholder — overlaid by negative margin so it
-            sits inside the editor's min-height area without taking
+        {/* Empty-state placeholder — overlaid via negative margin so
+            it sits inside the editor's min-height area without taking
             extra space. We do it this way (instead of pulling in
             @tiptap/extension-placeholder) to keep the dep list short. */}
         {editor.isEmpty ? (

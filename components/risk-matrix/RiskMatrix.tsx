@@ -433,12 +433,11 @@ function RiskMatrixCanvas({ workspace: ws, cloud }: CanvasProps) {
               onOtherKeyDown={m.handleOtherKeyDown}
               onOtherBlur={m.handleOtherBlur}
             />
-            <section className="mt-5">
-              <h2 className="mb-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-rm-ink/70">
-                Notes
-              </h2>
-              <NotesEditor value={m.notes} onChange={m.setNotes} />
-            </section>
+            <NotesEditor
+              className="mt-5"
+              value={m.notes}
+              onChange={m.setNotes}
+            />
           </div>
         </div>
       </div>

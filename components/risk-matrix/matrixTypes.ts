@@ -21,10 +21,13 @@ export type RiskMatrixSnapshot = {
   hiddenCategorizedRiskKeys: string[];
   categorizedRevealHidden: CategorizedRevealHiddenState;
   /**
-   * Free-form Markdown notes, rendered through a WYSIWYG editor below
-   * the Actions panel. Stored as Markdown so exports / round-trips
-   * stay inspectable; concurrent edits resolve last-writer-wins
-   * (debounced) — same model as the risk text fields.
+   * Free-form notes, rendered through a WYSIWYG editor below the
+   * Actions panel. Stored as HTML — the original Markdown wire
+   * format couldn't faithfully represent consecutive empty
+   * paragraphs (CommonMark collapses them on parse), so multi-line
+   * structure was lost on sync. HTML round-trips through the editor
+   * verbatim. Concurrent edits resolve last-writer-wins (debounced)
+   * — same model as the risk text fields.
    */
   notes: string;
 };
