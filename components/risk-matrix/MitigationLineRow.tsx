@@ -55,10 +55,10 @@ const MitigationLineRow = React.memo(function MitigationLineRow({
       // visual presence than the previous near-white wash. No drag-
       // opacity here — mitigations don't drag.
       className={cn(
-        "my-0.5",
+        "my-0.5 text-inherit hover:border-white/35 hover:bg-black/20 hover:ring-white/20 focus-within:border-white/50 focus-within:bg-black/25 focus-within:ring-white/25",
         isEmpty
           ? "border-transparent bg-transparent"
-          : "border-black/8 bg-rm-line",
+          : "border-white/25 bg-black/15",
       )}
       leftAffordance={
         <span
@@ -74,9 +74,7 @@ const MitigationLineRow = React.memo(function MitigationLineRow({
             // against the AutoTextarea's full height — matches LineRow's
             // grip alignment instead of the previous mt-0.5 nudge.
             "flex w-[22px] shrink-0 cursor-pointer select-none items-center justify-center self-stretch sm:w-[24px]",
-            starred
-              ? "text-rm-star-strong"
-              : "text-black opacity-70 hover:opacity-100",
+            starred ? "text-current" : "text-current opacity-75 hover:opacity-100",
           )}
         >
           <Star
