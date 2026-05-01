@@ -140,10 +140,19 @@ export default function NotesEditor({
           // min-h sized to feel like a textarea you'd actually write
           // a paragraph or two into. The editor still grows past
           // this as you type.
-          "min-h-[5rem] outline-none prose prose-sm max-w-none text-rm-ink " +
+          //
+          // List markers: Tailwind's preflight resets `list-style:
+          // none` on <ul>/<ol>. Without @tailwindcss/typography
+          // installed, `prose` does nothing to restore them — so we
+          // explicitly opt-in via list-disc / list-decimal + a left
+          // pad to make room for the marker.
+          "min-h-[5rem] outline-none max-w-none text-rm-ink " +
           "[&_h1]:text-lg [&_h1]:font-semibold [&_h1]:mt-0 [&_h1]:mb-2 " +
           "[&_h2]:text-base [&_h2]:font-semibold [&_h2]:mt-3 [&_h2]:mb-1.5 " +
-          "[&_p]:my-1.5 [&_ul]:my-1.5 [&_ol]:my-1.5 [&_li]:my-0.5 " +
+          "[&_p]:my-1.5 " +
+          "[&_ul]:my-1.5 [&_ul]:list-disc [&_ul]:pl-6 " +
+          "[&_ol]:my-1.5 [&_ol]:list-decimal [&_ol]:pl-6 " +
+          "[&_li]:my-0.5 " +
           "[&_a]:text-rm-primary [&_a]:underline [&_a]:underline-offset-2",
       },
     },
@@ -273,18 +282,22 @@ export default function NotesEditor({
           },
         )}
       </div>
-      <div className="px-3 py-2.5">
+      {/*
+        Min-height anchors here on the wrapper so the editor body keeps
+        its 5rem floor whether the editor is empty or not. (Setting
+        min-h on the .ProseMirror element directly didn't hold reliably
+        in the empty state — the user could see it collapse before the
+        first keystroke.)
+        Placeholder is absolutely positioned over the editor area so
+        we don't need a negative-margin overlay trick.
+      */}
+      <div className="relative min-h-[5rem] px-3 py-2.5">
         <EditorContent
           editor={editor}
-          data-empty-placeholder={editor.isEmpty ? placeholder : undefined}
           className="[&_.ProseMirror]:min-h-[5rem] [&_.ProseMirror]:outline-none"
         />
-        {/* Empty-state placeholder — overlaid via negative margin so
-            it sits inside the editor's min-height area without taking
-            extra space. We do it this way (instead of pulling in
-            @tiptap/extension-placeholder) to keep the dep list short. */}
         {editor.isEmpty ? (
-          <p className="pointer-events-none -mt-[5rem] select-none px-0 text-sm text-rm-ink/40 sm:text-[15px]">
+          <p className="pointer-events-none absolute left-3 top-2.5 select-none text-sm text-rm-ink/40 sm:text-[15px]">
             {placeholder}
           </p>
         ) : null}
