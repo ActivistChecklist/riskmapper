@@ -232,7 +232,7 @@ export default function CategorizedRiskGroups({
                     const prepare = r.line.prepare || [];
                     const rowIdx =
                       (riskRowOffsetByGroup.get(group.key) ?? 0) + i;
-                    const stripe = rowIdx % 2 === 1 ? "bg-zinc-50/90" : "bg-white";
+                    const stripe = rowIdx % 2 === 1 ? "bg-black/3" : "";
                     const rowKey = categorizedRiskRowKey(r.cellKey, r.line.id);
                     const isMarkedHidden = hiddenSet.has(rowKey);
                     const dimHiddenButRevealed = isMarkedHidden && reveal;
@@ -241,6 +241,7 @@ export default function CategorizedRiskGroups({
                         key={r.line.id}
                         className={[
                           "group/riskrow grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] items-start gap-4 px-3 py-2",
+                          dimHiddenButRevealed ? "bg-zinc-100/90" : GROUP_HEADER_CLASS[group.key],
                           stripe,
                           i === 0 ? "" : "border-t border-black/5",
                         ].join(" ")}
@@ -250,10 +251,7 @@ export default function CategorizedRiskGroups({
                             "min-w-0 rounded-[5px] px-1.5 py-1",
                             dimHiddenButRevealed
                               ? "border border-zinc-300/90 bg-zinc-100"
-                              : [
-                                  GROUP_HEADER_CLASS[group.key],
-                                  "border border-black/8",
-                                ].join(" "),
+                              : "border border-black/10 bg-white/45",
                           ].join(" ")}
                         >
                           <div className="flex min-w-0 items-start gap-1">
