@@ -140,7 +140,7 @@ export default function NotesEditor({
           // min-h sized to feel like a textarea you'd actually write
           // a paragraph or two into. The editor still grows past
           // this as you type.
-          "min-h-[12rem] outline-none prose prose-sm max-w-none text-rm-ink " +
+          "min-h-[5rem] outline-none prose prose-sm max-w-none text-rm-ink " +
           "[&_h1]:text-lg [&_h1]:font-semibold [&_h1]:mt-0 [&_h1]:mb-2 " +
           "[&_h2]:text-base [&_h2]:font-semibold [&_h2]:mt-3 [&_h2]:mb-1.5 " +
           "[&_p]:my-1.5 [&_ul]:my-1.5 [&_ol]:my-1.5 [&_li]:my-0.5 " +
@@ -277,14 +277,14 @@ export default function NotesEditor({
         <EditorContent
           editor={editor}
           data-empty-placeholder={editor.isEmpty ? placeholder : undefined}
-          className="[&_.ProseMirror]:min-h-[12rem] [&_.ProseMirror]:outline-none"
+          className="[&_.ProseMirror]:min-h-[5rem] [&_.ProseMirror]:outline-none"
         />
         {/* Empty-state placeholder — overlaid via negative margin so
             it sits inside the editor's min-height area without taking
             extra space. We do it this way (instead of pulling in
             @tiptap/extension-placeholder) to keep the dep list short. */}
         {editor.isEmpty ? (
-          <p className="pointer-events-none -mt-[12rem] select-none px-0 text-sm text-rm-ink/40 sm:text-[15px]">
+          <p className="pointer-events-none -mt-[5rem] select-none px-0 text-sm text-rm-ink/40 sm:text-[15px]">
             {placeholder}
           </p>
         ) : null}
