@@ -15,8 +15,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Risk matrix",
-  description: "Likelihood × impact risk matrix",
+  title: "Risk Mapper",
+  description:
+    "A risk mapping tool for planning strategic action: name risks, place them by impact and likelihood, and choose mitigations.",
   // Defense-in-depth so a share URL of the form `?matrix=...#k=...` cannot
   // leak the fragment via Referer headers on subresource fetches. The
   // fragment is never sent in HTTP request lines, but a strict referrer
