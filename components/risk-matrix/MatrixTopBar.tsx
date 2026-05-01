@@ -56,6 +56,7 @@ export default function MatrixTopBar({
   cloudShareControl,
   statusIndicator,
 }: Props) {
+  const titleCharWidth = Math.min(44, Math.max(12, ws.activeTitle.length || 0));
   const toolbarRef = useRef<HTMLDivElement>(null);
   const measureRef = useRef<HTMLDivElement>(null);
   const [iconOnlyToolbar, setIconOnlyToolbar] = useState(false);
@@ -119,7 +120,8 @@ export default function MatrixTopBar({
             }}
             placeholder="Matrix title"
             aria-label="Matrix title"
-            className="min-w-0 max-w-88 flex-1 truncate rounded-md border border-transparent bg-transparent px-2 py-1 text-lg font-semibold text-rm-ink outline-none placeholder:opacity-45 hover:border-black/20 hover:bg-black/2 focus-visible:border-rm-primary focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-rm-primary/20 sm:text-xl"
+            size={titleCharWidth}
+            className="min-w-0 max-w-88 shrink rounded-md border border-transparent bg-transparent px-2 py-1 text-lg font-semibold text-rm-ink outline-none placeholder:opacity-45 hover:border-black/20 hover:bg-black/2 focus-visible:border-rm-primary focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-rm-primary/20 sm:text-xl"
           />
           {statusIndicator ? (
             <div className="shrink-0">{statusIndicator}</div>
