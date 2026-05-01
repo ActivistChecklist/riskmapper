@@ -1,12 +1,14 @@
-# Risk Matrix
+# Risk Mapper
 
-A risk matrix workspace built with Next.js (App Router). Organize risks,
-categories, and mitigations in the browser, with optional end-to-end
-encrypted cloud sync and link sharing.
+A risk matrix and safety planning tool. Designed to help you think through risks
+and how you can prepare for them.
 
-**[View Risk Matrix site →](https://activistchecklist.github.io/riskmatrix/)**
+All data is saved locally unless you use the "share" feature. Then all data is
+end-to-end encrypted (not visible to our server).
 
-## Setup
+**[Use Risk Mapper →](https://riskmapper.app/)**
+
+## Local Development
 
 ```bash
 yarn install
@@ -67,8 +69,6 @@ lib/e2ee/                      Client-side: XChaCha20-Poly1305 envelope, padding
 docker-compose.dev.yml         Local Mongo for dev
 THREAT-MODEL.md                In-scope guarantees and explicit out-of-scope risks
 ```
-
-See [AGENTS.md](AGENTS.md) for the server-vs-client conventions.
 
 ## License
 

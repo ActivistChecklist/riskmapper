@@ -23,6 +23,7 @@ export type MatrixUpdate = {
   seq: number;
   ciphertext: string;
   clientId: string;
+  /** UTC calendar date (`YYYY-MM-DD`). Coarse on purpose — see THREAT-MODEL.md. */
   createdAt: string;
 };
 

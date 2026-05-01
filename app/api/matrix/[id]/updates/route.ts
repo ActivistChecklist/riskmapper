@@ -70,7 +70,7 @@ export async function POST(req: Request, ctx: RouteParams) {
       seq,
       ciphertext: ct,
       clientId,
-      createdAt: new Date().toISOString(),
+      createdAt: today,
     });
     publish(id, { seq, ciphertext: ct, clientId });
     return json(201, { seq });

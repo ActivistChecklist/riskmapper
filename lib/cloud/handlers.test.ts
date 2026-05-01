@@ -190,14 +190,14 @@ describe("GET /api/matrix/[id]", () => {
       seq: 1,
       ciphertext: "v1." + "B".repeat(80),
       clientId: "c-1",
-      createdAt: "2026-01-02T00:00:00Z",
+      createdAt: "2026-01-02",
     });
     collHolder.updates!.__seed({
       recordId: VALID_ID,
       seq: 2,
       ciphertext: "v1." + "C".repeat(80),
       clientId: "c-2",
-      createdAt: "2026-01-03T00:00:00Z",
+      createdAt: "2026-01-03",
     });
     const res = await get(VALID_ID);
     expect(res.status).toBe(200);
@@ -221,7 +221,7 @@ describe("GET /api/matrix/[id]", () => {
         seq,
         ciphertext: `v1.${"X".repeat(20)}-${seq}`,
         clientId: "c",
-        createdAt: "2026-01-01T00:00:00Z",
+        createdAt: "2026-01-01",
       });
     }
     const res = await get(VALID_ID, "?since=1");
@@ -240,7 +240,7 @@ describe("GET /api/matrix/[id]", () => {
       seq: 5,
       ciphertext: "v1.UPD",
       clientId: "c",
-      createdAt: "2026-01-01T00:00:00Z",
+      createdAt: "2026-01-01",
     });
     const res = await get(VALID_ID, "?since=2");
     const body = await res.json();
@@ -349,14 +349,14 @@ describe("DELETE /api/matrix/[id]", () => {
       seq: 1,
       ciphertext: "v1.U",
       clientId: "c",
-      createdAt: "2026-01-01T00:00:00Z",
+      createdAt: "2026-01-01",
     });
     collHolder.updates!.__seed({
       recordId: VALID_ID,
       seq: 2,
       ciphertext: "v1.U",
       clientId: "c",
-      createdAt: "2026-01-01T00:00:00Z",
+      createdAt: "2026-01-01",
     });
     const res = await del(VALID_ID);
     expect(res.status).toBe(204);
