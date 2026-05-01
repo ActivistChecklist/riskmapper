@@ -168,18 +168,21 @@ export function useMatrixWorkspace(
     }
     const snap = matrixGetterRef.current?.();
     if (!snap) return;
-    let captured: MatrixWorkspaceV1 | null = null;
+    // Side-effects MUST live INSIDE the updater. Reading `captured`
+    // outside the updater is unreliable under React 19's automatic
+    // batching: in async dispatch contexts (setTimeout, Promise,
+    // SSE handlers) the updater runs during the render phase, AFTER
+    // the synchronous code following setState has already returned.
+    // `captured` would still be null when an outer `repo.save` reads
+    // it, so localStorage would silently never be written.
+    // repo.save is idempotent (same workspace → same bytes), so a
+    // potential StrictMode double-invocation is fine.
     setWorkspace((w) => {
       const next = mergeSnapshotIntoWorkspace(w, snap, identityRef.current);
-      captured = next;
+      repo.save(next);
+      maybePushCloud(next);
       return next;
     });
-    if (captured) {
-      // Side-effects live OUTSIDE the state-updater so they fire once per
-      // dispatch even under StrictMode's double-invocation.
-      repo.save(captured);
-      maybePushCloud(captured);
-    }
   }, [repo]);
 
   const schedulePersist = useCallback(
@@ -189,16 +192,13 @@ export function useMatrixWorkspace(
       }
       debounceTimerRef.current = setTimeout(() => {
         debounceTimerRef.current = null;
-        let captured: MatrixWorkspaceV1 | null = null;
+        // Side-effects live INSIDE the updater — see flushSave for why.
         setWorkspace((w) => {
           const next = mergeSnapshotIntoWorkspace(w, snap, identityRef.current);
-          captured = next;
+          repo.save(next);
+          maybePushCloud(next);
           return next;
         });
-        if (captured) {
-          repo.save(captured);
-          maybePushCloud(captured);
-        }
       }, 400);
     },
     [repo],
@@ -291,7 +291,6 @@ export function useMatrixWorkspace(
    */
   const applyRemoteSnapshot = useCallback(
     (id: string, args: { snapshot: RiskMatrixSnapshot; title: string }) => {
-      let captured: MatrixWorkspaceV1 | null = null;
       const now = new Date().toISOString();
       setWorkspace((w) => {
         if (!w.saved.some((s) => s.id === id)) return w;
@@ -303,10 +302,20 @@ export function useMatrixWorkspace(
               : s,
           ),
         };
-        captured = next;
+        // repo.save MUST run inside the updater. This callback fires
+        // from useCloudMatrix's SSE onUpdate handler — an async
+        // context where React 19's automatic batching delays the
+        // updater. A captured-outside pattern would observe `null`
+        // and silently skip the localStorage write, leaving
+        // row.snapshot stale on disk. On the next refresh, the
+        // bridge would seed `lastBridgedRef` from the doc (fresh)
+        // and diff against useRiskMatrix's stale state — emitting
+        // REMOVE ops for every risk that was synced after the last
+        // local schedulePersist debounce. That's the "edits delete
+        // everywhere on refresh" bug.
+        repo.save(next);
         return next;
       });
-      if (captured) repo.save(captured);
     },
     [repo],
   );
