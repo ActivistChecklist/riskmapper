@@ -12,7 +12,6 @@ describe("ActionsAside", () => {
         onChangeSub={vi.fn()}
         onToggleStar={vi.fn()}
         onChangeOther={vi.fn()}
-        onRemoveOther={vi.fn()}
         onAddOther={onAddOther}
         onOtherKeyDown={vi.fn()}
         onOtherBlur={vi.fn()}

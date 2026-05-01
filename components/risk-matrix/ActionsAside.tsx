@@ -26,7 +26,6 @@ export type ActionsAsideProps = {
     subId: string,
   ) => void;
   onChangeOther: (id: string, text: string) => void;
-  onRemoveOther: (id: string) => void;
   onAddOther: () => void;
   onOtherKeyDown: (
     e: React.KeyboardEvent<HTMLTextAreaElement>,
@@ -44,7 +43,6 @@ export default function ActionsAside({
   onChangeSub,
   onToggleStar,
   onChangeOther,
-  onRemoveOther,
   onAddOther,
   onOtherKeyDown,
   onOtherBlur,
@@ -93,7 +91,6 @@ export default function ActionsAside({
             key={action.id}
             action={action}
             onChange={onChangeOther}
-            onRemove={onRemoveOther}
             onKeyDown={onOtherKeyDown}
             onBlur={onOtherBlur}
           />

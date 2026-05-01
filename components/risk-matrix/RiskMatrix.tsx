@@ -416,7 +416,6 @@ function RiskMatrixCanvas({ workspace: ws, cloud }: CanvasProps) {
             onChangeSub={m.updateSubText}
             onToggleStar={m.toggleStar}
             onChangeOther={m.updateOtherAction}
-            onRemoveOther={m.removeOtherAction}
             onAddOther={m.addOtherAction}
             onOtherKeyDown={m.handleOtherKeyDown}
             onOtherBlur={m.handleOtherBlur}

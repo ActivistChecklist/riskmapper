@@ -16,6 +16,7 @@ import {
   COLOR_GROUPS,
   type ColorGroup,
   GROUP_HEADER_CLASS,
+  GROUP_HEADER_SATURATED_CLASS,
   POINTER_ADD_ROW_HOVER_CLASSES,
 } from "./constants";
 import { cn } from "@/lib/utils";
@@ -77,12 +78,6 @@ export type CategorizedRiskGroupsProps = {
 };
 
 type Section = { group: ColorGroup; risks: { line: GridLine; cellKey: CellKey }[] };
-const GROUP_ROW_CLASS: Record<ColorGroupKey, string> = {
-  red: "bg-rm-red-strong text-white",
-  orange: "bg-rm-orange-strong text-white",
-  yellow: "bg-rm-yellow-strong text-white",
-  green: "bg-rm-green-strong text-white",
-};
 
 export default function CategorizedRiskGroups({
   anyRisks,
@@ -200,7 +195,10 @@ export default function CategorizedRiskGroups({
                     setCollapsed((c) => ({ ...c, [group.key]: !c[group.key] }));
                   }
                 }}
-                className="sticky top-[var(--rm-mit-thead-h)] z-20 flex w-full cursor-pointer select-none items-center justify-between gap-3 border-b border-black/8 bg-zinc-100 px-3 py-2 shadow-[0_1px_0_rgba(0,0,0,0.03)]"
+                className={cn(
+                  "sticky top-[var(--rm-mit-thead-h)] z-20 flex w-full cursor-pointer select-none items-center justify-between gap-3 border-b border-black/8 px-3 py-2 shadow-[0_1px_0_rgba(0,0,0,0.03)]",
+                  GROUP_HEADER_SATURATED_CLASS[group.key],
+                )}
               >
                 <div className="flex min-w-0 flex-1 items-center gap-2">
                   {isCollapsed ? (
@@ -224,7 +222,7 @@ export default function CategorizedRiskGroups({
                 </div>
                 <div className="flex max-w-[min(100%,20rem)] shrink-0 flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-2">
                   {group.key === "green" && isCollapsed ? (
-                    <span className="max-w-[min(100%,12rem)] text-right text-[11px] font-normal normal-case leading-snug tracking-normal text-zinc-600 sm:text-xs">
+                    <span className="max-w-[min(100%,12rem)] text-right text-[11px] font-normal normal-case leading-snug tracking-normal text-white/85 sm:text-xs">
                       Hidden by default. Click to show.
                     </span>
                   ) : null}
@@ -238,7 +236,7 @@ export default function CategorizedRiskGroups({
                     const prepare = r.line.prepare || [];
                     const rowIdx =
                       (riskRowOffsetByGroup.get(group.key) ?? 0) + i;
-                    const stripe = rowIdx % 2 === 1 ? "shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]" : "";
+                    const stripe = rowIdx % 2 === 1 ? "bg-black/3" : "";
                     const rowKey = categorizedRiskRowKey(r.cellKey, r.line.id);
                     const isMarkedHidden = hiddenSet.has(rowKey);
                     const dimHiddenButRevealed = isMarkedHidden && reveal;
@@ -247,9 +245,7 @@ export default function CategorizedRiskGroups({
                         key={r.line.id}
                         className={[
                           "group/riskrow grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] items-start gap-4 px-3 py-2",
-                          dimHiddenButRevealed
-                            ? "bg-zinc-100/90 text-zinc-900"
-                            : GROUP_ROW_CLASS[group.key],
+                          dimHiddenButRevealed ? "bg-zinc-100/90" : GROUP_HEADER_CLASS[group.key],
                           stripe,
                           i === 0 ? "" : "border-t border-black/5",
                         ].join(" ")}
@@ -259,7 +255,7 @@ export default function CategorizedRiskGroups({
                             "min-w-0 rounded-[5px] px-1.5 py-1",
                             dimHiddenButRevealed
                               ? "border border-zinc-300/90 bg-zinc-100"
-                              : "border border-white/25 bg-black/15",
+                              : "border border-black/10 bg-white/45",
                           ].join(" ")}
                         >
                           <div className="flex min-w-0 items-start gap-1">
@@ -276,12 +272,7 @@ export default function CategorizedRiskGroups({
                                 <TooltipTrigger asChild>
                                   <button
                                     type="button"
-                                    className={cn(
-                                      "mt-0.5 shrink-0 rounded p-1 opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 md:opacity-0 md:group-hover/riskrow:opacity-100",
-                                      dimHiddenButRevealed
-                                        ? "text-zinc-800 hover:bg-black/10 focus-visible:ring-zinc-500/50"
-                                        : "text-white hover:bg-white/15 focus-visible:ring-white/40",
-                                    )}
+                                    className="mt-0.5 shrink-0 rounded p-1 text-zinc-800 opacity-100 hover:bg-black/10 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500/50 md:opacity-0 md:group-hover/riskrow:opacity-100"
                                     aria-label={
                                       isMarkedHidden
                                         ? "Always show this risk in the list"
@@ -349,10 +340,6 @@ export default function CategorizedRiskGroups({
                           >
                             <PointerAddLineButton
                               ariaLabel="Add another reduce mitigation"
-                              className={cn(
-                                !dimHiddenButRevealed &&
-                                  "text-white/85 hover:border-white/30 hover:bg-white/12 hover:text-white focus-visible:border-white/35 focus-visible:ring-white/35",
-                              )}
                               onTrigger={() =>
                                 onPointerAddMitigationSubLine(
                                   r.cellKey,
@@ -401,10 +388,6 @@ export default function CategorizedRiskGroups({
                           >
                             <PointerAddLineButton
                               ariaLabel="Add another prepare mitigation"
-                              className={cn(
-                                !dimHiddenButRevealed &&
-                                  "text-white/85 hover:border-white/30 hover:bg-white/12 hover:text-white focus-visible:border-white/35 focus-visible:ring-white/35",
-                              )}
                               onTrigger={() =>
                                 onPointerAddMitigationSubLine(
                                   r.cellKey,
