@@ -11,7 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { RETENTION_DAYS } from "./cloudConfig";
-import { buildShareUrl, shareKeyFingerprint } from "./shareUrl";
+import { buildShareUrl } from "./shareUrl";
 import type { CloudMatrixHandle } from "./matrixCloudRepository";
 
 export type ShareMatrixDialogProps = {
@@ -69,8 +69,6 @@ export default function ShareMatrixDialog({
           key: handle.key,
         })
       : "";
-  const fingerprint = handle ? shareKeyFingerprint(handle.key) : "";
-
   const handleCopy = async () => {
     if (!shareUrl) return;
     try {
@@ -182,16 +180,7 @@ export default function ShareMatrixDialog({
                 Copy failed — select the link above and copy manually.
               </p>
             ) : null}
-            <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-rm-ink/80">
-              <span>
-                Key fingerprint:{" "}
-                <code className="rounded bg-black/5 px-1 py-0.5 font-mono">
-                  …{fingerprint}
-                </code>
-                <span className="ml-1">
-                  (verify the last 6 chars match after pasting)
-                </span>
-              </span>
+            <div className="flex justify-end text-sm text-rm-ink/80">
               <a
                 className="inline-flex items-center gap-1 underline underline-offset-2"
                 href={shareUrl}

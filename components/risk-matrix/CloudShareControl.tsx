@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useState } from "react";
-import { Loader2, Share2 } from "lucide-react";
+import { Loader2, UserPlus } from "lucide-react";
 import * as Y from "yjs";
 import { Button } from "@/components/ui/button";
 import { keyFromB64, keyToB64, SCHEMA_VERSION } from "@/lib/e2ee";
@@ -131,14 +131,15 @@ export default function CloudShareControl({
       <Button
         type="button"
         variant="primary"
-        size="sm"
+        size="default"
+        className="gap-2 px-4 text-[15px]"
         onClick={() => setOpen(true)}
         disabled={disabled}
       >
         {busy ? (
-          <Loader2 className="size-4 animate-spin motion-reduce:animate-none" aria-hidden />
+          <Loader2 className="size-[18px] animate-spin motion-reduce:animate-none" aria-hidden />
         ) : (
-          <Share2 className="size-4" aria-hidden />
+          <UserPlus className="size-[18px]" aria-hidden />
         )}
         {busy ? "Sharing…" : "Share"}
       </Button>
