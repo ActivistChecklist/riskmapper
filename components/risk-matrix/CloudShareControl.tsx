@@ -32,15 +32,11 @@ export type CloudShareControlProps = {
 };
 
 /**
- * Toolbar control: "Share" button + dialog + sync indicator.
- *
- * For unshared matrices: shows a "Share" button. Click opens the dialog,
- * which (on confirm) creates a cloud record, stores the key locally as
- * keyB64, and shows the link. The local keyB64 is only persisted after
- * this explicit user action.
- *
- * For shared matrices: shows a "Manage sharing" button. Click re-opens
- * the dialog so the user can copy the link or stop sharing. The live
+ * Top-bar Share button + dialog. The button always reads "Share"
+ * (Google-Docs-style affordance) regardless of whether the matrix is
+ * already shared. Clicking it opens the dialog; the dialog itself
+ * adapts: unshared → "Confirm share" flow that creates a cloud record;
+ * already-shared → "Copy link" + "Stop sharing" affordances. The live
  * sync indicator (Synced / Syncing / Offline) lives next to the title
  * via MatrixStatusIndicator — not duplicated here.
  */
@@ -134,7 +130,7 @@ export default function CloudShareControl({
     <>
       <Button
         type="button"
-        variant={cloudMeta ? "outline" : "primary"}
+        variant="primary"
         size="sm"
         onClick={() => setOpen(true)}
         disabled={disabled}
@@ -144,7 +140,7 @@ export default function CloudShareControl({
         ) : (
           <Share2 className="size-4" aria-hidden />
         )}
-        {busy ? "Sharing…" : cloudMeta ? "Manage sharing" : "Share"}
+        {busy ? "Sharing…" : "Share"}
       </Button>
       <ShareMatrixDialog
         open={open}
