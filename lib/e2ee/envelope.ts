@@ -8,11 +8,16 @@ import { getSodium } from "./sodium";
  *   v1.<base64url( algId(1B) || nonce(24B) || ciphertext )>
  *
  * AAD (not stored, reconstructed at decrypt time):
- *   recordId (utf8) || schemaVersion(1B) || version(8B BE) || lamport(8B BE)
+ *   recordId (utf8) || schemaVersion(1B)
  *
- * Binding version+lamport into AAD means a server that rewrites them forces a
- * decrypt failure rather than silently substituting an old payload. See
- * THREAT-MODEL.md S3.
+ * Plaintext is an arbitrary `Uint8Array` (typically a Yjs binary update or
+ * a Yjs state-as-update baseline). Bytes are padded to fixed-size blocks
+ * before encryption so observed ciphertext length doesn't reveal a tight
+ * bound on payload size.
+ *
+ * Binding `recordId` into AAD prevents the server from swapping ciphertext
+ * across records: a cross-record swap would force AAD mismatch and a
+ * decrypt failure rather than silently substituting another matrix's data.
  */
 
 export const ENVELOPE_PREFIX_V1 = "v1.";
@@ -20,18 +25,15 @@ export const ENVELOPE_PREFIX_V2 = "v2.";
 export const ALG_ID_XCHACHA20_POLY1305 = 0x01;
 export const NONCE_BYTES = 24;
 export const KEY_BYTES = 32;
-export const SCHEMA_VERSION = 1 as const;
+export const SCHEMA_VERSION = 2 as const;
 
 const TEXT_ENCODER = new TextEncoder();
-const TEXT_DECODER = new TextDecoder();
 
 export type SchemaVersion = typeof SCHEMA_VERSION;
 
 export type AadParams = {
   recordId: string;
   schemaVersion: SchemaVersion;
-  version: number;
-  lamport: number;
 };
 
 export type EncryptedPayload = {
@@ -54,58 +56,27 @@ export class EnvelopeVersionError extends DecryptError {
   }
 }
 
-function writeUint64BE(target: Uint8Array, offset: number, value: number): void {
-  if (!Number.isFinite(value) || value < 0 || !Number.isInteger(value)) {
-    throw new Error("writeUint64BE: value must be a non-negative integer");
-  }
-  if (value > Number.MAX_SAFE_INTEGER) {
-    throw new Error("writeUint64BE: value exceeds MAX_SAFE_INTEGER");
-  }
-  // Split into high (bits 32..52) and low (bits 0..31) halves.
-  const high = Math.floor(value / 0x1_0000_0000);
-  const low = value >>> 0;
-  target[offset + 0] = (high >>> 24) & 0xff;
-  target[offset + 1] = (high >>> 16) & 0xff;
-  target[offset + 2] = (high >>> 8) & 0xff;
-  target[offset + 3] = high & 0xff;
-  target[offset + 4] = (low >>> 24) & 0xff;
-  target[offset + 5] = (low >>> 16) & 0xff;
-  target[offset + 6] = (low >>> 8) & 0xff;
-  target[offset + 7] = low & 0xff;
-}
-
 export function buildAad(params: AadParams): Uint8Array {
   const idBytes = TEXT_ENCODER.encode(params.recordId);
-  const out = new Uint8Array(idBytes.length + 1 + 8 + 8);
+  const out = new Uint8Array(idBytes.length + 1);
   out.set(idBytes, 0);
   out[idBytes.length] = params.schemaVersion & 0xff;
-  writeUint64BE(out, idBytes.length + 1, params.version);
-  writeUint64BE(out, idBytes.length + 1 + 8, params.lamport);
   return out;
 }
 
-export type PlaintextPayload<S> = {
-  schemaVersion: SchemaVersion;
-  title: string;
-  snapshot: S;
-  lamport: number;
-};
-
-export async function encryptPayload<S>(args: {
-  payload: PlaintextPayload<S>;
+export async function encryptBytes(args: {
+  bytes: Uint8Array;
   key: Uint8Array;
   aad: AadParams;
 }): Promise<EncryptedPayload> {
   if (args.key.length !== KEY_BYTES) {
-    throw new Error(`encryptPayload: key must be ${KEY_BYTES} bytes`);
+    throw new Error(`encryptBytes: key must be ${KEY_BYTES} bytes`);
   }
-  if (args.payload.schemaVersion !== SCHEMA_VERSION) {
-    throw new Error(`encryptPayload: schemaVersion must be ${SCHEMA_VERSION}`);
+  if (args.aad.schemaVersion !== SCHEMA_VERSION) {
+    throw new Error(`encryptBytes: schemaVersion must be ${SCHEMA_VERSION}`);
   }
   const sodium = await getSodium();
-  const json = JSON.stringify(args.payload);
-  const utf8 = TEXT_ENCODER.encode(json);
-  const padded = padPlaintext(utf8);
+  const padded = padPlaintext(args.bytes);
   const nonce = sodium.randombytes_buf(NONCE_BYTES);
   const aadBytes = buildAad(args.aad);
   const ct = sodium.crypto_aead_xchacha20poly1305_ietf_encrypt(
@@ -123,11 +94,11 @@ export async function encryptPayload<S>(args: {
   return { envelope };
 }
 
-export async function decryptPayload<S>(args: {
+export async function decryptBytes(args: {
   envelope: string;
   key: Uint8Array;
   aad: AadParams;
-}): Promise<PlaintextPayload<S>> {
+}): Promise<Uint8Array> {
   const { envelope } = args;
   if (typeof envelope !== "string" || envelope.length === 0) {
     throw new DecryptError("Empty envelope");
@@ -176,29 +147,11 @@ export async function decryptPayload<S>(args: {
     );
   }
 
-  let pt: Uint8Array;
   try {
-    pt = unpadPlaintext(padded);
+    return unpadPlaintext(padded);
   } catch {
     throw new DecryptError("Plaintext padding is corrupt");
   }
-  const json = TEXT_DECODER.decode(pt);
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(json);
-  } catch {
-    throw new DecryptError("Decrypted plaintext is not valid JSON");
-  }
-  if (
-    typeof parsed !== "object" ||
-    parsed === null ||
-    (parsed as { schemaVersion?: unknown }).schemaVersion !== SCHEMA_VERSION ||
-    typeof (parsed as { title?: unknown }).title !== "string" ||
-    typeof (parsed as { lamport?: unknown }).lamport !== "number"
-  ) {
-    throw new DecryptError("Decrypted payload is malformed");
-  }
-  return parsed as PlaintextPayload<S>;
 }
 
 export async function generateKey(): Promise<Uint8Array> {

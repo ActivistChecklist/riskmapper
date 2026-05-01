@@ -10,20 +10,28 @@ import {
   ShieldAlert,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { SyncState } from "./cloudWriteQueue";
+
+/**
+ * Sync states for the new append-only transport. There's no "conflict"
+ * state anymore — concurrent edits resolve automatically via Yjs merge.
+ */
+export type SyncState =
+  | { kind: "idle" }
+  | { kind: "loading" }
+  | { kind: "syncing" }
+  | { kind: "offline"; attempt: number; message: string }
+  | { kind: "missing" }
+  | { kind: "rollback"; message: string }
+  | { kind: "error"; message: string };
 
 export type CloudSyncIndicatorProps = {
   state: SyncState;
   className?: string;
-  /**
-   * Called when the user clicks the indicator while it's in an actionable
-   * state (conflict, rollback, missing, error). Lets the host re-open the
-   * relevant dialog after a previous dismissal.
-   */
+  /** Called when the user clicks an actionable indicator. */
   onAction?: () => void;
 };
 
-const ACTIONABLE_STATES = new Set(["conflict", "rollback", "missing", "error"]);
+const ACTIONABLE_STATES = new Set(["rollback", "missing", "error"]);
 
 export default function CloudSyncIndicator({
   state,
@@ -87,11 +95,11 @@ function describe(state: SyncState): Display {
         tone: "border-emerald-200 bg-emerald-50 text-emerald-900",
         icon: <Check className="size-3.5" />,
       };
-    case "pending":
+    case "loading":
       return {
-        label: "Pending…",
-        title: "Edits queued; waiting to send.",
-        tone: "border-amber-200 bg-amber-50 text-amber-900",
+        label: "Loading…",
+        title: "Fetching latest state.",
+        tone: "border-sky-200 bg-sky-50 text-sky-900",
         icon: <RefreshCw className="size-3.5" />,
       };
     case "syncing":
@@ -107,13 +115,6 @@ function describe(state: SyncState): Display {
         title: state.message,
         tone: "border-amber-300 bg-amber-50 text-amber-900",
         icon: <CloudOff className="size-3.5" />,
-      };
-    case "conflict":
-      return {
-        label: "Conflict",
-        title: "Remote was edited from another device. Choose how to resolve.",
-        tone: "border-amber-400 bg-amber-100 text-amber-950",
-        icon: <AlertTriangle className="size-3.5" />,
       };
     case "rollback":
       return {

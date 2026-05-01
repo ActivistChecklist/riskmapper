@@ -11,7 +11,6 @@ import React, {
 import { Copy } from "lucide-react";
 import ActionsAside from "./ActionsAside";
 import CategorizedRiskGroups from "./CategorizedRiskGroups";
-import CloudConflictDialog from "./CloudConflictDialog";
 import CloudShareControl from "./CloudShareControl";
 import { isCloudEnabled } from "./cloudConfig";
 import MitigationsTablePlaceholder from "./MitigationsTablePlaceholder";
@@ -42,15 +41,15 @@ import { hasMitigationsMarkdownExport } from "./mitigationsMarkdown";
 import { useRiskMatrix } from "./useRiskMatrix";
 import { useMatrixWorkspace } from "./useMatrixWorkspace";
 import type { MatrixWorkspaceApi } from "./useMatrixWorkspace";
-import { useCloudSyncManager } from "./useCloudSyncManager";
+import { useCloudMatrix } from "./useCloudMatrix";
 import { useShareImport } from "./useShareImport";
+import { base64urlEncode, keyFromB64 } from "@/lib/e2ee";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { keyFromB64 } from "@/lib/e2ee";
 
 type CanvasProps = {
   workspace: MatrixWorkspaceApi;
-  cloud: ReturnType<typeof useCloudSyncManager>;
+  cloud: ReturnType<typeof useCloudMatrix>;
 };
 
 function RiskMatrixCanvas({ workspace: ws, cloud }: CanvasProps) {
@@ -71,28 +70,6 @@ function RiskMatrixCanvas({ workspace: ws, cloud }: CanvasProps) {
   // promoted to saved rows on demand (see handleCloudMetaSet below).
   const cloudCapable = isCloudEnabled();
 
-  // Whenever the queue reports a successful sync, persist the new version
-  // back to the saved row. Without this, localStorage's lastSyncedVersion
-  // would freeze at the value it had when the matrix was first shared,
-  // and the next page reload would re-trigger a 409 immediately on the
-  // first edit (the parked queue + 'Reload remote' loop).
-  useEffect(() => {
-    const synced = cloud.lastSynced;
-    if (!synced || !activeSaved?.cloud) return;
-    const meta = activeSaved.cloud;
-    if (
-      meta.lastSyncedVersion === synced.version &&
-      meta.lastSyncedLamport === synced.lamport
-    ) {
-      return;
-    }
-    ws.setCloudMeta(activeSaved.id, {
-      ...meta,
-      lastSyncedVersion: synced.version,
-      lastSyncedLamport: synced.lamport,
-    });
-  }, [cloud.lastSynced, activeSaved, ws]);
-
   const handleStopSharing = useCallback(async () => {
     if (!activeSaved?.cloud) return;
     const meta = activeSaved.cloud;
@@ -100,42 +77,13 @@ function RiskMatrixCanvas({ workspace: ws, cloud }: CanvasProps) {
       await cloud.repo.delete({
         recordId: meta.recordId,
         key: keyFromB64(meta.keyB64),
-        schemaVersion: 1,
+        schemaVersion: 2,
       });
     } finally {
       cloud.cancel();
       ws.setCloudMeta(activeSaved.id, null);
     }
   }, [activeSaved, cloud, ws]);
-
-  const handleConflictReload = useCallback(() => {
-    console.info("[cloud] handleConflictReload", {
-      activeRecordId: activeSaved?.cloud?.recordId ?? null,
-      localLastSyncedVersion: activeSaved?.cloud?.lastSyncedVersion ?? null,
-      remoteVersionAtConflict:
-        cloud.pendingConflict?.conflict.remoteVersion ?? null,
-    });
-    // Flush any debounced local snapshot before reloading so no unsaved edits
-    // are lost. The reload re-hydrates from local storage and pulls remote
-    // state via the share import flow.
-    ws.flushSave();
-    if (typeof window !== "undefined") {
-      window.location.reload();
-    }
-  }, [activeSaved, cloud.pendingConflict, ws]);
-
-  const handleConflictKeepMine = useCallback(() => {
-    if (!cloud.pendingConflict) return;
-    const c = cloud.pendingConflict.conflict;
-    console.info("[cloud] handleConflictKeepMine", {
-      remoteVersion: c.remoteVersion,
-      remoteLamport: c.remoteLamport,
-    });
-    cloud.resolveConflict({
-      expectedVersion: c.remoteVersion,
-      lamport: c.remoteLamport + 1,
-    });
-  }, [cloud]);
 
   const canMit = useMemo(
     () => hasMitigationsMarkdownExport(m.grid),
@@ -290,20 +238,10 @@ function RiskMatrixCanvas({ workspace: ws, cloud }: CanvasProps) {
               }}
               onStopSharing={handleStopSharing}
               onAcknowledge={cloud.acknowledge}
-              onIndicatorAction={cloud.reopenConflict}
+              onIndicatorAction={cloud.reopenAction}
             />
           ) : null
         }
-      />
-
-      <CloudConflictDialog
-        open={cloud.pendingConflict !== null}
-        onOpenChange={(o) => {
-          if (!o) cloud.acknowledge();
-        }}
-        matrixTitle={ws.activeTitle}
-        onReloadRemote={handleConflictReload}
-        onKeepMine={handleConflictKeepMine}
       />
 
       <MatrixHelpSection />
@@ -427,9 +365,8 @@ function RiskMatrixCanvas({ workspace: ws, cloud }: CanvasProps) {
 
 export default function RiskMatrix() {
   const repo = useMemo(() => createLocalMatrixRepository(), []);
-  const cloud = useCloudSyncManager();
-  const onCloudWrite = useMemo(() => cloud.enqueueWrite, [cloud.enqueueWrite]);
-  const ws = useMatrixWorkspace(repo, { onCloudWrite });
+  const cloud = useCloudMatrix();
+  const ws = useMatrixWorkspace(repo);
   const cloudEnabled = isCloudEnabled();
   const importer = useShareImport({ repo: cloud.repo, enabled: cloudEnabled });
   const adoptedRef = useRef(false);
@@ -437,9 +374,7 @@ export default function RiskMatrix() {
   // Auto-adopt: when the share fetch resolves, drop the matrix straight into
   // the local library and switch to it. If the recordId is already in the
   // library (a previous import or the original sharer's own copy) we just
-  // open that row instead of creating a duplicate. We deliberately KEEP the
-  // /grid/<id># URL in the address bar so the user can copy it again or
-  // refresh without losing context — dedupe makes re-import idempotent.
+  // open that row instead of creating a duplicate.
   useEffect(() => {
     if (importer.state.kind !== "ready") return;
     if (adoptedRef.current) return;
@@ -450,11 +385,9 @@ export default function RiskMatrix() {
     );
     console.info("[cloud] auto-adopt", {
       recordId: handle.recordId,
-      remoteVersion: result.version,
-      remoteLamport: result.lamport,
+      remoteHeadSeq: result.headSeq,
       branch: existing ? "open-existing" : "new-row",
-      existingLastSyncedVersion: existing?.cloud?.lastSyncedVersion ?? null,
-      existingLastSyncedLamport: existing?.cloud?.lastSyncedLamport ?? null,
+      existingLastHeadSeq: existing?.cloud?.lastHeadSeq ?? null,
     });
     if (existing) {
       ws.openSaved(existing.id);
@@ -465,8 +398,8 @@ export default function RiskMatrix() {
         cloud: {
           recordId: handle.recordId,
           keyB64,
-          lastSyncedVersion: result.version,
-          lastSyncedLamport: result.lamport,
+          lastHeadSeq: result.headSeq,
+          yDocStateB64: base64urlEncode(result.yDocState),
         },
       });
     }
@@ -482,7 +415,6 @@ export default function RiskMatrix() {
   }
   if (
     importer.state.kind === "missing" ||
-    importer.state.kind === "rollback" ||
     importer.state.kind === "error"
   ) {
     return (
@@ -496,24 +428,17 @@ function ShareImportFailure({
   state,
   onDismiss,
 }: {
-  state:
-    | { kind: "missing" }
-    | { kind: "rollback"; message: string }
-    | { kind: "error"; message: string };
+  state: { kind: "missing" } | { kind: "error"; message: string };
   onDismiss: () => void;
 }) {
   const heading =
     state.kind === "missing"
       ? "This shared matrix is no longer available"
-      : state.kind === "rollback"
-        ? "This shared matrix may be older than what you saw before"
-        : "Couldn't open shared matrix";
+      : "Couldn't open shared matrix";
   const detail =
     state.kind === "missing"
       ? "The link may have expired (90 days of inactivity) or the owner stopped sharing."
-      : state.kind === "rollback"
-        ? "To protect your data, the version on the server hasn't been loaded — it appears older than a copy you previously opened. If you believe this is correct (for example, after a server restore), contact the person who shared the link."
-        : state.message;
+      : state.message;
   return (
     <div className="mx-auto mt-12 max-w-md px-4 text-center">
       <h2 className="text-lg font-semibold text-rm-ink">{heading}</h2>

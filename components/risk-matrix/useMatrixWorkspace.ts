@@ -50,6 +50,12 @@ function normalizeLoadedWorkspace(w: MatrixWorkspaceV1): MatrixWorkspaceV1 {
   return w;
 }
 
+/**
+ * STAGE 1 placeholder — the live-sync wiring (forwarding local snapshot
+ * changes into a per-record Y.Doc and shipping updates to the server) is
+ * the next piece of work. Kept as a no-op type so callers that pass an
+ * `onCloudWrite` survive the type check without changes.
+ */
 export type CloudWriteHook = (args: {
   cloud: CloudMatrixMeta;
   snapshot: RiskMatrixSnapshot;

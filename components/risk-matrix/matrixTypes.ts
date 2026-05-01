@@ -23,17 +23,22 @@ export type RiskMatrixSnapshot = {
 };
 
 /**
- * Local cache of cloud-sync metadata for a saved matrix. Present iff the user
- * has opted into cloud sync for this matrix. Note that `keyB64` is **only**
- * persisted after explicit user action ("Save on this device"); for an
- * inbound shared link viewed in sandbox mode, the key lives in memory only.
+ * Local cache of cloud-sync metadata for a saved matrix. Present iff the
+ * user has opted into cloud sync for this matrix.
+ *
+ * `lastHeadSeq` lets a returning client request `?since=N` on cold load
+ * and skip re-downloading the baseline.
+ *
+ * `yDocStateB64` is the encoded Y.Doc state (base64url) at the moment of
+ * persistence — restored on load so local-only edits survive a tab close
+ * even if the network was unreachable when they happened.
  */
 export type CloudMatrixMeta = {
   recordId: string;
   /** Base64url-no-pad XChaCha20-Poly1305 key. Empty string ⇒ session-only. */
   keyB64: string;
-  lastSyncedVersion: number;
-  lastSyncedLamport: number;
+  lastHeadSeq: number;
+  yDocStateB64: string;
 };
 
 export type StoredMatrix = {

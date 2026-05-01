@@ -2,15 +2,17 @@
 
 import React, { useCallback, useState } from "react";
 import { Loader2, Share2 } from "lucide-react";
+import * as Y from "yjs";
 import { Button } from "@/components/ui/button";
 import { keyFromB64, keyToB64, SCHEMA_VERSION } from "@/lib/e2ee";
-import CloudSyncIndicator from "./CloudSyncIndicator";
+import CloudSyncIndicator, { type SyncState } from "./CloudSyncIndicator";
 import ShareMatrixDialog from "./ShareMatrixDialog";
+import { seedYDoc } from "./matrixYDoc";
+import { encodeYDocStateForMeta } from "./useShareImport";
 import type {
   CloudMatrixHandle,
   MatrixCloudRepository,
 } from "./matrixCloudRepository";
-import type { SyncState } from "./cloudWriteQueue";
 import type { CloudMatrixMeta, RiskMatrixSnapshot } from "./matrixTypes";
 
 export type CloudShareControlProps = {
@@ -19,16 +21,16 @@ export type CloudShareControlProps = {
   matrixTitle: string;
   /** Active saved matrix's cloud meta, if it has one. */
   cloudMeta: CloudMatrixMeta | null;
-  /** Sync state of the active matrix's queue (idle/pending/syncing/etc). */
+  /** Sync state of the active matrix (loading/syncing/offline/…). */
   syncState: SyncState;
   repo: MatrixCloudRepository;
-  /** Persist new cloud meta (sets keyB64, recordId, lastSyncedVersion/Lamport). */
+  /** Persist new cloud meta after successful share creation. */
   onCloudMetaSet: (meta: CloudMatrixMeta) => void;
   /** Drop cloud meta locally and DELETE the server record. */
   onStopSharing: () => Promise<void> | void;
-  /** Reset rollback / error state once dismissed. */
+  /** Reset error state once dismissed. */
   onAcknowledge: () => void;
-  /** Re-open the conflict dialog if the queue is parked on a conflict. */
+  /** Surface terminal indicator states (rollback/missing/error). */
   onIndicatorAction?: () => void;
   /** Disabled when there's no active saved matrix to share. */
   disabled?: boolean;
@@ -82,13 +84,18 @@ export default function CloudShareControl({
         setError("No matrix snapshot to share.");
         return;
       }
-      const created = await repo.create({ snapshot: snap, title: matrixTitle });
+      // Seed a fresh Y.Doc from the current snapshot, then encode it as
+      // the baseline payload for the server.
+      const doc = new Y.Doc();
+      seedYDoc(doc, { title: matrixTitle, snapshot: snap });
+      const baseline = Y.encodeStateAsUpdate(doc);
+      const created = await repo.create({ baseline });
       setTempHandle(created.handle);
       onCloudMetaSet({
         recordId: created.handle.recordId,
         keyB64: keyToB64(created.handle.key),
-        lastSyncedVersion: created.version,
-        lastSyncedLamport: 1,
+        lastHeadSeq: created.headSeq,
+        yDocStateB64: encodeYDocStateForMeta(baseline),
       });
     } catch (err) {
       const message =

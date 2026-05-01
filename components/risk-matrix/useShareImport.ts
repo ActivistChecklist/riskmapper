@@ -1,32 +1,37 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { keyToB64, SCHEMA_VERSION } from "@/lib/e2ee";
+import * as Y from "yjs";
+import { base64urlEncode, keyToB64, SCHEMA_VERSION } from "@/lib/e2ee";
 import {
   CloudNotFoundError,
-  CloudRollbackError,
   type CloudMatrixHandle,
-  type CloudReadResult,
   type MatrixCloudRepository,
 } from "./matrixCloudRepository";
+import { readMatrix } from "./matrixYDoc";
 import {
   clearShareFromUrl,
   parseShareLocation,
   shareKeyFingerprint,
 } from "./shareUrl";
+import type { RiskMatrixSnapshot } from "./matrixTypes";
 
 /**
- * Detects an inbound share link in the current URL and resolves it into a
- * decrypted, **sandboxed** view of a remote matrix.
- *
- * The sandbox is the key UX guarantee: opening a share link does NOT mutate
- * the user's local library. They see "Viewing shared matrix" and must
- * explicitly click "Save on this device" to add it. This avoids the surprise
- * of someone else's link polluting your saved matrices.
+ * Detects an inbound share link in the current URL, fetches the encrypted
+ * baseline + updates, applies them to a fresh Y.Doc, and exposes the
+ * derived snapshot + title plus the encoded Y.Doc state for adoption.
  *
  * SSR safety: this hook touches `window` only inside `useEffect`, and
  * returns `state.kind === "idle"` on the server.
  */
+
+export type ShareImportResult = {
+  title: string;
+  snapshot: RiskMatrixSnapshot;
+  /** Y.Doc state-as-update bytes — what gets persisted to localStorage on adopt. */
+  yDocState: Uint8Array;
+  headSeq: number;
+};
 
 export type ShareImportState =
   | { kind: "idle" }
@@ -34,12 +39,11 @@ export type ShareImportState =
   | {
       kind: "ready";
       handle: CloudMatrixHandle;
-      result: CloudReadResult;
+      result: ShareImportResult;
       keyB64: string;
       fingerprint: string;
     }
   | { kind: "missing" }
-  | { kind: "rollback"; message: string }
   | { kind: "error"; message: string };
 
 export type UseShareImportArgs = {
@@ -68,8 +72,27 @@ export function useShareImport({ repo, enabled = true }: UseShareImportArgs) {
     void (async () => {
       setState({ kind: "loading" });
       try {
-        const result = await repo.read(handle);
+        const remote = await repo.read(handle);
         if (cancelled) return;
+        const doc = new Y.Doc();
+        if (remote.baseline) {
+          Y.applyUpdate(doc, remote.baseline, "remote");
+        }
+        for (const u of remote.updates) {
+          Y.applyUpdate(doc, u.bytes, "remote");
+        }
+        const view = readMatrix(doc);
+        const yDocState = Y.encodeStateAsUpdate(doc);
+        const result: ShareImportResult = {
+          title: view.title,
+          snapshot: {
+            ...view.snapshot,
+            collapsed: { red: false, orange: false, yellow: false, green: false },
+            categorizedRevealHidden: { red: false, orange: false, yellow: false, green: false },
+          },
+          yDocState,
+          headSeq: remote.headSeq,
+        };
         setState({
           kind: "ready",
           handle,
@@ -81,8 +104,6 @@ export function useShareImport({ repo, enabled = true }: UseShareImportArgs) {
         if (cancelled) return;
         if (err instanceof CloudNotFoundError) {
           setState({ kind: "missing" });
-        } else if (err instanceof CloudRollbackError) {
-          setState({ kind: "rollback", message: err.message });
         } else {
           const message =
             err instanceof Error ? err.message : "Failed to load shared matrix.";
@@ -95,20 +116,21 @@ export function useShareImport({ repo, enabled = true }: UseShareImportArgs) {
     };
   }, [enabled, repo]);
 
-  /** Reset the hook's state without touching the URL. Used by the
-   *  auto-adoption path so the address bar still reflects the matrix the
-   *  user landed on (refreshing keeps them on it; dedupe handles the
-   *  re-import on reload). */
+  /** Reset the hook's state without touching the URL. */
   const reset = useCallback(() => {
     setState({ kind: "idle" });
   }, []);
 
-  /** Reset state AND strip the share-link path from the URL. Used by the
-   *  failure screens, where the user explicitly chose to leave. */
+  /** Reset state AND strip the share-link path from the URL. */
   const dismiss = useCallback(() => {
     setState({ kind: "idle" });
     clearShareFromUrl();
   }, []);
 
   return { state, reset, dismiss };
+}
+
+/** Convenience: encode Y.Doc state for storage in `CloudMatrixMeta.yDocStateB64`. */
+export function encodeYDocStateForMeta(state: Uint8Array): string {
+  return base64urlEncode(state);
 }

@@ -61,10 +61,9 @@ function isCloudMatrixMeta(
     typeof x.recordId === "string" &&
     x.recordId.length > 0 &&
     typeof x.keyB64 === "string" &&
-    typeof x.lastSyncedVersion === "number" &&
-    Number.isFinite(x.lastSyncedVersion) &&
-    typeof x.lastSyncedLamport === "number" &&
-    Number.isFinite(x.lastSyncedLamport)
+    typeof x.lastHeadSeq === "number" &&
+    Number.isFinite(x.lastHeadSeq) &&
+    typeof x.yDocStateB64 === "string"
   );
 }
 
