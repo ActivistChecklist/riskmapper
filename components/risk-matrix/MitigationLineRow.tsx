@@ -4,6 +4,7 @@ import React from "react";
 import { Star } from "lucide-react";
 import type { CellKey, SubLine } from "./types";
 import LineShell from "./LineShell";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 export type MitigationLineRowProps = {
@@ -61,31 +62,35 @@ const MitigationLineRow = React.memo(function MitigationLineRow({
           : "border-black/8 bg-rm-line",
       )}
       leftAffordance={
-        <span
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggleStar(cellKey, parentLineId, subType, subLine.id);
-          }}
-          title={
-            starred ? "Remove from actions list" : "Also show in actions list"
-          }
-          className={cn(
-            // self-stretch + items-center centers the star vertically
-            // against the AutoTextarea's full height — matches LineRow's
-            // grip alignment instead of the previous mt-0.5 nudge.
-            "flex w-[22px] shrink-0 cursor-pointer select-none items-center justify-center self-stretch sm:w-[24px]",
-            starred
-              ? "text-rm-star-strong"
-              : "text-black opacity-70 hover:opacity-100",
-          )}
-        >
-          <Star
-            size={16}
-            fill={starred ? "currentColor" : "none"}
-            stroke="currentColor"
-            strokeWidth={starred ? 1.5 : 2.2}
-          />
-        </span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleStar(cellKey, parentLineId, subType, subLine.id);
+              }}
+              className={cn(
+                // self-stretch + items-center centers the star vertically
+                // against the AutoTextarea's full height — matches LineRow's
+                // grip alignment instead of the previous mt-0.5 nudge.
+                "flex w-[22px] shrink-0 cursor-pointer select-none items-center justify-center self-stretch sm:w-[24px]",
+                starred
+                  ? "text-rm-star-strong"
+                  : "text-black opacity-70 hover:opacity-100",
+              )}
+            >
+              <Star
+                size={16}
+                fill={starred ? "currentColor" : "none"}
+                stroke="currentColor"
+                strokeWidth={starred ? 1.5 : 2.2}
+              />
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="top">
+            {starred ? "Remove from actions list" : "Add to actions list"}
+          </TooltipContent>
+        </Tooltip>
       }
       textareaProps={{
         subLineId: subLine.id,
