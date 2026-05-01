@@ -48,19 +48,26 @@ export default function MatrixCopyDropdown({
   onCopyMitigations,
   onCopyActions,
 }: MatrixCopyDropdownProps) {
-  const surface = toolbar ? "primary" : "outline";
+  // The dropdown trigger lives in the title row alongside Share — keep
+  // it neutral (outline) so Share remains the visual primary CTA.
+  // `toolbar` is unused for the variant now but kept on the API for
+  // compatibility with existing callers.
+  void toolbar;
   const iconBtn = iconOnly ? "gap-0 px-2" : "";
 
   const triggerButton = (
     <Button
       type="button"
-      variant={surface}
-      size="sm"
-      className={cn(iconBtn, !iconOnly && "gap-1")}
+      variant="outline"
+      size="default"
+      className={cn(
+        "gap-2 px-4 text-[15px]",
+        iconBtn,
+      )}
       aria-label={iconOnly ? "Copy worksheet" : undefined}
       aria-haspopup="menu"
     >
-      <Copy size={15} strokeWidth={2} aria-hidden />
+      <Copy size={18} strokeWidth={2} aria-hidden />
       {!iconOnly ? (
         <>
           Copy

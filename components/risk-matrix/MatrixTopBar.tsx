@@ -7,7 +7,8 @@ import type { MatrixWorkspaceApi } from "./useMatrixWorkspace";
 
 type Props = {
   workspace: MatrixWorkspaceApi;
-  /** Copy / export control — receives compact mode when the toolbar switches to icon-only. */
+  /** Copy / export control. Rendered in the title row's far right
+   *  cluster, immediately to the left of `cloudShareControl`. */
   copyMenu?: (opts: { iconOnly: boolean }) => React.ReactNode;
   /** Cloud share control. Rendered in the title row's far right (Google
    *  Docs style), not in the toolbar. */
@@ -35,10 +36,6 @@ function MatrixToolbarWidthProbe() {
         <span className={chip}>
           <span className="inline-block w-[15px] shrink-0" />
           Delete
-        </span>
-        <span className={chip}>
-          <span className="inline-block w-[15px] shrink-0" />
-          Copy
         </span>
       </div>
     </div>
@@ -112,9 +109,12 @@ export default function MatrixTopBar({
           {statusIndicator ? (
             <div className="shrink-0">{statusIndicator}</div>
           ) : null}
-          {cloudShareControl ? (
-            // Anchored to the title row's far right (Google Docs style).
-            <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
+          {/* Right-anchored cluster (Google Docs style):
+              [Copy] [Share]. Copy is neutral (outline), Share is the
+              primary CTA. */}
+          {copyMenu || cloudShareControl ? (
+            <div className="ml-auto flex shrink-0 items-center gap-2">
+              {copyMenu ? copyMenu({ iconOnly: false }) : null}
               {cloudShareControl}
             </div>
           ) : null}
@@ -135,7 +135,6 @@ export default function MatrixTopBar({
             iconOnly={iconOnlyToolbar}
             toolbar
             workspace={ws}
-            toolbarCopyMenu={copyMenu?.({ iconOnly: iconOnlyToolbar })}
           />
         </div>
       </div>

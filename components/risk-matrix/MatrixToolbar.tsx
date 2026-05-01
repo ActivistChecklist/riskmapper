@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, type ReactNode } from "react";
+import React, { useState } from "react";
 import { FilePlus, History, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -31,8 +31,6 @@ type Props = {
   iconOnly?: boolean;
   /** Document actions on the top strip — ghost-style buttons on a panel background. */
   toolbar?: boolean;
-  /** Copy / export menu, rendered in the LEFT cluster after Delete. */
-  toolbarCopyMenu?: ReactNode;
 };
 
 function needsMatrixNamePrompt(title: string): boolean {
@@ -46,7 +44,6 @@ export function MatrixDocumentActions({
   workspace: ws,
   iconOnly = false,
   toolbar = false,
-  toolbarCopyMenu,
 }: Props) {
   const [createOpen, setCreateOpen] = useState(false);
   const [recentOpen, setRecentOpen] = useState(false);
@@ -200,7 +197,6 @@ export function MatrixDocumentActions({
         )}
       >
         {leftCluster}
-        {toolbarCopyMenu}
       </div>
 
       <Dialog open={recentOpen} onOpenChange={setRecentOpen}>
