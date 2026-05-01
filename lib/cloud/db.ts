@@ -3,7 +3,7 @@ import {
   MONGO_COLLECTION,
   MONGO_DB,
   MONGO_UPDATES_COLLECTION,
-  MONGO_URI,
+  MONGO_URL,
 } from "./config";
 import type {
   AppCollection,
@@ -31,10 +31,10 @@ let cachedClientPromise: Promise<MongoClient> | null =
 
 async function getClient(): Promise<MongoClient> {
   if (!cachedClientPromise) {
-    if (!MONGO_URI) {
-      throw new Error("MONGO_URI is not set");
+    if (!MONGO_URL) {
+      throw new Error("MONGO_URL is not set");
     }
-    const client = new MongoClient(MONGO_URI);
+    const client = new MongoClient(MONGO_URL);
     cachedClientPromise = client.connect();
     if (process.env.NODE_ENV === "development") {
       g._riskmatrixMongoPromise = cachedClientPromise;

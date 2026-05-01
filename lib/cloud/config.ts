@@ -9,7 +9,7 @@
  * requests are same-origin by definition.
  */
 
-export const MONGO_URI = process.env.MONGO_URI ?? "";
+export const MONGO_URL = process.env.MONGO_URL ?? "";
 export const MONGO_DB = process.env.MONGO_DB ?? "riskmatrix";
 export const MONGO_COLLECTION = process.env.MONGO_COLLECTION ?? "matrices";
 export const MONGO_UPDATES_COLLECTION =

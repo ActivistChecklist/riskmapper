@@ -26,7 +26,7 @@ local MongoDB:
 yarn db:up
 
 # Tell the app where to find it. Copy .env.local.example → .env.local
-# and edit. The default MONGO_URI in the example points at yarn db:up.
+# and edit. The default MONGO_URL in the example points at yarn db:up.
 cp .env.local.example .env.local
 
 yarn dev

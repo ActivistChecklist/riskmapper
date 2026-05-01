@@ -1,0 +1,10 @@
+[build]
+builder = "NIXPACKS"
+buildCommand = "yarn build"
+
+[deploy]
+startCommand = "yarn start -p $PORT -H 0.0.0.0"
+healthcheckPath = "/api/healthz"
+healthcheckTimeout = 100
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
