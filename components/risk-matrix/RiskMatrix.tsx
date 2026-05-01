@@ -413,25 +413,33 @@ function RiskMatrixCanvas({ workspace: ws, cloud }: CanvasProps) {
             "min-w-0 max-xl:mt-5 xl:col-start-2 xl:row-start-1 xl:mt-0",
           ].join(" ")}
         >
-          <ActionsAside
-            allActions={m.allActions}
-            otherActions={m.otherActions}
-            onChangeSub={m.updateSubText}
-            onToggleStar={m.toggleStar}
-            onChangeOther={m.updateOtherAction}
-            onAddOther={m.addOtherAction}
-            onOtherKeyDown={m.handleOtherKeyDown}
-            onOtherBlur={m.handleOtherBlur}
-          />
-          {/* Free-form Markdown notes — shares the same right-hand
-              column as Actions on wide screens, stacks under it on
-              narrower ones. */}
-          <section className="mt-5">
-            <h2 className="mb-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-rm-ink/70">
-              Notes
-            </h2>
-            <NotesEditor value={m.notes} onChange={m.setNotes} />
-          </section>
+          {/*
+            xl+: ActionsAside and NotesEditor share a single sticky
+            wrapper so they pin together as the page scrolls past the
+            mitigations table on the left. ActionsAside used to sticky
+            on its own (xl:sticky xl:top-6) — fine when it was the
+            only thing in this column, but now Notes lives below it
+            and would scroll up under the pinned Actions card.
+            Below xl: stacks normally with no sticky behaviour.
+          */}
+          <div className="xl:sticky xl:top-6 xl:self-start">
+            <ActionsAside
+              allActions={m.allActions}
+              otherActions={m.otherActions}
+              onChangeSub={m.updateSubText}
+              onToggleStar={m.toggleStar}
+              onChangeOther={m.updateOtherAction}
+              onAddOther={m.addOtherAction}
+              onOtherKeyDown={m.handleOtherKeyDown}
+              onOtherBlur={m.handleOtherBlur}
+            />
+            <section className="mt-5">
+              <h2 className="mb-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-rm-ink/70">
+                Notes
+              </h2>
+              <NotesEditor value={m.notes} onChange={m.setNotes} />
+            </section>
+          </div>
         </div>
       </div>
 

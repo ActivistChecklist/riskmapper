@@ -116,8 +116,11 @@ export default function ActionsAside({
       </div>
     );
 
+  // The sticky behaviour at xl+ is owned by the parent wrapper in
+  // RiskMatrix (which pins ActionsAside + NotesEditor together).
+  // ActionsAside itself just lays out normally.
   return (
-    <aside className="min-w-0 xl:sticky xl:top-6 xl:self-start">
+    <aside className="min-w-0">
       <div className="flex flex-col overflow-hidden rounded-md border border-black/10 bg-white">
         <div className="flex shrink-0 items-center gap-1.5 border-b border-white/25 bg-rm-primary px-2 py-2 text-rm-primary-fg sm:px-3">
           <Star size={13} fill="currentColor" strokeWidth={1.5} />
