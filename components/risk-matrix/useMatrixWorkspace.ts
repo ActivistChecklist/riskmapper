@@ -81,6 +81,11 @@ export type MatrixWorkspaceApi = {
   deleteActiveMatrix: () => void;
   /** Attach or update cloud-sync metadata on a saved matrix. */
   setCloudMeta: (id: string, cloud: CloudMatrixMeta | null) => void;
+  /** Overwrite a saved row's snapshot + title from a remote source. */
+  applyRemoteSnapshot: (
+    id: string,
+    args: { snapshot: RiskMatrixSnapshot; title: string },
+  ) => void;
   /** Lookup helper. */
   findSaved: (id: string) => StoredMatrix | undefined;
   /** The matrix object currently open on the canvas, if it's a saved row. */
@@ -275,6 +280,33 @@ export function useMatrixWorkspace(
         repo.save(next);
         return next;
       });
+    },
+    [repo],
+  );
+
+  /**
+   * Replace a saved row's snapshot + title from a remote source (a Y.Doc
+   * update arriving via SSE). Bypasses the local debounced-persist path
+   * since the new state is already authoritative.
+   */
+  const applyRemoteSnapshot = useCallback(
+    (id: string, args: { snapshot: RiskMatrixSnapshot; title: string }) => {
+      let captured: MatrixWorkspaceV1 | null = null;
+      const now = new Date().toISOString();
+      setWorkspace((w) => {
+        if (!w.saved.some((s) => s.id === id)) return w;
+        const next: MatrixWorkspaceV1 = {
+          ...w,
+          saved: w.saved.map((s) =>
+            s.id === id
+              ? { ...s, snapshot: args.snapshot, title: args.title, updatedAt: now }
+              : s,
+          ),
+        };
+        captured = next;
+        return next;
+      });
+      if (captured) repo.save(captured);
     },
     [repo],
   );
@@ -504,6 +536,7 @@ export function useMatrixWorkspace(
     removeSavedMatrix,
     deleteActiveMatrix,
     setCloudMeta,
+    applyRemoteSnapshot,
     findSaved,
     activeSavedMatrix,
     adoptSharedMatrix,

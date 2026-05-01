@@ -43,6 +43,7 @@ import { useMatrixWorkspace } from "./useMatrixWorkspace";
 import type { MatrixWorkspaceApi } from "./useMatrixWorkspace";
 import { useCloudMatrix } from "./useCloudMatrix";
 import { useShareImport } from "./useShareImport";
+import { applySnapshotDiff, snapshotFromDoc } from "./snapshotDiff";
 import { base64urlEncode, keyFromB64 } from "@/lib/e2ee";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -53,9 +54,37 @@ type CanvasProps = {
 };
 
 function RiskMatrixCanvas({ workspace: ws, cloud }: CanvasProps) {
+  // Snapshot bridge: when there's an active Y.Doc, every local snapshot
+  // change diffs into the doc. The doc's `update` event then routes the
+  // diff through the cloud append outbox (see useCloudMatrix).
+  const lastBridgedRef = useRef<{
+    title: string;
+    snapshot: ReturnType<typeof snapshotFromDoc>["snapshot"];
+  } | null>(null);
+
+  const onSnapshotChange = useCallback(
+    (snap: import("./matrixTypes").RiskMatrixSnapshot) => {
+      ws.onSnapshotChange(snap);
+      const doc = cloud.doc;
+      if (!doc) return;
+      const next = {
+        title: ws.activeTitle,
+        snapshot: {
+          pool: snap.pool,
+          grid: snap.grid,
+          otherActions: snap.otherActions,
+          hiddenCategorizedRiskKeys: snap.hiddenCategorizedRiskKeys,
+        },
+      };
+      applySnapshotDiff(doc, lastBridgedRef.current, next);
+      lastBridgedRef.current = next;
+    },
+    [cloud.doc, ws],
+  );
+
   const m = useRiskMatrix({
     initialSnapshot: ws.initialSnapshot,
-    onSnapshotChange: ws.onSnapshotChange,
+    onSnapshotChange,
   });
   const { matrixGetterRef } = ws;
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
@@ -63,6 +92,28 @@ function RiskMatrixCanvas({ workspace: ws, cloud }: CanvasProps) {
   useLayoutEffect(() => {
     matrixGetterRef.current = m.getSnapshot;
   }, [m.getSnapshot, matrixGetterRef]);
+
+  // Seed the bridge baseline from the doc whenever the doc identity changes
+  // (active matrix switched, or first attach to this matrix).
+  useEffect(() => {
+    if (!cloud.doc) {
+      lastBridgedRef.current = null;
+      return;
+    }
+    lastBridgedRef.current = snapshotFromDoc(cloud.doc);
+  }, [cloud.doc]);
+
+  // Title diff: separate from the snapshot pipeline because title lives on
+  // the workspace, not on the snapshot.
+  useEffect(() => {
+    const doc = cloud.doc;
+    if (!doc) return;
+    const baseline = lastBridgedRef.current;
+    if (!baseline) return;
+    if (baseline.title === ws.activeTitle) return;
+    applySnapshotDiff(doc, baseline, { ...baseline, title: ws.activeTitle });
+    lastBridgedRef.current = { ...baseline, title: ws.activeTitle };
+  }, [cloud.doc, ws.activeTitle]);
 
   const activeSaved = ws.activeSavedMatrix;
   const cloudMeta = activeSaved?.cloud ?? null;
@@ -365,8 +416,49 @@ function RiskMatrixCanvas({ workspace: ws, cloud }: CanvasProps) {
 
 export default function RiskMatrix() {
   const repo = useMemo(() => createLocalMatrixRepository(), []);
-  const cloud = useCloudMatrix();
   const ws = useMatrixWorkspace(repo);
+  const activeCloudMeta = ws.activeSavedMatrix?.cloud ?? null;
+  // Bumped each time a remote-driven snapshot is pushed back into
+  // localStorage; appended to the canvas `key` so useRiskMatrix re-mounts
+  // and re-reads its initial snapshot from the freshly-merged doc state.
+  // Drag state during a remote update is sacrificed; in practice this is
+  // rare (drags are sub-second) and far less bad than a stale view.
+  const [remoteRev, setRemoteRev] = useState(0);
+
+  const cloudCallbacks = useMemo(
+    () => ({
+      onMetaUpdate: (
+        recordId: string,
+        meta: import("./matrixTypes").CloudMatrixMeta,
+      ) => {
+        const row = ws.workspace.saved.find((s) => s.cloud?.recordId === recordId);
+        if (row) ws.setCloudMeta(row.id, meta);
+      },
+      onChange: (doc: import("yjs").Doc) => {
+        const recordId = ws.activeSavedMatrix?.cloud?.recordId;
+        if (!recordId) return;
+        const row = ws.workspace.saved.find((s) => s.cloud?.recordId === recordId);
+        if (!row) return;
+        const view = snapshotFromDoc(doc);
+        // Preserve the per-viewer flags that aren't synced through the doc.
+        const merged: import("./matrixTypes").RiskMatrixSnapshot = {
+          ...view.snapshot,
+          collapsed: row.snapshot.collapsed,
+          categorizedRevealHidden: row.snapshot.categorizedRevealHidden,
+        };
+        const sameTitle = row.title === view.title;
+        const sameSnapshot =
+          // Cheap heuristic — JSON shape — fine for a hot path triggered
+          // only on remote updates (rare relative to keystrokes).
+          JSON.stringify(row.snapshot) === JSON.stringify(merged);
+        if (sameTitle && sameSnapshot) return;
+        ws.applyRemoteSnapshot(row.id, { snapshot: merged, title: view.title });
+        setRemoteRev((r) => r + 1);
+      },
+    }),
+    [ws],
+  );
+  const cloud = useCloudMatrix(activeCloudMeta, cloudCallbacks);
   const cloudEnabled = isCloudEnabled();
   const importer = useShareImport({ repo: cloud.repo, enabled: cloudEnabled });
   const adoptedRef = useRef(false);
@@ -421,7 +513,13 @@ export default function RiskMatrix() {
       <ShareImportFailure state={importer.state} onDismiss={importer.dismiss} />
     );
   }
-  return <RiskMatrixCanvas key={ws.surfaceId} workspace={ws} cloud={cloud} />;
+  return (
+    <RiskMatrixCanvas
+      key={`${ws.surfaceId}-${remoteRev}`}
+      workspace={ws}
+      cloud={cloud}
+    />
+  );
 }
 
 function ShareImportFailure({
