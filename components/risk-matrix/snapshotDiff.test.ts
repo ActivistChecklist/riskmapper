@@ -240,4 +240,81 @@ describe("applySnapshotDiff", () => {
     applySnapshotDiff(doc, before, before);
     expect(ops).toBe(0);
   });
+
+  // Regression: a remount used to leave `lastBridgedRef` at null on
+  // its first onSnapshotChange call. With prev=null, the diff treated
+  // every existing risk as "new" and called addRiskToPool/Cell, which
+  // overwrote the existing Y.Map (tombstoning sub-lines and re-keying
+  // orders). The resulting flurry of ops POSTed to the server, fanned
+  // out via SSE, and triggered the receiving client to remount and
+  // emit its own phantom ops — feedback loop.
+  it("with prev=null but next matching the doc, emits zero ops (phantom-diff regression)", () => {
+    const doc = newSeededDoc({
+      ...EMPTY,
+      pool: [{ id: "a", text: "A" }, { id: "b", text: "B" }],
+      grid: {
+        "1-1": [
+          {
+            id: "g",
+            text: "Risk",
+            reduce: [{ id: "r1", text: "do x", starred: true }],
+            prepare: [{ id: "p1", text: "have plan", starred: false }],
+          },
+        ],
+      },
+      otherActions: [{ id: "o1", text: "alpha" }],
+      hiddenCategorizedRiskKeys: ["1-1:g"],
+    });
+    const view = snapshotFromDoc(doc);
+    let ops = 0;
+    doc.on("update", () => {
+      ops += 1;
+    });
+    // prev=null is the post-remount situation. next is the snapshot
+    // derived from the doc, which is what useRiskMatrix's initial state
+    // would be after the remount.
+    applySnapshotDiff(doc, null, { title: view.title, snapshot: view.snapshot });
+    expect(ops).toBe(0);
+  });
+
+  it("with prev=null, sub-lines on existing risks are preserved", () => {
+    const doc = newSeededDoc({
+      ...EMPTY,
+      grid: {
+        "0-0": [
+          {
+            id: "g",
+            text: "risk",
+            reduce: [
+              { id: "r1", text: "first", starred: false },
+              { id: "r2", text: "second", starred: true },
+            ],
+          },
+        ],
+      },
+    });
+    const view = snapshotFromDoc(doc);
+    applySnapshotDiff(doc, null, { title: view.title, snapshot: view.snapshot });
+    // Sub-lines must survive a phantom diff.
+    const after = snapshotFromDoc(doc);
+    expect(after.snapshot.grid["0-0"][0].reduce).toEqual([
+      { id: "r1", text: "first", starred: false },
+      { id: "r2", text: "second", starred: true },
+    ]);
+  });
+
+  it("with prev=null, a real local edit still applies", () => {
+    const doc = newSeededDoc({
+      ...EMPTY,
+      pool: [{ id: "a", text: "old" }],
+    });
+    // User typed; useRiskMatrix produced this snapshot. lastBridgedRef
+    // is null (post-remount).
+    const next = {
+      title: "",
+      snapshot: { ...EMPTY, pool: [{ id: "a", text: "new" }] },
+    };
+    applySnapshotDiff(doc, null, next);
+    expect(snapshotFromDoc(doc).snapshot.pool).toEqual([{ id: "a", text: "new" }]);
+  });
 });

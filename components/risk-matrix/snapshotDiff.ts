@@ -66,8 +66,13 @@ export function applySnapshotDiff(
     const root = getRoot(doc);
 
     // --- title ---
+    // Compare against the doc's current title, not against `prev`. A
+    // null prev (post-remount) used to trigger a `setTitle` even when
+    // the next title already matched the doc.
     const currentTitle = (root.root.get("title") as string | undefined) ?? "";
-    if (currentTitle !== next.title) setTitle(doc, next.title);
+    if (currentTitle !== next.title) {
+      setTitle(doc, next.title);
+    }
 
     // --- assemble per-location id lists ---
     const prevByLoc = collectByLocation(prev?.snapshot);
@@ -78,44 +83,62 @@ export function applySnapshotDiff(
     const nextById = collectById(next.snapshot);
 
     // --- removed risks ---
+    // We only trust the cached prev for "this risk WAS here, the user
+    // removed it". The doc may legitimately contain risks the user
+    // hasn't seen (mid-flight remote updates) — those must NOT be
+    // treated as "removed" just because they're absent from prev/next.
     for (const id of prevById.keys()) {
       if (!nextById.has(id)) removeRisk(doc, id);
     }
 
-    // --- added risks ---
-    // Adds at this stage get whatever order `nextOrderInLocation` returns.
-    // If the location's id list changed at all, the re-keying pass below
-    // will overwrite it with a clean fractional index.
+    // --- added or modified risks ---
+    // Source of truth for "is this risk new" is the LIVE DOC, not the
+    // cached prev. A null/stale prev (e.g., right after a canvas
+    // remount when the bridge ref hasn't been seeded yet) would
+    // otherwise re-issue addRisk for every existing risk — and
+    // addRisk overwrites the risk's Y.Map, tombstoning sub-lines and
+    // forcing a destructive re-key. Same defensive check for sub-lines
+    // and other actions below.
     for (const [id, info] of nextById) {
-      if (prevById.has(id)) continue;
-      if (info.location === POOL_LOCATION) {
-        addRiskToPool(doc, info.line as PoolLine);
-      } else {
-        addRiskToCell(doc, info.location, info.line as GridLine);
+      const docHasIt = root.risks.has(id);
+      if (!docHasIt) {
+        if (info.location === POOL_LOCATION) {
+          addRiskToPool(doc, info.line as PoolLine);
+        } else {
+          addRiskToCell(doc, info.location, info.line as GridLine);
+        }
+        continue;
       }
-    }
-
-    // --- text + sub-line diffs for risks present in both ---
-    for (const [id, info] of nextById) {
-      const old = prevById.get(id);
-      if (!old) continue;
-      if (old.line.text !== info.line.text) {
+      // Already in doc — diff fields against the doc's current values
+      // so we don't depend on a (possibly stale) prev.
+      const docRisk = root.risks.get(id) as Y.Map<unknown>;
+      const docText = (docRisk.get("text") as string | undefined) ?? "";
+      if (docText !== info.line.text) {
         editRiskText(doc, id, info.line.text);
       }
-      diffSubLines(doc, id, "reduce", subLines(old.line, "reduce"), subLines(info.line, "reduce"));
-      diffSubLines(doc, id, "prepare", subLines(old.line, "prepare"), subLines(info.line, "prepare"));
+      // Sub-lines: diff against the doc-derived previous values, not
+      // prev. (When prev is null, the doc's current sub-lines are
+      // what's actually there.)
+      const prevReduce = docSubLines(docRisk, "reduce");
+      const prevPrepare = docSubLines(docRisk, "prepare");
+      diffSubLines(doc, id, "reduce", prevReduce, subLines(info.line, "reduce"));
+      diffSubLines(doc, id, "prepare", prevPrepare, subLines(info.line, "prepare"));
     }
 
     // --- ordering: re-key any location whose ordered id-list changed ---
+    // We compare next's id-sequence against the DOC's current
+    // sequence-by-fractional-index, NOT against prev. This way a stale
+    // prev (e.g., null after a remount) doesn't trigger a phantom re-key
+    // of every location, which would re-order risks (loosely no-op for
+    // the user but each `moveRisk` still creates CRDT ops that POST and
+    // fan out, feeding a remount loop).
     for (const loc of allLocs) {
-      const prevIds = (prevByLoc.get(loc) ?? []).map((l) => l.id);
       const nextIds = (nextByLoc.get(loc) ?? []).map((l) => l.id);
-      if (sameSequence(prevIds, nextIds)) continue;
       if (nextIds.length === 0) continue;
+      const docIdsForLoc = collectDocIdsByOrder(root.risks, loc);
+      if (sameSequence(docIdsForLoc, nextIds)) continue;
       const keys = generateNKeysBetween(null, null, nextIds.length);
       for (let i = 0; i < nextIds.length; i++) {
-        // moveRisk also re-asserts location, so this handles cross-location
-        // moves uniformly with reorder-within-location.
         const riskId = nextIds[i];
         const risk = root.risks.get(riskId) as Y.Map<unknown> | undefined;
         if (!risk) continue;
@@ -185,10 +208,51 @@ function subLines(line: PoolLine | GridLine, subType: SubType): SubLine[] {
   return (subType === "reduce" ? grid.reduce : grid.prepare) ?? [];
 }
 
+function docSubLines(risk: Y.Map<unknown>, subType: SubType): SubLine[] {
+  const arr = risk.get(subType === "reduce" ? "reduce" : "prepare");
+  if (!(arr instanceof Y.Array)) return [];
+  const out: SubLine[] = [];
+  arr.forEach((m: unknown) => {
+    if (!(m instanceof Y.Map)) return;
+    out.push({
+      id: (m.get("id") as string | undefined) ?? "",
+      text: (m.get("text") as string | undefined) ?? "",
+      starred: (m.get("starred") as boolean | undefined) ?? false,
+    });
+  });
+  return out;
+}
+
 function sameSequence(a: string[], b: string[]): boolean {
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
   return true;
+}
+
+/**
+ * Read the doc's current id-sequence for a location, ordered by the
+ * fractional `order` field (with id as deterministic tiebreaker —
+ * mirrors `readMatrix`'s sort).
+ */
+function collectDocIdsByOrder(
+  risks: Y.Map<unknown>,
+  location: string,
+): string[] {
+  type Entry = { id: string; order: string };
+  const entries: Entry[] = [];
+  risks.forEach((value: unknown, id: string) => {
+    if (!(value instanceof Y.Map)) return;
+    if ((value.get("location") as string | undefined) !== location) return;
+    entries.push({
+      id,
+      order: (value.get("order") as string | undefined) ?? "",
+    });
+  });
+  entries.sort((a, b) => {
+    if (a.order !== b.order) return a.order < b.order ? -1 : 1;
+    return a.id < b.id ? -1 : 1;
+  });
+  return entries.map((e) => e.id);
 }
 
 function diffSubLines(
@@ -200,21 +264,27 @@ function diffSubLines(
 ): void {
   const prevById = new Map(prev.map((s) => [s.id, s]));
   const nextById = new Map(next.map((s) => [s.id, s]));
-  // Removals
+  // Removals: trust prev so we only remove what the user actually
+  // had visible and dropped.
   for (const id of prevById.keys()) {
     if (!nextById.has(id)) removeSubLine(doc, riskId, subType, id);
   }
-  // Adds (append; ordering across sub-lines isn't user-controlled today)
-  for (const s of next) {
-    if (prevById.has(s.id)) continue;
-    addSubLine(doc, riskId, subType, s);
+  // Adds vs modifies — check the LIVE doc's sub-lines, not just prev,
+  // so a stale prev doesn't double-add.
+  const root = getRoot(doc);
+  const risk = root.risks.get(riskId) as Y.Map<unknown> | undefined;
+  const liveById = new Map<string, SubLine>();
+  if (risk) {
+    for (const s of docSubLines(risk, subType)) liveById.set(s.id, s);
   }
-  // Modifies
   for (const s of next) {
-    const old = prevById.get(s.id);
-    if (!old) continue;
-    if (old.text !== s.text) editSubLineText(doc, riskId, subType, s.id, s.text);
-    if (old.starred !== s.starred) setSubLineStarred(doc, riskId, subType, s.id, s.starred);
+    const live = liveById.get(s.id);
+    if (!live) {
+      addSubLine(doc, riskId, subType, s);
+      continue;
+    }
+    if (live.text !== s.text) editSubLineText(doc, riskId, subType, s.id, s.text);
+    if (live.starred !== s.starred) setSubLineStarred(doc, riskId, subType, s.id, s.starred);
   }
 }
 
@@ -225,23 +295,51 @@ function diffOtherActions(
 ): void {
   const prevById = new Map(prev.map((a) => [a.id, a]));
   const nextById = new Map(next.map((a) => [a.id, a]));
+  // Doc-derived id->text map so we can decide add-vs-edit against the
+  // live state, not the (possibly stale) prev. Same hardening as the
+  // risk diff above.
+  const docMap = new Map<string, string>();
+  const arr = (doc.getMap("matrix").get("otherActions") as
+    | Y.Array<Y.Map<unknown>>
+    | undefined) ?? null;
+  if (arr) {
+    arr.forEach((m: Y.Map<unknown>) => {
+      const id = m.get("id") as string | undefined;
+      const text = m.get("text") as string | undefined;
+      if (id) docMap.set(id, text ?? "");
+    });
+  }
   for (const id of prevById.keys()) {
     if (!nextById.has(id)) removeOtherAction(doc, id);
   }
   for (const a of next) {
-    if (prevById.has(a.id)) continue;
+    if (docMap.has(a.id)) {
+      // Already in doc — only emit edit if text differs. Skip the
+      // add path entirely so we don't push a duplicate Y.Map.
+      if (docMap.get(a.id) !== a.text) {
+        editOtherActionText(doc, a.id, a.text);
+      }
+      continue;
+    }
     addOtherAction(doc, a);
-  }
-  for (const a of next) {
-    const old = prevById.get(a.id);
-    if (!old) continue;
-    if (old.text !== a.text) editOtherActionText(doc, a.id, a.text);
   }
 }
 
 function diffHiddenKeys(doc: Y.Doc, prev: string[], next: string[]): void {
   const prevSet = new Set(prev);
   const nextSet = new Set(next);
-  for (const k of prevSet) if (!nextSet.has(k)) setHiddenRiskKey(doc, k, false);
-  for (const k of nextSet) if (!prevSet.has(k)) setHiddenRiskKey(doc, k, true);
+  // Compare against the doc's live set so a stale/null prev doesn't
+  // re-set keys that already exist (Y.Map.set always creates a new
+  // CRDT entry, even when the value is unchanged).
+  const root = getRoot(doc);
+  const liveSet = new Set<string>();
+  root.hidden.forEach((v: unknown, k: string) => {
+    if (v === true) liveSet.add(k);
+  });
+  for (const k of prevSet) {
+    if (!nextSet.has(k) && liveSet.has(k)) setHiddenRiskKey(doc, k, false);
+  }
+  for (const k of nextSet) {
+    if (!liveSet.has(k)) setHiddenRiskKey(doc, k, true);
+  }
 }

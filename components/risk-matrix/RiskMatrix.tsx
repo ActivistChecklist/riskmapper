@@ -46,6 +46,7 @@ import { useCloudMatrix } from "./useCloudMatrix";
 import { useShareImport } from "./useShareImport";
 import { applySnapshotDiff, snapshotFromDoc } from "./snapshotDiff";
 import { clearShareFromUrl, setShareUrlInAddressBar } from "./shareUrl";
+import { sharedSnapshotFieldsEqual } from "./snapshotEquality";
 import { base64urlEncode, keyFromB64 } from "@/lib/e2ee";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -69,6 +70,16 @@ function RiskMatrixCanvas({ workspace: ws, cloud }: CanvasProps) {
       ws.onSnapshotChange(snap);
       const doc = cloud.doc;
       if (!doc) return;
+      // First call after mount/remount: seed `lastBridgedRef` from the
+      // doc's CURRENT state. Without this seed the diff would compare
+      // against null on every remount and treat every existing risk as
+      // "new" — which (because addRiskToPool/Cell replace existing
+      // Y.Maps) tombstones sub-lines and emits a flurry of phantom ops.
+      // Those ops POST and fan out, triggering the receiving client to
+      // remount, which produces its own phantom ops, and so on.
+      if (lastBridgedRef.current === null) {
+        lastBridgedRef.current = snapshotFromDoc(doc);
+      }
       const next = {
         title: ws.activeTitle,
         snapshot: {
@@ -447,18 +458,26 @@ export default function RiskMatrix() {
         const row = ws.workspace.saved.find((s) => s.cloud?.recordId === recordId);
         if (!row) return;
         const view = snapshotFromDoc(doc);
-        // Preserve the per-viewer flags that aren't synced through the doc.
-        const merged: import("./matrixTypes").RiskMatrixSnapshot = {
-          ...view.snapshot,
-          collapsed: row.snapshot.collapsed,
-          categorizedRevealHidden: row.snapshot.categorizedRevealHidden,
-        };
+        // Preserve the per-viewer flags that aren't synced through the
+        // doc — they live in the local row.snapshot only.
         const sameTitle = row.title === view.title;
-        const sameSnapshot =
-          // Cheap heuristic — JSON shape — fine for a hot path triggered
-          // only on remote updates (rare relative to keystrokes).
-          JSON.stringify(row.snapshot) === JSON.stringify(merged);
+        // Field-by-field structural compare. JSON.stringify here is
+        // unreliable: `view.snapshot` and `row.snapshot` are built with
+        // different key insertion orders, so the SAME data serializes to
+        // DIFFERENT strings. That false negative used to fire
+        // applyRemoteSnapshot + remoteRev++ on every onChange, remounting
+        // the canvas — which (combined with the lastBridgedRef reset on
+        // remount) produced a phantom-diff feedback loop with the other
+        // client.
+        const sameSnapshot = sharedSnapshotFieldsEqual(row.snapshot, view.snapshot);
         if (sameTitle && sameSnapshot) return;
+        const merged: import("./matrixTypes").RiskMatrixSnapshot = {
+          ...row.snapshot,
+          pool: view.snapshot.pool,
+          grid: view.snapshot.grid,
+          otherActions: view.snapshot.otherActions,
+          hiddenCategorizedRiskKeys: view.snapshot.hiddenCategorizedRiskKeys,
+        };
         ws.applyRemoteSnapshot(row.id, { snapshot: merged, title: view.title });
         setRemoteRev((r) => r + 1);
       },

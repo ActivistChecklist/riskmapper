@@ -257,6 +257,7 @@ export function useCloudMatrix(
     // Fetch baseline + catch-up.
     void (async () => {
       try {
+        const stateBefore = Y.encodeStateVector(yDoc);
         const remote = await repo.read(handle, { sinceSeq: activeMeta.lastHeadSeq });
         if (live.cancelled) return;
         if (remote.baseline) {
@@ -271,7 +272,15 @@ export function useCloudMatrix(
           if (u.seq > live.lastHeadSeq) live.lastHeadSeq = u.seq;
         }
         persistMetaFromLive(live, callbacksRef);
-        callbacksRef.current.onChange?.(yDoc);
+        // Only notify the consumer if catch-up actually advanced the
+        // doc state. Without this guard, a no-op catch-up (typical for
+        // a returning client whose cached `lastHeadSeq` is current) used
+        // to fire `onChange` and bump `remoteRev`, remounting the canvas
+        // for nothing.
+        const stateAfter = Y.encodeStateVector(yDoc);
+        if (!sameBytes(stateBefore, stateAfter)) {
+          callbacksRef.current.onChange?.(yDoc);
+        }
         if (live.transientDisplayTimer) {
           clearTimeout(live.transientDisplayTimer);
           live.transientDisplayTimer = null;
@@ -455,6 +464,12 @@ async function drainOutbox(
       void drainOutbox(live, repo, setSyncState, callbacksRef);
     }, delay);
   }
+}
+
+function sameBytes(a: Uint8Array, b: Uint8Array): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+  return true;
 }
 
 function teardown(live: Live | null): void {
