@@ -95,7 +95,7 @@ describe("useMatrixWorkspace persistence", () => {
     expect(row.title).toBe("T'");
   });
 
-  it("schedulePersist writes the latest snapshot when the debounce fires", async () => {
+  it("schedulePersist on a cloud-backed matrix does NOT update row.snapshot (multi-tab race fix)", async () => {
     vi.useFakeTimers();
     try {
       const repo = makeFakeRepo();
@@ -108,29 +108,31 @@ describe("useMatrixWorkspace persistence", () => {
         });
       });
       const adoptId = result.current.workspace.activeSavedId!;
-      const writesBefore = repo.saved.length;
+      const originalPool = result.current.workspace.saved.find(
+        (s) => s.id === adoptId,
+      )!.snapshot.pool;
       act(() => {
         result.current.onSnapshotChange({
           ...emptySnapshot(),
-          pool: [{ id: "p1", text: "first" }],
+          pool: [{ id: "p1", text: "local-only edit" }],
         });
       });
-      // Before the timer fires nothing has been persisted by the
-      // schedulePersist path.
-      expect(repo.saved.length).toBe(writesBefore);
       await act(async () => {
         await vi.advanceTimersByTimeAsync(500);
       });
-      expect(repo.saved.length).toBeGreaterThan(writesBefore);
+      // The on-disk row.snapshot is unchanged: the local debounced
+      // persist path is intentionally a no-op for cloud-backed
+      // matrices. Snapshot updates flow through applyCloudSync /
+      // applyRemoteSnapshot only.
       const last = repo.saved[repo.saved.length - 1];
       const row = last.saved.find((s) => s.id === adoptId)!;
-      expect(row.snapshot.pool).toEqual([{ id: "p1", text: "first" }]);
+      expect(row.snapshot.pool).toEqual(originalPool);
     } finally {
       vi.useRealTimers();
     }
   });
 
-  it("flushSave writes the latest snapshot synchronously", () => {
+  it("flushSave on a cloud-backed matrix does NOT update row.snapshot", () => {
     const repo = makeFakeRepo();
     const { result } = renderHook(() => useMatrixWorkspace(repo));
     act(() => {
@@ -141,18 +143,81 @@ describe("useMatrixWorkspace persistence", () => {
       });
     });
     const adoptId = result.current.workspace.activeSavedId!;
-    // Wire the matrixGetterRef directly so flushSave has something to persist.
+    const originalPool = result.current.workspace.saved.find(
+      (s) => s.id === adoptId,
+    )!.snapshot.pool;
     result.current.matrixGetterRef.current = () => ({
       ...emptySnapshot(),
       pool: [{ id: "p1", text: "via flush" }],
     });
-    const writesBefore = repo.saved.length;
     act(() => {
       result.current.flushSave();
+    });
+    const last = repo.saved[repo.saved.length - 1];
+    const row = last.saved.find((s) => s.id === adoptId)!;
+    expect(row.snapshot.pool).toEqual(originalPool);
+  });
+
+  it("schedulePersist on the default (local-only) surface DOES update defaultSnapshot", async () => {
+    vi.useFakeTimers();
+    try {
+      const repo = makeFakeRepo();
+      const { result } = renderHook(() => useMatrixWorkspace(repo));
+      // The hook starts on activeKind=default — perfect for testing
+      // the local-only persist path.
+      const writesBefore = repo.saved.length;
+      act(() => {
+        result.current.onSnapshotChange({
+          ...emptySnapshot(),
+          pool: [{ id: "p1", text: "draft edit" }],
+        });
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(500);
+      });
+      expect(repo.saved.length).toBeGreaterThan(writesBefore);
+      const last = repo.saved[repo.saved.length - 1];
+      expect(last.defaultSnapshot?.pool).toEqual([
+        { id: "p1", text: "draft edit" },
+      ]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("applyCloudSync atomically writes cloud meta + snapshot + title", () => {
+    const repo = makeFakeRepo();
+    const { result } = renderHook(() => useMatrixWorkspace(repo));
+    act(() => {
+      result.current.adoptSharedMatrix({
+        title: "T",
+        snapshot: emptySnapshot(),
+        cloud: CLOUD,
+      });
+    });
+    const adoptId = result.current.workspace.activeSavedId!;
+    const writesBefore = repo.saved.length;
+    const newCloud: CloudMatrixMeta = {
+      ...CLOUD,
+      lastHeadSeq: 99,
+      yDocStateB64: "ydoc-v2",
+    };
+    const newSnapshot: RiskMatrixSnapshot = {
+      ...emptySnapshot(),
+      pool: [{ id: "p1", text: "from sync" }],
+    };
+    act(() => {
+      result.current.applyCloudSync(adoptId, {
+        cloud: newCloud,
+        snapshot: newSnapshot,
+        title: "T2",
+      });
     });
     expect(repo.saved.length).toBeGreaterThan(writesBefore);
     const last = repo.saved[repo.saved.length - 1];
     const row = last.saved.find((s) => s.id === adoptId)!;
-    expect(row.snapshot.pool).toEqual([{ id: "p1", text: "via flush" }]);
+    expect(row.cloud).toEqual(newCloud);
+    expect(row.snapshot.pool).toEqual([{ id: "p1", text: "from sync" }]);
+    expect(row.title).toBe("T2");
   });
 });

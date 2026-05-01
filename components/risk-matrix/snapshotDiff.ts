@@ -1,5 +1,6 @@
 import * as Y from "yjs";
 import { generateNKeysBetween } from "fractional-indexing";
+import { createLogger } from "@/lib/log";
 import {
   POOL_LOCATION,
   type RiskLocation,
@@ -28,6 +29,8 @@ import type {
   SubLine,
 } from "./types";
 import type { RiskMatrixSnapshot } from "./matrixTypes";
+
+const log = createLogger("rmsync");
 
 /**
  * Translates one snapshot change (prev → next) into the minimum set of
@@ -87,8 +90,23 @@ export function applySnapshotDiff(
     // removed it". The doc may legitimately contain risks the user
     // hasn't seen (mid-flight remote updates) — those must NOT be
     // treated as "removed" just because they're absent from prev/next.
+    const removedIds: string[] = [];
     for (const id of prevById.keys()) {
-      if (!nextById.has(id)) removeRisk(doc, id);
+      if (!nextById.has(id)) {
+        removedIds.push(id);
+        removeRisk(doc, id);
+      }
+    }
+    if (removedIds.length > 0) {
+      // Smoking-gun signal: a bridge call emitting REMOVE ops is
+      // almost always a destructive race. Logged loudly so we can
+      // correlate with surrounding events in DevTools.
+      log.warn("BRIDGE REMOVE risks", {
+        removedIds,
+        prevHadCount: prevById.size,
+        nextHasCount: nextById.size,
+        docHadCount: root.risks.size,
+      });
     }
 
     // --- added or modified risks ---
@@ -266,8 +284,21 @@ function diffSubLines(
   const nextById = new Map(next.map((s) => [s.id, s]));
   // Removals: trust prev so we only remove what the user actually
   // had visible and dropped.
+  const removed: string[] = [];
   for (const id of prevById.keys()) {
-    if (!nextById.has(id)) removeSubLine(doc, riskId, subType, id);
+    if (!nextById.has(id)) {
+      removed.push(id);
+      removeSubLine(doc, riskId, subType, id);
+    }
+  }
+  if (removed.length > 0) {
+    log.warn("BRIDGE REMOVE sub-lines", {
+      riskId,
+      subType,
+      removed,
+      prevCount: prev.length,
+      nextCount: next.length,
+    });
   }
   // Adds vs modifies — check the LIVE doc's sub-lines, not just prev,
   // so a stale prev doesn't double-add.
@@ -309,8 +340,19 @@ function diffOtherActions(
       if (id) docMap.set(id, text ?? "");
     });
   }
+  const removedOtherIds: string[] = [];
   for (const id of prevById.keys()) {
-    if (!nextById.has(id)) removeOtherAction(doc, id);
+    if (!nextById.has(id)) {
+      removedOtherIds.push(id);
+      removeOtherAction(doc, id);
+    }
+  }
+  if (removedOtherIds.length > 0) {
+    log.warn("BRIDGE REMOVE other-actions", {
+      removed: removedOtherIds,
+      prevCount: prev.length,
+      nextCount: next.length,
+    });
   }
   for (const a of next) {
     if (docMap.has(a.id)) {

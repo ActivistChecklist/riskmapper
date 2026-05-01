@@ -13,6 +13,7 @@ import {
   createLocalMatrixRepository,
   normalizeWorkspace,
 } from "./matrixDataLayer";
+import { createLogger } from "@/lib/log";
 import type {
   CloudMatrixMeta,
   MatrixRepository,
@@ -21,6 +22,8 @@ import type {
   StoredMatrix,
 } from "./matrixTypes";
 import { DEFAULT_DRAFT_MATRIX_TITLE } from "./matrixTypes";
+
+const log = createLogger("rmsync");
 
 function mergeSnapshotIntoWorkspace(
   w: MatrixWorkspaceV1,
@@ -31,6 +34,34 @@ function mergeSnapshotIntoWorkspace(
     return { ...w, defaultSnapshot: snap };
   }
   if (!active.id) return w;
+  const row = w.saved.find((s) => s.id === active.id);
+  if (!row) return w;
+  // Cloud-backed matrices take their authoritative snapshot from the
+  // Y.Doc, not the local debounced-persist path. Reasons:
+  //
+  //   1. Multi-tab race. Each tab's React state has only ITS OWN local
+  //      edits (the other tab's edits land via SSE → applyRemoteSnapshot
+  //      with a brief delay). When tab A's schedulePersist writes the
+  //      WHOLE workspace, its `row.snapshot` reflects only tab A's view —
+  //      and overwrites tab B's freshly-synced doc-derived snapshot in
+  //      shared localStorage.
+  //
+  //   2. Stale-closure race. A schedulePersist timer scheduled at edit
+  //      time captures the snapshot via closure; if the canvas remounts
+  //      (because tab B's update arrived and applyRemoteSnapshot fired)
+  //      before the 400ms timer expires, the timer still writes the
+  //      pre-remount snapshot.
+  //
+  // ws.applyCloudSync is the one path that writes row.snapshot for
+  // cloud-backed matrices — and it ALWAYS does so from the live doc
+  // state, atomically with the cloud meta.
+  if (row.cloud) {
+    log.info("mergeSnapshot skipped (cloud-backed)", {
+      recordId: row.cloud.recordId,
+      rowId: active.id,
+    });
+    return w;
+  }
   const now = new Date().toISOString();
   return {
     ...w,
@@ -85,6 +116,20 @@ export type MatrixWorkspaceApi = {
   applyRemoteSnapshot: (
     id: string,
     args: { snapshot: RiskMatrixSnapshot; title: string },
+  ) => void;
+  /**
+   * Atomic write of cloud meta + snapshot + title. Used at sync points
+   * so the on-disk row never has cloud meta from one moment paired
+   * with a snapshot from another. The single source of truth for a
+   * cloud-backed matrix's `row.snapshot` field.
+   */
+  applyCloudSync: (
+    id: string,
+    args: {
+      cloud: CloudMatrixMeta;
+      snapshot: RiskMatrixSnapshot;
+      title: string;
+    },
   ) => void;
   /** Lookup helper. */
   findSaved: (id: string) => StoredMatrix | undefined;
@@ -302,17 +347,61 @@ export function useMatrixWorkspace(
               : s,
           ),
         };
-        // repo.save MUST run inside the updater. This callback fires
-        // from useCloudMatrix's SSE onUpdate handler — an async
-        // context where React 19's automatic batching delays the
-        // updater. A captured-outside pattern would observe `null`
-        // and silently skip the localStorage write, leaving
-        // row.snapshot stale on disk. On the next refresh, the
-        // bridge would seed `lastBridgedRef` from the doc (fresh)
-        // and diff against useRiskMatrix's stale state — emitting
-        // REMOVE ops for every risk that was synced after the last
-        // local schedulePersist debounce. That's the "edits delete
-        // everywhere on refresh" bug.
+        repo.save(next);
+        return next;
+      });
+    },
+    [repo],
+  );
+
+  const applyCloudSync = useCallback(
+    (
+      id: string,
+      args: {
+        cloud: CloudMatrixMeta;
+        snapshot: RiskMatrixSnapshot;
+        title: string;
+      },
+    ) => {
+      // Cancel any pending schedulePersist timer — at a sync boundary
+      // we don't want a stale-closure timer firing 400ms later and
+      // re-writing localStorage with React-state that pre-dates the
+      // sync. The cloud sync itself is now responsible for
+      // row.snapshot.
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
+      }
+      const now = new Date().toISOString();
+      setWorkspace((w) => {
+        if (!w.saved.some((s) => s.id === id)) return w;
+        const next: MatrixWorkspaceV1 = {
+          ...w,
+          saved: w.saved.map((s) =>
+            s.id === id
+              ? {
+                  ...s,
+                  cloud: args.cloud,
+                  snapshot: args.snapshot,
+                  title: args.title,
+                  updatedAt: now,
+                }
+              : s,
+          ),
+        };
+        const poolCount = args.snapshot.pool.length;
+        const gridCount = Object.values(args.snapshot.grid).reduce(
+          (n, list) => n + list.length,
+          0,
+        );
+        log.info("applyCloudSync save", {
+          recordId: args.cloud.recordId,
+          rowId: id,
+          lastHeadSeq: args.cloud.lastHeadSeq,
+          yDocStateBytes: args.cloud.yDocStateB64.length,
+          poolCount,
+          gridCount,
+        });
         repo.save(next);
         return next;
       });
@@ -546,6 +635,7 @@ export function useMatrixWorkspace(
     deleteActiveMatrix,
     setCloudMeta,
     applyRemoteSnapshot,
+    applyCloudSync,
     findSaved,
     activeSavedMatrix,
     adoptSharedMatrix,

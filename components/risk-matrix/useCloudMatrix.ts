@@ -17,8 +17,11 @@ import {
   keyFromB64,
   SCHEMA_VERSION,
 } from "@/lib/e2ee";
+import { createLogger } from "@/lib/log";
 import type { CloudMatrixMeta } from "./matrixTypes";
 import type { SyncState } from "./CloudSyncIndicator";
+
+const log = createLogger("rmsync");
 
 /**
  * Live cloud-sync hook for the active matrix.
@@ -86,8 +89,13 @@ type Live = {
 };
 
 export type UseCloudMatrixCallbacks = {
-  /** Persist the new meta (advances `lastHeadSeq`, refreshes `yDocStateB64`). */
-  onMetaUpdate?: (recordId: string, meta: CloudMatrixMeta) => void;
+  /**
+   * Fires after every successful sync (own POST, remote SSE update,
+   * or catch-up). Receives the new meta AND the live Y.Doc so the
+   * consumer can derive the snapshot atomically. Used to write the
+   * cloud meta + doc-derived row.snapshot to localStorage in one go.
+   */
+  onMetaUpdate?: (recordId: string, meta: CloudMatrixMeta, doc: Y.Doc) => void;
   /** Fired after the Y.Doc state mutates from any source. */
   onChange?: (doc: Y.Doc) => void;
 };
@@ -152,14 +160,24 @@ export function useCloudMatrix(
     };
 
     const yDoc = new Y.Doc();
+    let hydratedFromCacheBytes = 0;
     if (activeMeta.yDocStateB64) {
       try {
-        Y.applyUpdate(yDoc, base64urlDecode(activeMeta.yDocStateB64), REMOTE_ORIGIN);
+        const bytes = base64urlDecode(activeMeta.yDocStateB64);
+        hydratedFromCacheBytes = bytes.length;
+        Y.applyUpdate(yDoc, bytes, REMOTE_ORIGIN);
       } catch {
         // Corrupt local snapshot — start from empty and let the server
         // re-hydrate via baseline + updates.
       }
     }
+    log.info("mount", {
+      recordId: activeMeta.recordId,
+      clientId: String(yDoc.clientID),
+      lastHeadSeq: activeMeta.lastHeadSeq,
+      hydratedFromCacheBytes,
+      hydratedRiskCount: countRisks(yDoc),
+    });
 
     const live: Live = {
       handle,
@@ -209,12 +227,14 @@ export function useCloudMatrix(
       {
         onUpdate(event) {
           if (live.cancelled) return;
-          // Server fans every update back to the originator too. Skip
-          // self-echoes: applyUpdate would be an idempotent no-op, but
-          // firing onChange would bump the consumer's `remoteRev` and
-          // remount the canvas — losing focus inside the textarea
-          // currently being typed in.
           const isSelf = event.clientId === live.clientId;
+          log.info("sse onUpdate", {
+            recordId: live.handle.recordId,
+            seq: event.seq,
+            from: event.clientId,
+            isSelf,
+            advances: event.seq > live.lastHeadSeq,
+          });
           if (!isSelf) {
             Y.applyUpdate(yDoc, event.bytes, REMOTE_ORIGIN);
           }
@@ -260,6 +280,14 @@ export function useCloudMatrix(
         const stateBefore = Y.encodeStateVector(yDoc);
         const remote = await repo.read(handle, { sinceSeq: activeMeta.lastHeadSeq });
         if (live.cancelled) return;
+        log.info("catch-up read", {
+          recordId: live.handle.recordId,
+          since: activeMeta.lastHeadSeq,
+          baseline: remote.baseline ? remote.baseline.length : null,
+          baselineSeq: remote.baselineSeq,
+          headSeq: remote.headSeq,
+          updates: remote.updates.length,
+        });
         if (remote.baseline) {
           // The server returned a baseline, meaning either we passed no
           // `since` or the server's baseline is newer than what we asked.
@@ -364,12 +392,22 @@ function persistMetaFromLive(
   const cb = callbacksRef.current.onMetaUpdate;
   if (!cb) return;
   const stateBytes = Y.encodeStateAsUpdate(live.doc);
-  cb(live.handle.recordId, {
+  log.info("persistMetaFromLive", {
     recordId: live.handle.recordId,
-    keyB64: base64urlEncode(live.handle.key),
+    clientId: live.clientId,
     lastHeadSeq: live.lastHeadSeq,
-    yDocStateB64: base64urlEncode(stateBytes),
+    yDocStateBytes: stateBytes.length,
   });
+  cb(
+    live.handle.recordId,
+    {
+      recordId: live.handle.recordId,
+      keyB64: base64urlEncode(live.handle.key),
+      lastHeadSeq: live.lastHeadSeq,
+      yDocStateB64: base64urlEncode(stateBytes),
+    },
+    live.doc,
+  );
 }
 
 function clearTransientDisplay(live: Live): void {
@@ -470,6 +508,14 @@ function sameBytes(a: Uint8Array, b: Uint8Array): boolean {
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
   return true;
+}
+
+/** Diagnostic: count risks in the doc without going through readMatrix. */
+function countRisks(doc: Y.Doc): number {
+  const root = doc.getMap("matrix");
+  const risks = root.get("risks");
+  if (!(risks instanceof Y.Map)) return 0;
+  return risks.size;
 }
 
 function teardown(live: Live | null): void {

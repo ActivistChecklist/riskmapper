@@ -48,8 +48,11 @@ import { applySnapshotDiff, snapshotFromDoc } from "./snapshotDiff";
 import { clearShareFromUrl, setShareUrlInAddressBar } from "./shareUrl";
 import { sharedSnapshotFieldsEqual } from "./snapshotEquality";
 import { base64urlEncode, keyFromB64 } from "@/lib/e2ee";
+import { createLogger } from "@/lib/log";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+
+const log = createLogger("rmsync");
 
 type CanvasProps = {
   workspace: MatrixWorkspaceApi;
@@ -70,16 +73,11 @@ function RiskMatrixCanvas({ workspace: ws, cloud }: CanvasProps) {
       ws.onSnapshotChange(snap);
       const doc = cloud.doc;
       if (!doc) return;
-      // First call after mount/remount: seed `lastBridgedRef` from the
-      // doc's CURRENT state. Without this seed the diff would compare
-      // against null on every remount and treat every existing risk as
-      // "new" — which (because addRiskToPool/Cell replace existing
-      // Y.Maps) tombstones sub-lines and emits a flurry of phantom ops.
-      // Those ops POST and fan out, triggering the receiving client to
-      // remount, which produces its own phantom ops, and so on.
-      if (lastBridgedRef.current === null) {
+      const seededFromDoc = lastBridgedRef.current === null;
+      if (seededFromDoc) {
         lastBridgedRef.current = snapshotFromDoc(doc);
       }
+      const prev = lastBridgedRef.current;
       const next = {
         title: ws.activeTitle,
         snapshot: {
@@ -89,6 +87,17 @@ function RiskMatrixCanvas({ workspace: ws, cloud }: CanvasProps) {
           hiddenCategorizedRiskKeys: snap.hiddenCategorizedRiskKeys,
         },
       };
+      const prevPoolCount = prev?.snapshot.pool.length ?? 0;
+      const nextPoolCount = next.snapshot.pool.length;
+      const docRiskCount = (doc.getMap("matrix").get("risks") as
+        | import("yjs").Map<unknown>
+        | undefined)?.size ?? 0;
+      log.info("bridge invoke", {
+        seededFromDoc,
+        prevPool: prevPoolCount,
+        nextPool: nextPoolCount,
+        docRiskCount,
+      });
       applySnapshotDiff(doc, lastBridgedRef.current, next);
       lastBridgedRef.current = next;
     },
@@ -448,29 +457,17 @@ export default function RiskMatrix() {
       onMetaUpdate: (
         recordId: string,
         meta: import("./matrixTypes").CloudMatrixMeta,
+        doc: import("yjs").Doc,
       ) => {
         const row = ws.workspace.saved.find((s) => s.cloud?.recordId === recordId);
-        if (row) ws.setCloudMeta(row.id, meta);
-      },
-      onChange: (doc: import("yjs").Doc) => {
-        const recordId = ws.activeSavedMatrix?.cloud?.recordId;
-        if (!recordId) return;
-        const row = ws.workspace.saved.find((s) => s.cloud?.recordId === recordId);
         if (!row) return;
+        // ATOMIC sync write: cloud meta + doc-derived snapshot in one
+        // setWorkspace + repo.save. This is the ONLY path that updates
+        // a cloud-backed row.snapshot in localStorage; the local
+        // schedulePersist debounce intentionally skips cloud-backed
+        // matrices (see mergeSnapshotIntoWorkspace) to avoid two-tab
+        // races on shared localStorage.
         const view = snapshotFromDoc(doc);
-        // Preserve the per-viewer flags that aren't synced through the
-        // doc — they live in the local row.snapshot only.
-        const sameTitle = row.title === view.title;
-        // Field-by-field structural compare. JSON.stringify here is
-        // unreliable: `view.snapshot` and `row.snapshot` are built with
-        // different key insertion orders, so the SAME data serializes to
-        // DIFFERENT strings. That false negative used to fire
-        // applyRemoteSnapshot + remoteRev++ on every onChange, remounting
-        // the canvas — which (combined with the lastBridgedRef reset on
-        // remount) produced a phantom-diff feedback loop with the other
-        // client.
-        const sameSnapshot = sharedSnapshotFieldsEqual(row.snapshot, view.snapshot);
-        if (sameTitle && sameSnapshot) return;
         const merged: import("./matrixTypes").RiskMatrixSnapshot = {
           ...row.snapshot,
           pool: view.snapshot.pool,
@@ -478,7 +475,35 @@ export default function RiskMatrix() {
           otherActions: view.snapshot.otherActions,
           hiddenCategorizedRiskKeys: view.snapshot.hiddenCategorizedRiskKeys,
         };
-        ws.applyRemoteSnapshot(row.id, { snapshot: merged, title: view.title });
+        ws.applyCloudSync(row.id, {
+          cloud: meta,
+          snapshot: merged,
+          title: view.title,
+        });
+      },
+      onChange: (doc: import("yjs").Doc) => {
+        // Fired on remote-driven updates (non-self SSE events and
+        // catch-up that advanced the doc state). onMetaUpdate already
+        // wrote row.snapshot atomically; here we only need to bump
+        // remoteRev so the canvas re-mounts and useRiskMatrix re-reads
+        // its initialSnapshot from the freshly-written ws state.
+        const recordId = ws.activeSavedMatrix?.cloud?.recordId;
+        if (!recordId) return;
+        const row = ws.workspace.saved.find((s) => s.cloud?.recordId === recordId);
+        if (!row) return;
+        const view = snapshotFromDoc(doc);
+        const sameTitle = row.title === view.title;
+        const sameSnapshot = sharedSnapshotFieldsEqual(row.snapshot, view.snapshot);
+        if (sameTitle && sameSnapshot) {
+          log.info("onChange skip (no-op)", { recordId });
+          return;
+        }
+        log.info("onChange remount", {
+          recordId,
+          rowPoolCount: row.snapshot.pool.length,
+          docPoolCount: view.snapshot.pool.length,
+          titleChanged: !sameTitle,
+        });
         setRemoteRev((r) => r + 1);
       },
     }),
