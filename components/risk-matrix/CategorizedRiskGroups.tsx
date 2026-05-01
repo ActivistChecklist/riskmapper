@@ -200,19 +200,12 @@ export default function CategorizedRiskGroups({
                   GROUP_HEADER_SATURATED_CLASS[group.key],
                 )}
               >
-                <div className="flex min-w-0 flex-1 items-center gap-2">
+                <div className="flex min-w-0 flex-1 items-center gap-1.5">
                   {isCollapsed ? (
                     <ChevronRight size={14} aria-hidden />
                   ) : (
                     <ChevronDown size={14} aria-hidden />
                   )}
-                  <span
-                    aria-hidden
-                    className={[
-                      "inline-block h-6 min-w-[2.75rem] shrink-0 rounded-full border border-black/20 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.45)]",
-                      GROUP_HEADER_CLASS[group.key],
-                    ].join(" ")}
-                  />
                   <span className="min-w-0 truncate text-xs font-semibold uppercase tracking-wide sm:text-sm">
                     {group.label}
                   </span>
