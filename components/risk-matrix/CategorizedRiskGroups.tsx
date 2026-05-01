@@ -222,7 +222,7 @@ export default function CategorizedRiskGroups({
                 </div>
                 <div className="flex max-w-[min(100%,20rem)] shrink-0 flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-2">
                   {group.key === "green" && isCollapsed ? (
-                    <span className="max-w-[min(100%,12rem)] text-right text-[11px] font-normal normal-case leading-snug tracking-normal text-white/85 sm:text-xs">
+                    <span className="max-w-[min(100%,12rem)] text-right text-[11px] font-normal normal-case leading-snug tracking-normal text-rm-ink/70 sm:text-xs">
                       Hidden by default. Click to show.
                     </span>
                   ) : null}
@@ -245,8 +245,7 @@ export default function CategorizedRiskGroups({
                         key={r.line.id}
                         className={[
                           "group/riskrow grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] items-start gap-4 px-3 py-2",
-                          dimHiddenButRevealed ? "bg-zinc-100/90" : GROUP_HEADER_CLASS[group.key],
-                          stripe,
+                          dimHiddenButRevealed ? "bg-zinc-100/90" : stripe,
                           i === 0 ? "" : "border-t border-black/5",
                         ].join(" ")}
                       >

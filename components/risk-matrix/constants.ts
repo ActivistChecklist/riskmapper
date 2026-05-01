@@ -74,6 +74,22 @@ export const GROUP_HEADER_CLASS: Record<ColorGroupKey, string> = {
   green: "bg-rm-green",
 };
 
+/**
+ * Background + foreground for the COLLAPSIBLE SECTION HEADER row in
+ * the mitigations table — the bar that introduces a group of risks
+ * ("Highest risk · 3", etc). Same hue and saturation as the lighter
+ * row backgrounds (`GROUP_HEADER_CLASS`) but a step darker so the
+ * header reads as the "container" of the rows rather than blending
+ * with them. Pairs with dark text — the colors aren't dark enough to
+ * carry white type cleanly.
+ */
+export const GROUP_HEADER_SATURATED_CLASS: Record<ColorGroupKey, string> = {
+  red: "bg-[#e0a3a3] text-rm-ink",
+  orange: "bg-[#e6bb98] text-rm-ink",
+  yellow: "bg-[#e4d398] text-rm-ink",
+  green: "bg-[#b8d8b8] text-rm-ink",
+};
+
 // Ordered from highest to lowest risk. Cells within a group are listed
 // highest severity first.
 export const COLOR_GROUPS: ColorGroup[] = [
