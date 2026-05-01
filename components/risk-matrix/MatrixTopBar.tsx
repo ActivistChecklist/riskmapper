@@ -100,7 +100,7 @@ export default function MatrixTopBar({
               </div>
             </TooltipTrigger>
             <TooltipContent side="bottom">
-              Currently just the site name: {SITE_NAME}
+              {SITE_NAME}
             </TooltipContent>
           </Tooltip>
           <input

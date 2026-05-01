@@ -50,13 +50,15 @@ const MitigationLineRow = React.memo(function MitigationLineRow({
     <LineShell
       dataAttributes={{ "data-mitigation-row": "" }}
       // Same empty/filled card treatment as the risk LineRow so the two
-      // line types feel like the same control. No drag-opacity here —
-      // mitigations don't drag.
+      // line types feel like the same control. Filled mitigations adopt
+      // the pool grey (bg-rm-line) — gives a once-typed line a stronger
+      // visual presence than the previous near-white wash. No drag-
+      // opacity here — mitigations don't drag.
       className={cn(
         "my-0.5",
         isEmpty
           ? "border-transparent bg-transparent"
-          : "border-black/8 bg-white/55",
+          : "border-black/8 bg-rm-line",
       )}
       leftAffordance={
         <span
@@ -68,7 +70,10 @@ const MitigationLineRow = React.memo(function MitigationLineRow({
             starred ? "Remove from actions list" : "Also show in actions list"
           }
           className={cn(
-            "mt-0.5 flex size-[22px] shrink-0 cursor-pointer select-none items-center justify-center sm:size-[24px]",
+            // self-stretch + items-center centers the star vertically
+            // against the AutoTextarea's full height — matches LineRow's
+            // grip alignment instead of the previous mt-0.5 nudge.
+            "flex w-[22px] shrink-0 cursor-pointer select-none items-center justify-center self-stretch sm:w-[24px]",
             starred
               ? "text-rm-star-strong"
               : "text-black opacity-70 hover:opacity-100",
