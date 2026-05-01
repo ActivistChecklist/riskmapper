@@ -21,13 +21,14 @@ export type RiskMatrixSnapshot = {
   hiddenCategorizedRiskKeys: string[];
   categorizedRevealHidden: CategorizedRevealHiddenState;
   /**
-   * Free-form notes, rendered through a WYSIWYG editor below the
-   * Actions panel. Stored as HTML — the original Markdown wire
-   * format couldn't faithfully represent consecutive empty
-   * paragraphs (CommonMark collapses them on parse), so multi-line
-   * structure was lost on sync. HTML round-trips through the editor
-   * verbatim. Concurrent edits resolve last-writer-wins (debounced)
-   * — same model as the risk text fields.
+   * Free-form Markdown notes, rendered through a WYSIWYG editor
+   * below the Actions panel. Stored as Markdown so exports /
+   * round-trips stay inspectable. The notes editor uses a custom
+   * Paragraph serializer that emits an NBSP for otherwise-empty
+   * paragraphs so multi-line structure (consecutive Enter presses)
+   * survives the CommonMark blank-line collapse on parse — see
+   * NotesEditor.tsx. Concurrent edits resolve last-writer-wins
+   * (debounced) — same model as the risk text fields.
    */
   notes: string;
 };

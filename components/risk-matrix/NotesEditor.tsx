@@ -4,6 +4,7 @@ import React, { useEffect, useRef } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import { StarterKit } from "@tiptap/starter-kit";
 import { Link } from "@tiptap/extension-link";
+import { Paragraph } from "@tiptap/extension-paragraph";
 import { Markdown } from "tiptap-markdown";
 import {
   Bold,
@@ -19,22 +20,26 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 /**
- * WYSIWYG notes editor for the right-hand sidebar.
+ * WYSIWYG Markdown notes editor for the right-hand sidebar.
  *
- * Wire format: HTML, not Markdown. The original implementation tried
- * to keep `value` as Markdown (per the user-stated preference) but
- * Markdown can't faithfully represent the editor's structure: two
- * consecutive empty paragraphs serialize to two `\n\n` runs, which
- * any CommonMark parser collapses back to a single paragraph
- * separator. Pressing Enter on an empty line then either failed to
- * sync (unchanged Markdown output) or got dropped on the receiving
- * client (collapse on parse). HTML preserves `<p></p><p></p>`
- * verbatim through the editor's round-trip, so multi-newline edits
- * survive sync and render the same on every device.
+ * Wire format: Markdown. The `value` prop and the `onChange` payload
+ * are both raw Markdown strings; the editor parses and serialises on
+ * either side via the `tiptap-markdown` extension.
  *
- * tiptap-markdown stays loaded so existing data stored as Markdown
- * (during the brief window before this switch) is still parsed
- * correctly on first hydrate; new writes always emit HTML.
+ * Empty paragraphs:
+ *   CommonMark collapses any number of blank lines back to one
+ *   paragraph separator on parse, so two consecutive Enter presses
+ *   on an empty line either produced no Markdown change (no sync
+ *   fired) or were dropped on the receiving client (collapse on
+ *   parse). The fix is a custom Paragraph extension whose Markdown
+ *   serializer emits a single NBSP (` `) for empty paragraphs.
+ *   The output then has one explicit "paragraph with invisible
+ *   content" per Enter press, which round-trips faithfully and
+ *   renders the same way everywhere — multiple blank lines preserved,
+ *   sync detection works because the string changes on every press.
+ *   The trade-off: the on-disk Markdown source contains stray NBSP
+ *   characters where the user pressed Enter on empty lines. They're
+ *   inert in any Markdown renderer.
  *
  * Concurrency: shares the same LWW + 300 ms outbox debounce as the
  * rest of the app's text fields. Two devices typing into the notes
@@ -44,10 +49,45 @@ import { cn } from "@/lib/utils";
 
 export type NotesEditorProps = {
   value: string;
-  onChange: (html: string) => void;
+  onChange: (markdown: string) => void;
   placeholder?: string;
   className?: string;
 };
+
+/**
+ * Paragraph that round-trips empty paragraphs through Markdown by
+ * emitting an NBSP for them. Without this, the default
+ * prosemirror-markdown serializer outputs `\n\n` per paragraph break
+ * — and any CommonMark parser collapses two-or-more blank lines
+ * back to one, so consecutive empty paragraphs are lost on parse.
+ *
+ * `state.write("\\u00a0")` writes the NBSP into the current line;
+ * `closeBlock` adds the trailing blank line. The next paragraph (if
+ * also empty) writes its own NBSP, so N empty paragraphs become N
+ * "lines containing NBSP" — distinguishable from one blank line on
+ * any conformant parser.
+ */
+const ParagraphWithEmptyMarker = Paragraph.extend({
+  addStorage() {
+    return {
+      ...this.parent?.(),
+      markdown: {
+        serialize(
+          state: { write: (s: string) => void; renderInline: (n: unknown) => void; closeBlock: (n: unknown) => void },
+          node: { childCount: number },
+        ) {
+          if (node.childCount === 0) {
+            state.write(" ");
+          } else {
+            state.renderInline(node);
+          }
+          state.closeBlock(node);
+        },
+        parse: {},
+      },
+    };
+  },
+});
 
 export default function NotesEditor({
   value,
@@ -63,11 +103,15 @@ export default function NotesEditor({
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
+        // We provide our own Paragraph below so empty paragraphs
+        // survive the Markdown round-trip.
+        paragraph: false,
         codeBlock: false,
         blockquote: false,
         horizontalRule: false,
         heading: { levels: [1, 2] },
       }),
+      ParagraphWithEmptyMarker,
       Link.configure({
         openOnClick: false,
         HTMLAttributes: {
@@ -76,8 +120,6 @@ export default function NotesEditor({
           class: "underline underline-offset-2 text-rm-primary",
         },
       }),
-      // Loaded so legacy Markdown content can hydrate cleanly. Not
-      // used on the write path — onUpdate emits HTML.
       Markdown.configure({
         html: false,
         breaks: true,
@@ -87,7 +129,10 @@ export default function NotesEditor({
     content: value,
     immediatelyRender: false,
     onUpdate({ editor }) {
-      onChangeRef.current(editor.getHTML());
+      const md = (
+        editor.storage as { markdown?: { getMarkdown: () => string } }
+      ).markdown?.getMarkdown();
+      if (md !== undefined) onChangeRef.current(md);
     },
     editorProps: {
       attributes: {
@@ -106,12 +151,12 @@ export default function NotesEditor({
 
   // Sync external value changes (catch-up after a remount, initial
   // hydrate, or remote update on a shared matrix) into the editor
-  // without bouncing back to onChange. setContent accepts either
-  // HTML or Markdown — tiptap-markdown's parser handles strings that
-  // don't start with a tag, so legacy Markdown payloads still hydrate.
+  // without bouncing back to onChange.
   useEffect(() => {
     if (!editor) return;
-    const current = editor.getHTML();
+    const current = (
+      editor.storage as { markdown?: { getMarkdown: () => string } }
+    ).markdown?.getMarkdown();
     if (current === value) return;
     editor.commands.setContent(value, { emitUpdate: false });
   }, [editor, value]);
