@@ -17,6 +17,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import type { SyncState } from "./CloudSyncIndicator";
 
@@ -60,25 +65,32 @@ export default function MatrixStatusIndicator({
   if (!shared) {
     return (
       <>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={() => setInfoOpen(true)}
-          aria-label="Saved locally on this device"
-          title="This matrix is saved on this device. Click for details."
-          className={cn(
-            PILL_CLASS,
-            "border-emerald-200 bg-emerald-50 text-emerald-900 hover:bg-emerald-100",
-            className,
-          )}
-        >
-          <CircleCheck className="size-3.5 text-emerald-600" aria-hidden />
-          {/* Label collapses to icon-only below lg so the title row keeps
-              the right-hand cluster on a single line on narrower screens.
-              The button still has aria-label + native title for tooltip. */}
-          <span className="hidden lg:inline">Saved locally</span>
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setInfoOpen(true)}
+              aria-label="Saved locally on this device"
+              className={cn(
+                PILL_CLASS,
+                "border-emerald-200 bg-emerald-50 text-emerald-900 hover:bg-emerald-100",
+                className,
+              )}
+            >
+              <CircleCheck className="size-3.5 text-emerald-600" aria-hidden />
+              {/* Label collapses to icon-only below lg so the title row
+                  keeps the right cluster on a single line on narrower
+                  screens. */}
+              <span className="hidden lg:inline">Saved locally</span>
+            </Button>
+          </TooltipTrigger>
+          {/* Tooltip only renders at widths where the label is hidden. */}
+          <TooltipContent side="bottom" className="lg:hidden">
+            Saved locally
+          </TooltipContent>
+        </Tooltip>
         <Dialog open={infoOpen} onOpenChange={setInfoOpen}>
           <DialogContent>
             <DialogHeader>
@@ -114,38 +126,50 @@ export default function MatrixStatusIndicator({
 
   if (actionable && onIndicatorAction) {
     return (
-      <button
-        type="button"
-        onClick={onIndicatorAction}
-        aria-label={meta.title}
-        title={meta.title}
-        className={cn(
-          PILL_CLASS,
-          meta.tone,
-          "hover:brightness-95 focus-visible:ring-2 focus-visible:ring-black/20",
-          className,
-        )}
-      >
-        <span aria-hidden className="grid place-items-center">
-          {meta.icon}
-        </span>
-        <span className="hidden lg:inline">{meta.label}</span>
-      </button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            onClick={onIndicatorAction}
+            aria-label={meta.title}
+            className={cn(
+              PILL_CLASS,
+              meta.tone,
+              "hover:brightness-95 focus-visible:ring-2 focus-visible:ring-black/20",
+              className,
+            )}
+          >
+            <span aria-hidden className="grid place-items-center">
+              {meta.icon}
+            </span>
+            <span className="hidden lg:inline">{meta.label}</span>
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" className="lg:hidden">
+          {meta.label} — {meta.title}
+        </TooltipContent>
+      </Tooltip>
     );
   }
 
   return (
-    <div
-      role="status"
-      aria-label={meta.title}
-      title={meta.title}
-      className={cn(PILL_CLASS, meta.tone, className)}
-    >
-      <span aria-hidden className="grid place-items-center">
-        {meta.icon}
-      </span>
-      <span className="hidden lg:inline">{meta.label}</span>
-    </div>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div
+          role="status"
+          aria-label={meta.title}
+          className={cn(PILL_CLASS, meta.tone, className)}
+        >
+          <span aria-hidden className="grid place-items-center">
+            {meta.icon}
+          </span>
+          <span className="hidden lg:inline">{meta.label}</span>
+        </div>
+      </TooltipTrigger>
+      <TooltipContent side="bottom" className="lg:hidden">
+        {meta.label}
+      </TooltipContent>
+    </Tooltip>
   );
 }
 
