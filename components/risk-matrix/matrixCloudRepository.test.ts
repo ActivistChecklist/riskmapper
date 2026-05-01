@@ -14,7 +14,6 @@ const SAMPLE_SNAPSHOT: RiskMatrixSnapshot = {
   pool: [{ id: "p1", text: "lorem" }],
   grid: {},
   collapsed: { red: false, orange: false, yellow: false, green: false },
-  hasCompletedFirstDragToMatrix: false,
   otherActions: [],
   hiddenCategorizedRiskKeys: [],
   categorizedRevealHidden: { red: false, orange: false, yellow: false, green: false },

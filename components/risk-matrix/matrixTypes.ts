@@ -15,7 +15,6 @@ export type RiskMatrixSnapshot = {
   pool: PoolLine[];
   grid: Record<CellKey, GridLine[]>;
   collapsed: CollapsedState;
-  hasCompletedFirstDragToMatrix: boolean;
   /** Ad-hoc actions listed below starred items in the Actions panel. */
   otherActions: OtherAction[];
   /** `cellKey:lineId` keys hidden from the categorized mitigations list until revealed. */

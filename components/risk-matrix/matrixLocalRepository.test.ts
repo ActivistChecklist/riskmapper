@@ -20,7 +20,6 @@ function minimalSnapshot(): RiskMatrixSnapshot {
       return g;
     })(),
     collapsed: { ...INITIAL_COLLAPSED },
-    hasCompletedFirstDragToMatrix: false,
     otherActions: [],
     hiddenCategorizedRiskKeys: [],
     categorizedRevealHidden: {

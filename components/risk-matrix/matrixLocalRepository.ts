@@ -34,7 +34,6 @@ function isRiskMatrixSnapshot(x: unknown): x is RiskMatrixSnapshot {
   if (!Array.isArray(x.pool)) return false;
   if (!isRecord(x.grid)) return false;
   if (!isRecord(x.collapsed)) return false;
-  if (typeof x.hasCompletedFirstDragToMatrix !== "boolean") return false;
   if (x.otherActions !== undefined) {
     if (!Array.isArray(x.otherActions) || !x.otherActions.every(isOtherAction)) {
       return false;

@@ -18,7 +18,6 @@ function snapshotOneLineInCell(cellKey: string): RiskMatrixSnapshot {
     pool: [{ id: "p0", text: "" }],
     grid,
     collapsed: { ...INITIAL_COLLAPSED },
-    hasCompletedFirstDragToMatrix: true,
     otherActions: [],
     hiddenCategorizedRiskKeys: [],
     categorizedRevealHidden: { ...INITIAL_CATEGORIZED_REVEAL_HIDDEN },

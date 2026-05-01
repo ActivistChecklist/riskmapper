@@ -94,8 +94,6 @@ export function useRiskMatrix(options: UseRiskMatrixOptions = {}) {
   const [collapsed, setCollapsed] = useState<CollapsedState>(
     () => initialSnapshot?.collapsed ?? INITIAL_COLLAPSED,
   );
-  const [hasCompletedFirstDragToMatrix, setHasCompletedFirstDragToMatrix] =
-    useState(() => initialSnapshot?.hasCompletedFirstDragToMatrix ?? false);
   const [otherActions, setOtherActions] = useState<OtherAction[]>(
     () => initialSnapshot?.otherActions ?? [],
   );
@@ -916,9 +914,6 @@ export function useRiskMatrix(options: UseRiskMatrixOptions = {}) {
           ...prev,
           [destLoc]: [...(prev[destLoc as CellKey] || []), line as GridLine],
         }));
-        if (srcLoc === "pool") {
-          setHasCompletedFirstDragToMatrix(true);
-        }
       }
     },
     [findLine, pool, grid, newLineId],
@@ -1277,7 +1272,6 @@ export function useRiskMatrix(options: UseRiskMatrixOptions = {}) {
       pool,
       grid,
       collapsed,
-      hasCompletedFirstDragToMatrix,
       otherActions,
       hiddenCategorizedRiskKeys,
       categorizedRevealHidden,
@@ -1286,7 +1280,6 @@ export function useRiskMatrix(options: UseRiskMatrixOptions = {}) {
     pool,
     grid,
     collapsed,
-    hasCompletedFirstDragToMatrix,
     otherActions,
     hiddenCategorizedRiskKeys,
     categorizedRevealHidden,
@@ -1303,7 +1296,6 @@ export function useRiskMatrix(options: UseRiskMatrixOptions = {}) {
     dragOverTarget,
     collapsed,
     setCollapsed,
-    hasCompletedFirstDragToMatrix,
     isDeleteConfirmOpen,
     deleteDialogOnOpenChange,
     closeDeleteConfirmation,
