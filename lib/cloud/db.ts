@@ -97,7 +97,12 @@ async function ensureIndexes(client: MongoClient): Promise<void> {
     // Per-record monotonic seq lookups; uniqueness defends against any race
     // where two appends somehow collide on the same seq.
     updates.createIndex({ recordId: 1, seq: 1 }, { unique: true }),
-  ]).catch(() => {
+  ]).catch((err) => {
+    // Swallow-and-retry: if Mongo rejected the spec (e.g. an old index
+    // with conflicting options), unflag so the next request retries.
+    // Log loudly so a stuck deploy is visible in Railway logs instead
+    // of silently shipping with no TTL enforcement.
+    console.error("ensureIndexes failed:", err);
     g._riskmatrixIndexed = false;
   });
 }
