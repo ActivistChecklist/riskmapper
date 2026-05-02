@@ -8,7 +8,7 @@ export default function NotFound() {
         href="/"
         className="text-sm font-medium text-rm-ink underline underline-offset-4 opacity-80 hover:opacity-100"
       >
-        Back to risk matrix
+        Back to risk mapper
       </Link>
     </div>
   );

@@ -24,7 +24,7 @@ type Props = {
   statusIndicator?: React.ReactNode;
 };
 
-const SITE_NAME = "Risk Matrix";
+const SITE_NAME = "Risk Mapper";
 
 /** Invisible row matching full-label toolbar width — stable “does it fit?” probe (avoids compact/full flicker). */
 function MatrixToolbarWidthProbe() {
@@ -56,10 +56,11 @@ export default function MatrixTopBar({
   cloudShareControl,
   statusIndicator,
 }: Props) {
-  const titleCharWidth = Math.min(44, Math.max(12, ws.activeTitle.length || 0));
   const toolbarRef = useRef<HTMLDivElement>(null);
   const measureRef = useRef<HTMLDivElement>(null);
+  const titleMirrorRef = useRef<HTMLSpanElement>(null);
   const [iconOnlyToolbar, setIconOnlyToolbar] = useState(false);
+  const [titleInputWidthPx, setTitleInputWidthPx] = useState(220);
 
   useLayoutEffect(() => {
     const toolbar = toolbarRef.current;
@@ -83,6 +84,14 @@ export default function MatrixTopBar({
     };
   }, []);
 
+  useLayoutEffect(() => {
+    const mirror = titleMirrorRef.current;
+    if (!mirror) return;
+    const measured = Math.ceil(mirror.getBoundingClientRect().width);
+    // Clamp to a readable minimum while allowing the field to grow naturally.
+    setTitleInputWidthPx(Math.max(140, measured));
+  }, [ws.activeTitle]);
+
   return (
     <TooltipProvider delayDuration={400}>
       <div className="mb-3 flex flex-col gap-3">
@@ -104,25 +113,36 @@ export default function MatrixTopBar({
               {SITE_NAME}
             </TooltipContent>
           </Tooltip>
-          <input
-            type="text"
-            value={ws.activeTitle}
-            onChange={(e) => ws.setActiveTitle(e.target.value)}
-            onBlur={(e) => {
-              const t = e.target.value.trim();
-              ws.setActiveTitle(t.length > 0 ? t : "Untitled");
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                (e.target as HTMLInputElement).blur();
-              }
-            }}
-            placeholder="Matrix title"
-            aria-label="Matrix title"
-            size={titleCharWidth}
-            className="min-w-0 max-w-88 shrink rounded-md border border-transparent bg-transparent px-2 py-1 text-lg font-semibold text-rm-ink outline-none placeholder:opacity-45 hover:border-black/20 hover:bg-black/2 focus-visible:border-rm-primary focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-rm-primary/20 sm:text-xl"
-          />
+          <div
+            className="relative min-w-0 max-w-88 shrink"
+            style={{ width: `${titleInputWidthPx}px` }}
+          >
+            <span
+              ref={titleMirrorRef}
+              className="pointer-events-none invisible absolute left-0 top-0 whitespace-pre rounded-md border border-transparent px-2 py-1 text-lg font-semibold sm:text-xl"
+              aria-hidden
+            >
+              {ws.activeTitle || "Matrix title"}
+            </span>
+            <input
+              type="text"
+              value={ws.activeTitle}
+              onChange={(e) => ws.setActiveTitle(e.target.value)}
+              onBlur={(e) => {
+                const t = e.target.value.trim();
+                ws.setActiveTitle(t.length > 0 ? t : "Untitled");
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  (e.target as HTMLInputElement).blur();
+                }
+              }}
+              placeholder="Matrix title"
+              aria-label="Matrix title"
+              className="w-full min-w-0 rounded-md border border-transparent bg-transparent px-2 py-1 text-lg font-semibold text-rm-ink outline-none placeholder:opacity-45 hover:border-black/20 hover:bg-black/2 focus-visible:border-rm-primary focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-rm-primary/20 sm:text-xl"
+            />
+          </div>
           {statusIndicator ? (
             <div className="shrink-0">{statusIndicator}</div>
           ) : null}

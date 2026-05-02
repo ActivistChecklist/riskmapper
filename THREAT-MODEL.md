@@ -1,10 +1,9 @@
-# Risk Matrix — what cloud sync protects (and what it doesn't)
+# Risk Mapper — what cloud sync protects (and what it doesn't)
 
-Risk Matrix can save your matrices to a server and let you share them via a
+Risk Mapper can save your matrices to a server and let you share them via a
 link. This page is for users deciding whether the feature fits their needs.
 It's plain-English on purpose; for the cryptographic implementation details,
 see the code under `lib/e2ee/` and `app/api/matrix/`.
-
 
 ## How it works, in one paragraph
 
@@ -14,20 +13,26 @@ encryption key lives in the part of the URL after `#`, which browsers don't
 send to servers. Anyone you give the URL to can read and edit the matrix
 the same way you can.
 
-
 ## What's protected
 
 **The server can't read your matrices.** Whoever runs the server can't see
 your risks, your mitigations, or even the matrix title. They see opaque
-encrypted blobs, calendar dates, and a counter — that's it.
+encrypted blobs, coarse calendar dates, sequence numbers, and per-writer
+labels attached to updates — but not the plaintext inside the blobs.
 
 **The server can't tamper without you noticing.** If the server modifies
 the blob, swaps blobs between matrices, or changes their version numbers,
 your client's decryption fails loudly. You won't silently see the wrong
 content.
 
-**The server can't roll you back.** If it tries to serve you an older
-version of a matrix you've already seen, the client refuses.
+**Rollbacks and lost history are not the same as decrypt failures.** The
+client does not cryptographically verify that every sync is strictly newer
+than every version you've ever seen. If a host restores an older database
+snapshot or drops some updates, your app may merge older Yjs data into
+your document instead of showing a dedicated "rollback detected" error.
+Tampering that breaks the authenticated encryption still fails at decrypt
+time; **missing or replayed ciphertext** is handled by CRDT merge rules, not
+by a hard refusal.
 
 **Network observers can't read your matrices.** Anyone watching the
 connection sees only encrypted blobs. The encryption key in the URL
@@ -37,12 +42,20 @@ fragment never travels over the wire.
 someone's share URL, the matrix appears in a sandboxed preview. Nothing is
 saved locally until you click "Save on this device."
 
-
 ## What's not protected
 
-**Anyone with the link can read and edit.** That's the entire sharing
-model. Treat the URL like a password — share it through a private channel
-only.
+**Anyone with the link can read, edit, or delete the cloud copy.** The URL
+is a full capability: same read/write as you, and anyone who has it can
+remove the matrix from the server (or use Stop sharing from their session).
+There is **no view-only** share link. Treat the URL like a password — share
+it through a private channel only.
+
+**Subpoenas and lawful requests can still obtain metadata.** Whoever hosts
+the database or HTTP infrastructure can usually be compelled to produce
+ciphertext, record ids, coarse dates, access logs (timestamps, IPs, paths),
+and similar material. That does **not** let them decrypt matrix **contents**
+without the secret in the URL fragment — but it is **not** the case that
+there is "nothing" responsive to a subpoena.
 
 **The link itself can leak.** Browser history, browser sync, screenshots,
 screen-sharing, smart clipboards, pasting into a chat client — any of
@@ -75,11 +88,11 @@ the server. Stopping sharing deletes it.
 server's logs can see when a matrix is being edited and roughly how big
 it is. They can't see what changed.
 
-
 ## In plain words
 
 This is "encrypted Pastebin / Cryptpad-style sharing." The server can't
-read your matrices. The link is the password. If your device, your
+read your matrix contents; the link is the password. Operators and hosts
+can still see correlation metadata and ciphertext. If your device, your
 browser, or our own hosting is compromised, the encryption doesn't help —
 but no browser-based encryption tool can protect against that.
 
