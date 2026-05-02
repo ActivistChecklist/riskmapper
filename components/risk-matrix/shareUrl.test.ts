@@ -9,7 +9,7 @@ import {
 describe("shareUrl", () => {
   it("builds and parses a share URL round-trip", async () => {
     const key = await generateKey();
-    const url = buildShareUrl({
+    const url = await buildShareUrl({
       origin: "https://app.example",
       recordId: "abc123def456ghij",
       key,
@@ -19,52 +19,52 @@ describe("shareUrl", () => {
     expect(u.search).toBe("");
     // Browsers normalize "https://app.example" → "https://app.example/" so
     // the rebuilt origin matches but with a trailing slash on the input.
-    expect(u.hash).toBe(`#${keyToB64(key)}`);
+    expect(u.hash).toBe(`#${await keyToB64(key)}`);
 
-    const parsed = parseShareLocation({ pathname: u.pathname, hash: u.hash });
+    const parsed = await parseShareLocation({ pathname: u.pathname, hash: u.hash });
     expect(parsed?.recordId).toBe("abc123def456ghij");
     expect(parsed?.key).toEqual(key);
   });
 
-  it("returns null when the path is not /grid/", () => {
-    expect(parseShareLocation({ pathname: "/", hash: "#AAAA" })).toBeNull();
+  it("returns null when the path is not /grid/", async () => {
+    expect(await parseShareLocation({ pathname: "/", hash: "#AAAA" })).toBeNull();
     expect(
-      parseShareLocation({ pathname: "/other/abc", hash: "#AAAA" }),
+      await parseShareLocation({ pathname: "/other/abc", hash: "#AAAA" }),
     ).toBeNull();
   });
 
-  it("returns null when there's no fragment", () => {
-    expect(parseShareLocation({ pathname: "/grid/abc123def456ghij", hash: "" })).toBeNull();
+  it("returns null when there's no fragment", async () => {
+    expect(await parseShareLocation({ pathname: "/grid/abc123def456ghij", hash: "" })).toBeNull();
   });
 
-  it("returns null on a malformed key", () => {
+  it("returns null on a malformed key", async () => {
     expect(
-      parseShareLocation({ pathname: "/grid/abc123def456ghij", hash: "#!!!" }),
+      await parseShareLocation({ pathname: "/grid/abc123def456ghij", hash: "#!!!" }),
     ).toBeNull();
     expect(
-      parseShareLocation({ pathname: "/grid/abc123def456ghij", hash: "#AAAA" }),
+      await parseShareLocation({ pathname: "/grid/abc123def456ghij", hash: "#AAAA" }),
     ).toBeNull();
   });
 
   it("ignores a trailing slash in the path", async () => {
     const key = await generateKey();
-    const parsed = parseShareLocation({
+    const parsed = await parseShareLocation({
       pathname: "/grid/abc123def456ghij/",
-      hash: `#${keyToB64(key)}`,
+      hash: `#${await keyToB64(key)}`,
     });
     expect(parsed?.recordId).toBe("abc123def456ghij");
   });
 
   it("fingerprint returns last 6 chars of the key", async () => {
     const key = await generateKey();
-    expect(shareKeyFingerprint(key)).toBe(keyToB64(key).slice(-6));
-    expect(shareKeyFingerprint(key)).toHaveLength(6);
+    expect(await shareKeyFingerprint(key)).toBe((await keyToB64(key)).slice(-6));
+    expect(await shareKeyFingerprint(key)).toHaveLength(6);
   });
 
   it("rejects empty recordId", async () => {
     const key = await generateKey();
-    expect(() =>
+    await expect(
       buildShareUrl({ origin: "https://x", recordId: "", key }),
-    ).toThrow();
+    ).rejects.toThrow();
   });
 });

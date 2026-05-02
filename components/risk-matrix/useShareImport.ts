@@ -59,17 +59,18 @@ export function useShareImport({ repo, enabled = true }: UseShareImportArgs) {
     if (!enabled) return;
     if (typeof window === "undefined") return;
     let cancelled = false;
-    const parsed = parseShareLocation({
-      pathname: window.location.pathname,
-      hash: window.location.hash,
-    });
-    if (!parsed) return;
-    const handle: CloudMatrixHandle = {
-      recordId: parsed.recordId,
-      key: parsed.key,
-      schemaVersion: SCHEMA_VERSION,
-    };
     void (async () => {
+      const parsed = await parseShareLocation({
+        pathname: window.location.pathname,
+        hash: window.location.hash,
+      });
+      if (cancelled) return;
+      if (!parsed) return;
+      const handle: CloudMatrixHandle = {
+        recordId: parsed.recordId,
+        key: parsed.key,
+        schemaVersion: SCHEMA_VERSION,
+      };
       setState({ kind: "loading" });
       try {
         const remote = await repo.read(handle);
@@ -93,12 +94,17 @@ export function useShareImport({ repo, enabled = true }: UseShareImportArgs) {
           yDocState,
           headSeq: remote.headSeq,
         };
+        const [keyB64, fingerprint] = await Promise.all([
+          keyToB64(parsed.key),
+          shareKeyFingerprint(parsed.key),
+        ]);
+        if (cancelled) return;
         setState({
           kind: "ready",
           handle,
           result,
-          keyB64: keyToB64(parsed.key),
-          fingerprint: shareKeyFingerprint(parsed.key),
+          keyB64,
+          fingerprint,
         });
       } catch (err) {
         if (cancelled) return;

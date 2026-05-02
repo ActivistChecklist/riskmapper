@@ -159,15 +159,21 @@ export async function generateKey(): Promise<Uint8Array> {
   return sodium.randombytes_buf(KEY_BYTES);
 }
 
-export function keyToB64(key: Uint8Array): string {
+// Use libsodium's constant-time base64 for key serialization to avoid
+// cache-timing side-channels in lookup-table-based decoders. The envelope
+// body uses the custom base64url since it's public data (algId, nonce,
+// ciphertext) where timing leaks don't matter.
+export async function keyToB64(key: Uint8Array): Promise<string> {
   if (key.length !== KEY_BYTES) {
     throw new Error(`keyToB64: key must be ${KEY_BYTES} bytes`);
   }
-  return base64urlEncode(key);
+  const sodium = await getSodium();
+  return sodium.to_base64(key, sodium.base64_variants.URLSAFE_NO_PADDING);
 }
 
-export function keyFromB64(b64: string): Uint8Array {
-  const k = base64urlDecode(b64);
+export async function keyFromB64(b64: string): Promise<Uint8Array> {
+  const sodium = await getSodium();
+  const k = sodium.from_base64(b64, sodium.base64_variants.URLSAFE_NO_PADDING);
   if (k.length !== KEY_BYTES) {
     throw new Error(`keyFromB64: decoded key is ${k.length} bytes, expected ${KEY_BYTES}`);
   }

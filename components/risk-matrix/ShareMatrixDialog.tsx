@@ -1,7 +1,16 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { CheckCircle2, Copy, ExternalLink, Loader2 } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Copy,
+  ExternalLink,
+  EyeOff,
+  Loader2,
+  Pencil,
+  Trash2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -93,25 +102,60 @@ export default function ShareMatrixDialog({
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Share &ldquo;{displayTitle}&rdquo; via link</DialogTitle>
-          <DialogDescription className="font-semibold text-rm-ink">
-            Anyone with this link can read and edit this matrix.
+          <DialogDescription className="text-sm text-rm-ink/80">
+            Matrix contents are encrypted on this device before anything is uploaded.
+            Only people with the full link can open the shared copy.
           </DialogDescription>
-          <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-rm-ink/80">
-            <li>The link expires after {RETENTION_DAYS} days of inactivity.</li>
-            <li>Share it via a private channel.</li>
-            <li>
-              Risk Matrix data is end-to-end encrypted — we have nothing we
-              can read or turn over to law enforcement.
-            </li>
-          </ul>
         </DialogHeader>
+
+        <div
+          className="mt-4 flex gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950 shadow-sm"
+          role="note"
+          aria-label="Who can use this share link"
+        >
+          <AlertTriangle className="size-5 shrink-0 text-amber-700" aria-hidden />
+          <div className="min-w-0">
+            <p className="font-semibold text-amber-950">Anyone with the full link can:</p>
+            <ul className="mt-2 space-y-2">
+              <li className="flex gap-2">
+                <Pencil className="mt-0.5 size-4 shrink-0 text-amber-800" aria-hidden />
+                <span>Read and edit this matrix (same as you).</span>
+              </li>
+              <li className="flex gap-2">
+                <Trash2 className="mt-0.5 size-4 shrink-0 text-amber-800" aria-hidden />
+                <span>
+                  Remove the shared copy from the cloud — for example with Stop sharing
+                  here, or by wiping the server copy — which affects everyone using the link.
+                </span>
+              </li>
+            </ul>
+            <p className="mt-3 flex gap-2 border-t border-amber-200/80 pt-3 text-amber-950/95">
+              <EyeOff className="mt-0.5 size-4 shrink-0 text-amber-800" aria-hidden />
+              <span>
+                There is <span className="font-semibold">no view-only</span> share link. The URL
+                is a single password-like capability for full access.
+              </span>
+            </p>
+          </div>
+        </div>
+
+        <ul className="mt-4 list-disc space-y-1 pl-5 text-sm text-rm-ink/80">
+          <li>The link expires after {RETENTION_DAYS} days of inactivity.</li>
+          <li>Share it via a private channel.</li>
+          <li>
+            We cannot decrypt your matrix contents, but hosting still produces metadata
+            (for example timing and access logs). See the project&rsquo;s threat model
+            write-up for details.
+          </li>
+        </ul>
 
         {error ? (
           <div
             role="alert"
-            className="mt-4 rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-900"
+            className="mt-4 flex gap-2 rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-900"
           >
-            {error}
+            <AlertTriangle className="mt-0.5 size-4 shrink-0 text-red-700" aria-hidden />
+            <span>{error}</span>
           </div>
         ) : null}
 

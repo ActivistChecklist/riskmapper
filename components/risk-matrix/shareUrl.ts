@@ -20,13 +20,13 @@ export type ParsedShareLink = {
   key: Uint8Array;
 };
 
-export function buildShareUrl(args: {
+export async function buildShareUrl(args: {
   origin: string;
   recordId: string;
   key: Uint8Array;
-}): string {
+}): Promise<string> {
   if (!args.recordId) throw new Error("buildShareUrl: missing recordId");
-  const keyB64 = keyToB64(args.key);
+  const keyB64 = await keyToB64(args.key);
   const url = new URL(args.origin);
   // Replace any path on the origin with the canonical share path.
   url.pathname = `${SHARE_PATH_PREFIX}${encodeURIComponent(args.recordId)}`;
@@ -35,10 +35,10 @@ export function buildShareUrl(args: {
   return url.toString();
 }
 
-export function parseShareLocation(loc: {
+export async function parseShareLocation(loc: {
   pathname: string;
   hash: string;
-}): ParsedShareLink | null {
+}): Promise<ParsedShareLink | null> {
   if (!loc.pathname.startsWith(SHARE_PATH_PREFIX)) return null;
   const recordId = decodeURIComponent(
     loc.pathname.slice(SHARE_PATH_PREFIX.length).replace(/\/$/, ""),
@@ -48,7 +48,7 @@ export function parseShareLocation(loc: {
   if (!fragment) return null;
   let key: Uint8Array;
   try {
-    key = keyFromB64(fragment);
+    key = await keyFromB64(fragment);
   } catch {
     return null;
   }
@@ -70,12 +70,12 @@ export function clearShareFromUrl(): void {
  * + `key` so the address bar matches what the user can paste to share.
  * Idempotent — already-correct URLs aren't rewritten.
  */
-export function setShareUrlInAddressBar(args: {
+export async function setShareUrlInAddressBar(args: {
   recordId: string;
   key: Uint8Array;
-}): void {
+}): Promise<void> {
   if (typeof window === "undefined") return;
-  const next = buildShareUrl({
+  const next = await buildShareUrl({
     origin: window.location.origin,
     recordId: args.recordId,
     key: args.key,
@@ -88,6 +88,6 @@ export function setShareUrlInAddressBar(args: {
  * The last 6 chars of the base64url key, suitable for showing as a
  * fingerprint to confirm a copy/paste went through cleanly.
  */
-export function shareKeyFingerprint(key: Uint8Array): string {
-  return keyToB64(key).slice(-6);
+export async function shareKeyFingerprint(key: Uint8Array): Promise<string> {
+  return (await keyToB64(key)).slice(-6);
 }

@@ -117,14 +117,14 @@ describe("buildAad", () => {
 describe("key helpers", () => {
   it("round-trips key b64", async () => {
     const k = await makeKey();
-    const enc = keyToB64(k);
+    const enc = await keyToB64(k);
     expect(enc.length).toBeGreaterThanOrEqual(43);
-    expect(keyFromB64(enc)).toEqual(k);
+    expect(await keyFromB64(enc)).toEqual(k);
   });
 
-  it("rejects wrong-length keys", () => {
-    expect(() => keyToB64(new Uint8Array(31))).toThrow();
-    expect(() => keyFromB64(base64urlEncode(new Uint8Array(31)))).toThrow();
+  it("rejects wrong-length keys", async () => {
+    await expect(keyToB64(new Uint8Array(31))).rejects.toThrow();
+    await expect(keyFromB64(base64urlEncode(new Uint8Array(31)))).rejects.toThrow();
     expect(KEY_BYTES).toBe(32);
   });
 });
