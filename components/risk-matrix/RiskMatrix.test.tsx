@@ -5,11 +5,11 @@ import RiskMatrix from "./RiskMatrix";
 describe("RiskMatrix", () => {
   it("renders the app logo in the top-left of the title row", () => {
     render(<RiskMatrix />);
-    // The text heading "risk matrix" was replaced with the SVG logo
-    // (alt="Risk matrix"). Match the image instead so this stays
-    // truthy after the swap.
+    // The text heading was replaced with the SVG logo (alt="Risk
+    // Mapper", driven by SITE_NAME in MatrixTopBar). Match the image
+    // by name so this stays truthy.
     expect(
-      screen.getByRole("img", { name: /risk matrix/i }),
+      screen.getByRole("img", { name: /risk mapper/i }),
     ).toBeTruthy();
   });
 });

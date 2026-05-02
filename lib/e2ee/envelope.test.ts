@@ -91,7 +91,7 @@ describe("envelope encrypt/decrypt", () => {
     expect(seen.size).toBe(20);
   });
 
-  it("ciphertext size hides plaintext-length differences within a 4 KiB block", async () => {
+  it("ciphertext length tracks plaintext length (no length-hiding padding)", async () => {
     const key = await makeKey();
     const aad = { recordId: "rec-1", schemaVersion: SCHEMA_VERSION };
     const tiny = await encryptBytes({ bytes: new Uint8Array([1]), key, aad });
@@ -100,7 +100,10 @@ describe("envelope encrypt/decrypt", () => {
       key,
       aad,
     });
-    expect(tiny.envelope.length).toBe(fat.envelope.length);
+    // Documents the deliberate trade-off: we no longer pad to fixed
+    // blocks. Update size leakage is acceptable for this app's fixed-
+    // schema CRDT data; see envelope.ts for the rationale.
+    expect(fat.envelope.length).toBeGreaterThan(tiny.envelope.length);
   });
 });
 

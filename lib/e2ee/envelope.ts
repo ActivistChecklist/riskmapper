@@ -1,5 +1,4 @@
 import { base64urlDecode, base64urlEncode } from "./base64url";
-import { padPlaintext, unpadPlaintext } from "./padding";
 import { getSodium } from "./sodium";
 
 /**
@@ -11,9 +10,14 @@ import { getSodium } from "./sodium";
  *   recordId (utf8) || schemaVersion(1B)
  *
  * Plaintext is an arbitrary `Uint8Array` (typically a Yjs binary update or
- * a Yjs state-as-update baseline). Bytes are padded to fixed-size blocks
- * before encryption so observed ciphertext length doesn't reveal a tight
- * bound on payload size.
+ * a Yjs state-as-update baseline). It is encrypted as-is, without any
+ * length-hiding padding. We previously padded to 4 KiB blocks; in the
+ * CRDT model, a typing burst that diffs to ~30 bytes was inflated to
+ * 4 KiB on the wire and on the relay, multiplying storage by ~80x for a
+ * size-leakage signal that doesn't carry useful information for this
+ * app's fixed-schema matrix data. See THREAT-MODEL.md for what the relay
+ * still observes (existence, timing, sequence count, IP, total volume)
+ * — these are the residual leaks that padding never addressed.
  *
  * Binding `recordId` into AAD prevents the server from swapping ciphertext
  * across records: a cross-record swap would force AAD mismatch and a
@@ -76,11 +80,10 @@ export async function encryptBytes(args: {
     throw new Error(`encryptBytes: schemaVersion must be ${SCHEMA_VERSION}`);
   }
   const sodium = await getSodium();
-  const padded = padPlaintext(args.bytes);
   const nonce = sodium.randombytes_buf(NONCE_BYTES);
   const aadBytes = buildAad(args.aad);
   const ct = sodium.crypto_aead_xchacha20poly1305_ietf_encrypt(
-    padded,
+    args.bytes,
     aadBytes,
     null,
     nonce,
@@ -132,9 +135,8 @@ export async function decryptBytes(args: {
   const aadBytes = buildAad(args.aad);
 
   const sodium = await getSodium();
-  let padded: Uint8Array;
   try {
-    padded = sodium.crypto_aead_xchacha20poly1305_ietf_decrypt(
+    return sodium.crypto_aead_xchacha20poly1305_ietf_decrypt(
       null,
       ct,
       aadBytes,
@@ -145,12 +147,6 @@ export async function decryptBytes(args: {
     throw new DecryptError(
       "Authentication failed — wrong key, tampered ciphertext, or rewritten metadata.",
     );
-  }
-
-  try {
-    return unpadPlaintext(padded);
-  } catch {
-    throw new DecryptError("Plaintext padding is corrupt");
   }
 }
 

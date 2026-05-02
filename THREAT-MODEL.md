@@ -1,4 +1,4 @@
-# Risk Mapper — what cloud sync protects (and what it doesn't)
+# Risk Mapper: what cloud sync protects (and what it doesn't)
 
 Risk Mapper can save your matrices to a server and let you share them via a
 link. This page is for users deciding whether the feature fits their needs.
@@ -18,7 +18,7 @@ the same way you can.
 **The server can't read your matrices.** Whoever runs the server can't see
 your risks, your mitigations, or even the matrix title. They see opaque
 encrypted blobs, coarse calendar dates, sequence numbers, and per-writer
-labels attached to updates — but not the plaintext inside the blobs.
+labels attached to updates, but not the plaintext inside the blobs.
 
 **The server can't tamper without you noticing.** If the server modifies
 the blob, swaps blobs between matrices, or changes their version numbers,
@@ -47,18 +47,18 @@ saved locally until you click "Save on this device."
 **Anyone with the link can read, edit, or delete the cloud copy.** The URL
 is a full capability: same read/write as you, and anyone who has it can
 remove the matrix from the server (or use Stop sharing from their session).
-There is **no view-only** share link. Treat the URL like a password — share
-it through a private channel only.
+There is **no view-only** share link. Treat the URL like a password and
+share it through a private channel only.
 
 **Subpoenas and lawful requests can still obtain metadata.** Whoever hosts
 the database or HTTP infrastructure can usually be compelled to produce
 ciphertext, record ids, coarse dates, access logs (timestamps, IPs, paths),
 and similar material. That does **not** let them decrypt matrix **contents**
-without the secret in the URL fragment — but it is **not** the case that
+without the secret in the URL fragment, but it is **not** the case that
 there is "nothing" responsive to a subpoena.
 
 **The link itself can leak.** Browser history, browser sync, screenshots,
-screen-sharing, smart clipboards, pasting into a chat client — any of
+screen-sharing, smart clipboards, pasting into a chat client: any of
 these can expose the URL, and with it the encryption key. We can't prevent
 that.
 
@@ -85,17 +85,20 @@ versions of that matrix are exposed for as long as the matrix exists on
 the server. Stopping sharing deletes it.
 
 **Traffic patterns can leak a little.** Someone with access to the
-server's logs can see when a matrix is being edited and roughly how big
-it is. They can't see what changed.
+server's logs can see when a matrix is being edited, how often, and the
+size of each individual edit on the wire. For matrices with the rigid
+risk-matrix shape, that size mostly reveals the *kind* of edit (a
+keystroke vs. a paste vs. adding a risk vs. importing a baseline), not
+which specific text or category the user touched.
 
 ## In plain words
 
 This is "encrypted Pastebin / Cryptpad-style sharing." The server can't
 read your matrix contents; the link is the password. Operators and hosts
 can still see correlation metadata and ciphertext. If your device, your
-browser, or our own hosting is compromised, the encryption doesn't help —
+browser, or our own hosting is compromised, the encryption doesn't help,
 but no browser-based encryption tool can protect against that.
 
-If you need stronger guarantees — verified identities, anonymity,
-resistance to targeted attacks, end-to-end audit logs — this is not the
+If you need stronger guarantees (verified identities, anonymity,
+resistance to targeted attacks, end-to-end audit logs), this is not the
 right tool.

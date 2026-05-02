@@ -14,5 +14,4 @@ export {
 } from "./envelope";
 export type { AadParams, EncryptedPayload, SchemaVersion } from "./envelope";
 export { base64urlDecode, base64urlEncode } from "./base64url";
-export { PAD_BLOCK, padPlaintext, unpadPlaintext } from "./padding";
 export { __resetSodiumForTests, getSodium } from "./sodium";
