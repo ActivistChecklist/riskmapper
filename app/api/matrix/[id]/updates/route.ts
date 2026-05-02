@@ -10,7 +10,7 @@ import {
 } from "@/lib/cloud/helpers";
 import { rateLimit } from "@/lib/cloud/rateLimit";
 import { publish } from "@/lib/cloud/pubsub";
-import { todayUtc } from "@/lib/cloud/types";
+import { todayUtc, todayUtcDate } from "@/lib/cloud/types";
 
 /**
  * POST /api/matrix/:id/updates — append one encrypted Y.Doc update.
@@ -58,7 +58,10 @@ export async function POST(req: Request, ctx: RouteParams) {
     // 404. (Race-safe because Mongo's findOneAndUpdate is atomic per-doc.)
     const updated = await coll.findOneAndUpdate(
       { _id: id },
-      { $inc: { headSeq: 1 }, $set: { lastWriteDate: today } },
+      {
+        $inc: { headSeq: 1 },
+        $set: { lastWriteDate: today, lastActivityDate: todayUtcDate() },
+      },
       { returnDocument: "after" },
     );
     if (!updated) return jsonError(404, "not found");

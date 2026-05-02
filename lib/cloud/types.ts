@@ -16,6 +16,15 @@ export type MatrixDoc = {
   createdDate: string;
   lastWriteDate: string;
   lastReadDate: string | null;
+  /**
+   * Midnight-UTC `Date` of the most recent read or write. Indexed with
+   * MongoDB's TTL feature in `db.ts` so records become eligible for
+   * automatic deletion 90 days after their last activity. Stored as a
+   * BSON `Date` (TTL needs a real Date type) but always rounded to the
+   * day so the underlying datetime carries no time-of-day metadata —
+   * matches the "coarse calendar dates" promise in THREAT-MODEL.md.
+   */
+  lastActivityDate: Date;
 };
 
 export type MatrixUpdate = {
@@ -61,4 +70,15 @@ export type UpdatesCollection = {
 /** Today as `YYYY-MM-DD` (UTC). */
 export function todayUtc(): string {
   return new Date().toISOString().slice(0, 10);
+}
+
+/**
+ * Today as a midnight-UTC `Date`. Used for `lastActivityDate` (the TTL
+ * field) so the BSON value is a real Date but carries no time-of-day
+ * granularity — same calendar-day coarseness as `todayUtc()`.
+ */
+export function todayUtcDate(): Date {
+  const d = new Date();
+  d.setUTCHours(0, 0, 0, 0);
+  return d;
 }

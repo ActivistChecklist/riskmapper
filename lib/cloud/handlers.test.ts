@@ -70,6 +70,7 @@ function seedMatrix(opts?: { headSeq?: number; baselineSeq?: number }): void {
     createdDate: "2026-01-01",
     lastWriteDate: "2026-01-01",
     lastReadDate: null,
+    lastActivityDate: new Date("2026-01-01T00:00:00Z"),
   });
 }
 
@@ -104,6 +105,10 @@ describe("POST /api/matrix", () => {
     expect(stored[0].baseline).toBe(VALID_CT);
     expect(stored[0].headSeq).toBe(0);
     expect(stored[0].baselineSeq).toBe(0);
+    // TTL: create stamps lastActivityDate (midnight UTC).
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    expect(stored[0].lastActivityDate.getTime()).toBe(today.getTime());
   });
 
   it("rejects an id that doesn't match the plausible-id regex", async () => {
@@ -211,6 +216,11 @@ describe("GET /api/matrix/[id]", () => {
     ]);
     expect(body.lastReadDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(collHolder.matrices!.__dump()[0].lastReadDate).toBe(body.lastReadDate);
+    // TTL: read bumps lastActivityDate to today (midnight UTC).
+    const stored = collHolder.matrices!.__dump()[0].lastActivityDate;
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    expect(stored.getTime()).toBe(today.getTime());
   });
 
   it("with ?since=N >= baselineSeq, omits baseline and returns only updates past N", async () => {
@@ -292,6 +302,12 @@ describe("POST /api/matrix/[id]/updates", () => {
     expect(stored[0].clientId).toBe("alice");
     expect(stored[1].clientId).toBe("bob");
     expect(collHolder.matrices!.__dump()[0].headSeq).toBe(2);
+    // TTL: append refreshes lastActivityDate to today (midnight UTC).
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    expect(
+      collHolder.matrices!.__dump()[0].lastActivityDate.getTime(),
+    ).toBe(today.getTime());
   });
 
   it("publishes each update to subscribers", async () => {

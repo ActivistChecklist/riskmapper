@@ -84,6 +84,16 @@ async function ensureIndexes(client: MongoClient): Promise<void> {
   void Promise.all([
     matrices.createIndex({ lastReadDate: 1 }),
     matrices.createIndex({ lastWriteDate: 1 }),
+    // TTL index: Mongo's background daemon deletes any matrix whose
+    // `lastActivityDate` is older than 90 days. Activity is bumped on
+    // every read and write (see app/api/matrix/**), so this expires
+    // only genuinely-idle records. Fires the deletion of the matrix doc
+    // itself; orphaned `matrix_updates` rows are swept by the cleanup
+    // cron in `scripts/cleanup-orphan-updates.ts`.
+    matrices.createIndex(
+      { lastActivityDate: 1 },
+      { expireAfterSeconds: 90 * 24 * 60 * 60 },
+    ),
     // Per-record monotonic seq lookups; uniqueness defends against any race
     // where two appends somehow collide on the same seq.
     updates.createIndex({ recordId: 1, seq: 1 }, { unique: true }),

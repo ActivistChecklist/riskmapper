@@ -7,7 +7,7 @@ import {
   jsonError,
 } from "@/lib/cloud/helpers";
 import { rateLimit } from "@/lib/cloud/rateLimit";
-import { todayUtc } from "@/lib/cloud/types";
+import { todayUtc, todayUtcDate } from "@/lib/cloud/types";
 
 /**
  * GET    /api/matrix/:id            — read baseline + updates for cold load.
@@ -45,7 +45,7 @@ export async function GET(req: Request, ctx: RouteParams) {
     const today = todayUtc();
     const doc = await coll.findOneAndUpdate(
       { _id: id },
-      { $set: { lastReadDate: today } },
+      { $set: { lastReadDate: today, lastActivityDate: todayUtcDate() } },
       { returnDocument: "after" },
     );
     if (!doc) return jsonError(404, "not found");

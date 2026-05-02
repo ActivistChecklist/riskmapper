@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "next dev --webpack",
     "dev:turbo": "next dev --turbopack",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
@@ -17,7 +17,8 @@
     "db:up": "docker compose -p riskmapper -f docker-compose.dev.yml up -d",
     "db:down": "docker compose -p riskmapper -f docker-compose.dev.yml down",
     "db:logs": "docker compose -f docker-compose.dev.yml logs -f mongo",
-    "db:reset": "docker compose -p riskmapper -f docker-compose.dev.yml down -v"
+    "db:reset": "docker compose -p riskmapper -f docker-compose.dev.yml down -v",
+    "cleanup:orphan-updates": "node scripts/cleanup-orphan-updates.mjs"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",

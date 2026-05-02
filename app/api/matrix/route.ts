@@ -11,7 +11,7 @@ import {
 } from "@/lib/cloud/helpers";
 import { rateLimit } from "@/lib/cloud/rateLimit";
 import type { MatrixDoc } from "@/lib/cloud/types";
-import { todayUtc } from "@/lib/cloud/types";
+import { todayUtc, todayUtcDate } from "@/lib/cloud/types";
 
 /**
  * POST /api/matrix — create a new encrypted record.
@@ -58,6 +58,7 @@ export async function POST(req: Request) {
     createdDate: today,
     lastWriteDate: today,
     lastReadDate: null,
+    lastActivityDate: todayUtcDate(),
   };
   try {
     const coll = await getCollection();
