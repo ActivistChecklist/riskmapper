@@ -70,14 +70,37 @@ export default function ShareMatrixDialog({
     return () => clearTimeout(t);
   }, [confirmingStop]);
 
-  const shareUrl =
-    handle && typeof window !== "undefined"
-      ? buildShareUrl({
+  // buildShareUrl is async (libsodium constant-time base64 for the key),
+  // so resolve it in an effect. Until it lands, the copy button is
+  // effectively disabled — same UX as while `handle` is still null.
+  const [shareUrl, setShareUrl] = useState("");
+  useEffect(() => {
+    if (!handle || typeof window === "undefined") {
+      // Identity-driven reset on handle clear.
+      /* eslint-disable react-hooks/set-state-in-effect */
+      setShareUrl("");
+      /* eslint-enable react-hooks/set-state-in-effect */
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const url = await buildShareUrl({
           origin: window.location.origin,
           recordId: handle.recordId,
           key: handle.key,
-        })
-      : "";
+        });
+        if (cancelled) return;
+        setShareUrl(url);
+      } catch {
+        if (cancelled) return;
+        setShareUrl("");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [handle]);
   const handleCopy = async () => {
     if (!shareUrl) return;
     try {

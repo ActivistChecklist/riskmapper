@@ -86,6 +86,14 @@ type Live = {
   subscription: Subscription | null;
   cancelled: boolean;
   waiters: Array<{ resolve: () => void; reject: (err: Error) => void }>;
+  /**
+   * False until the async `keyFromB64` resolution finishes and `handle`
+   * is populated with a real key. Local Y.Doc updates that fire during
+   * this window are still buffered into `pending`, but `drainOutbox` is
+   * deferred — POSTing with the placeholder zero-length key would throw
+   * inside `encryptBytes` and surface as a fake "Offline" status.
+   */
+  ready: boolean;
 };
 
 export type UseCloudMatrixCallbacks = {
@@ -151,14 +159,9 @@ export function useCloudMatrix(
     const hasCachedDoc = Boolean(activeMeta.yDocStateB64);
     setSyncState(hasCachedDoc ? { kind: "idle" } : { kind: "loading" });
 
-    const handle: CloudMatrixHandle = {
-      recordId: activeMeta.recordId,
-      key: activeMeta.keyB64
-        ? keyFromB64(activeMeta.keyB64)
-        : new Uint8Array(0),
-      schemaVersion: SCHEMA_VERSION,
-    };
-
+    // Eagerly create the Y.Doc and hydrate from cache so the canvas can
+    // render synchronously. Subscribe + catch-up are deferred to an async
+    // path because key decoding (libsodium constant-time base64) is async.
     const yDoc = new Y.Doc();
     let hydratedFromCacheBytes = 0;
     if (activeMeta.yDocStateB64) {
@@ -179,8 +182,17 @@ export function useCloudMatrix(
       hydratedRiskCount: countRisks(yDoc),
     });
 
+    // Pre-allocate `live` with a placeholder handle so cleanup can run
+    // even if cancellation arrives before async key decoding completes.
+    // `ready` stays false until the async IIFE below populates `handle`
+    // with the real key — local edits in that window are still captured
+    // into `pending`, but the drain is deferred (see onLocalUpdate).
     const live: Live = {
-      handle,
+      handle: {
+        recordId: activeMeta.recordId,
+        key: new Uint8Array(0),
+        schemaVersion: SCHEMA_VERSION,
+      },
       doc: yDoc,
       clientId: String(yDoc.clientID),
       lastHeadSeq: activeMeta.lastHeadSeq,
@@ -193,6 +205,7 @@ export function useCloudMatrix(
       subscription: null,
       cancelled: false,
       waiters: [],
+      ready: false,
     };
     liveRef.current = live;
     setDoc(yDoc);
@@ -204,7 +217,10 @@ export function useCloudMatrix(
         ? Y.mergeUpdates([live.pending, update])
         : update;
       // Trailing-edge debounce: every keystroke extends the timer, so a
-      // typing burst collapses into one POST once the user pauses.
+      // typing burst collapses into one POST once the user pauses. If
+      // the key isn't resolved yet, skip scheduling — the IIFE below
+      // will fire a drain itself once `live.ready` flips.
+      if (!live.ready) return;
       if (live.drainTimer) clearTimeout(live.drainTimer);
       live.drainTimer = setTimeout(() => {
         live.drainTimer = null;
@@ -220,62 +236,83 @@ export function useCloudMatrix(
       teardown(live);
     };
 
-    // Subscribe FIRST so live updates that arrive during the read aren't
-    // missed. The repo subscription itself dedupes by `seq <= sinceSeq`.
-    live.subscription = repo.subscribe(
-      { handle, sinceSeq: activeMeta.lastHeadSeq },
-      {
-        onUpdate(event) {
-          if (live.cancelled) return;
-          const isSelf = event.clientId === live.clientId;
-          log.info("sse onUpdate", {
-            recordId: live.handle.recordId,
-            seq: event.seq,
-            from: event.clientId,
-            isSelf,
-            advances: event.seq > live.lastHeadSeq,
-          });
-          if (!isSelf) {
-            Y.applyUpdate(yDoc, event.bytes, REMOTE_ORIGIN);
-          }
-          if (event.seq > live.lastHeadSeq) {
-            live.lastHeadSeq = event.seq;
-            persistMetaFromLive(live, callbacksRef);
-          }
-          if (!isSelf) {
-            callbacksRef.current.onChange?.(yDoc);
-          }
-        },
-        onError() {
-          if (live.cancelled) return;
-          // EventSource auto-reconnects; reflect the disruption in the UI
-          // but don't tear down the doc.
-          setSyncState({
-            kind: "offline",
-            attempt: 1,
-            message: "Reconnecting to live updates…",
-          });
-        },
-        onOpen() {
-          if (live.cancelled) return;
-          // Only restore from `offline` — leave syncing/loading alone.
-          setSyncState((s) => (s.kind === "offline" ? { kind: "idle" } : s));
-        },
-      },
-    );
-
-    // For the cached-doc case, schedule a "loading" indicator only if
-    // catch-up takes longer than the transient-display delay.
-    if (hasCachedDoc) {
-      live.transientDisplayTimer = setTimeout(() => {
-        live.transientDisplayTimer = null;
-        if (live.cancelled) return;
-        setSyncState({ kind: "loading" });
-      }, TRANSIENT_DISPLAY_DELAY_MS);
-    }
-
-    // Fetch baseline + catch-up.
     void (async () => {
+      const key = activeMeta.keyB64
+        ? await keyFromB64(activeMeta.keyB64)
+        : new Uint8Array(0);
+      if (live.cancelled) return;
+      const handle: CloudMatrixHandle = {
+        recordId: activeMeta.recordId,
+        key,
+        schemaVersion: SCHEMA_VERSION,
+      };
+      live.handle = handle;
+      live.ready = true;
+      // If a local edit landed in `pending` while we were waiting on
+      // the key, drain it now (debounced like a normal edit).
+      if (live.pending && !live.drainTimer) {
+        live.drainTimer = setTimeout(() => {
+          live.drainTimer = null;
+          if (live.cancelled) return;
+          void drainOutbox(live, repo, setSyncState, callbacksRef);
+        }, LOCAL_DRAIN_DEBOUNCE_MS);
+      }
+
+      // Subscribe FIRST so live updates that arrive during the read aren't
+      // missed. The repo subscription itself dedupes by `seq <= sinceSeq`.
+      live.subscription = repo.subscribe(
+        { handle, sinceSeq: activeMeta.lastHeadSeq },
+        {
+          onUpdate(event) {
+            if (live.cancelled) return;
+            const isSelf = event.clientId === live.clientId;
+            log.info("sse onUpdate", {
+              recordId: live.handle.recordId,
+              seq: event.seq,
+              from: event.clientId,
+              isSelf,
+              advances: event.seq > live.lastHeadSeq,
+            });
+            if (!isSelf) {
+              Y.applyUpdate(yDoc, event.bytes, REMOTE_ORIGIN);
+            }
+            if (event.seq > live.lastHeadSeq) {
+              live.lastHeadSeq = event.seq;
+              persistMetaFromLive(live, callbacksRef);
+            }
+            if (!isSelf) {
+              callbacksRef.current.onChange?.(yDoc);
+            }
+          },
+          onError() {
+            if (live.cancelled) return;
+            // EventSource auto-reconnects; reflect the disruption in the UI
+            // but don't tear down the doc.
+            setSyncState({
+              kind: "offline",
+              attempt: 1,
+              message: "Reconnecting to live updates…",
+            });
+          },
+          onOpen() {
+            if (live.cancelled) return;
+            // Only restore from `offline` — leave syncing/loading alone.
+            setSyncState((s) => (s.kind === "offline" ? { kind: "idle" } : s));
+          },
+        },
+      );
+
+      // For the cached-doc case, schedule a "loading" indicator only if
+      // catch-up takes longer than the transient-display delay.
+      if (hasCachedDoc) {
+        live.transientDisplayTimer = setTimeout(() => {
+          live.transientDisplayTimer = null;
+          if (live.cancelled) return;
+          setSyncState({ kind: "loading" });
+        }, TRANSIENT_DISPLAY_DELAY_MS);
+      }
+
+      // Fetch baseline + catch-up.
       try {
         const stateBefore = Y.encodeStateVector(yDoc);
         const remote = await repo.read(handle, { sinceSeq: activeMeta.lastHeadSeq });
@@ -426,6 +463,9 @@ async function drainOutbox(
   if (live.cancelled) return;
   if (live.inFlight) return;
   if (!live.pending) return;
+  // Refuse to encrypt with the placeholder zero-length key. The mount
+  // useEffect schedules a fresh drain once `ready` flips true.
+  if (!live.ready) return;
   live.inFlight = true;
   // Don't flash "syncing" for fast POSTs. Schedule the indicator for
   // TRANSIENT_DISPLAY_DELAY_MS — if the POST returns first we cancel
@@ -461,10 +501,12 @@ async function drainOutbox(
       void drainOutbox(live, repo, setSyncState, callbacksRef);
     } else {
       clearTransientDisplay(live);
-      // Only step down from "syncing" → "idle". Any other state
-      // (loading/offline/missing/…) was set by something else and we
-      // shouldn't clobber it from the success path.
-      setSyncState((s) => (s.kind === "syncing" ? { kind: "idle" } : s));
+      // Step down from transient upload / reconnect UI. Include "offline"
+      // so a successful POST clears an SSE-only blip (EventSource onerror
+      // is noisy in dev); do not touch missing/error/rollback/loading.
+      setSyncState((s) =>
+        s.kind === "syncing" || s.kind === "offline" ? { kind: "idle" } : s,
+      );
     }
   } catch (err) {
     if (live.cancelled) return;

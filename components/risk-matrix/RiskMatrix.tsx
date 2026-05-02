@@ -155,7 +155,7 @@ function RiskMatrixCanvas({ workspace: ws, cloud }: CanvasProps) {
     try {
       await cloud.repo.delete({
         recordId: meta.recordId,
-        key: keyFromB64(meta.keyB64),
+        key: await keyFromB64(meta.keyB64),
         schemaVersion: 2,
       });
     } finally {
@@ -542,27 +542,36 @@ export default function RiskMatrix() {
   const activeKeyB64 = ws.activeSavedMatrix?.cloud?.keyB64;
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const inboundShare = parseShareLocation({
-      pathname: window.location.pathname,
-      hash: window.location.hash,
-    });
     if (importer.state.kind === "loading" || importer.state.kind === "ready") {
       // The share-import flow owns the URL while it's resolving.
       return;
     }
-    if (inboundShare) {
-      // Keep `/grid/<id>#<key>` stable during initial mount/adoption so we
-      // don't flash to `/` before the importer finishes.
-      return;
-    }
-    if (activeRecordId && activeKeyB64) {
-      setShareUrlInAddressBar({
-        recordId: activeRecordId,
-        key: keyFromB64(activeKeyB64),
+    let cancelled = false;
+    void (async () => {
+      const inboundShare = await parseShareLocation({
+        pathname: window.location.pathname,
+        hash: window.location.hash,
       });
-    } else if (window.location.pathname.startsWith("/grid/")) {
-      clearShareFromUrl();
-    }
+      if (cancelled) return;
+      if (inboundShare) {
+        // Keep `/grid/<id>#<key>` stable during initial mount/adoption so
+        // we don't flash to `/` before the importer finishes.
+        return;
+      }
+      if (activeRecordId && activeKeyB64) {
+        const key = await keyFromB64(activeKeyB64);
+        if (cancelled) return;
+        await setShareUrlInAddressBar({
+          recordId: activeRecordId,
+          key,
+        });
+      } else if (window.location.pathname.startsWith("/grid/")) {
+        clearShareFromUrl();
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [activeRecordId, activeKeyB64, importer.state.kind]);
 
   // Auto-adopt: when the share fetch resolves, drop the matrix straight into

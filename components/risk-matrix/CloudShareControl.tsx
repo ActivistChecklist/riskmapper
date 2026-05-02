@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Loader2, UserPlus } from "lucide-react";
 import * as Y from "yjs";
 import { Button } from "@/components/ui/button";
@@ -59,15 +59,42 @@ export default function CloudShareControl({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [tempHandle, setTempHandle] = useState<CloudMatrixHandle | null>(null);
-
-  const existingHandle =
-    cloudMeta && cloudMeta.keyB64
-      ? {
-          recordId: cloudMeta.recordId,
-          key: keyFromB64(cloudMeta.keyB64),
+  // Derive the existing handle in an effect since libsodium's
+  // constant-time keyFromB64 is async. Until it resolves, fall back to
+  // `tempHandle`; for a saved cloud matrix this just means the dialog
+  // briefly shows no link before the WASM finishes loading.
+  const [existingHandle, setExistingHandle] =
+    useState<CloudMatrixHandle | null>(null);
+  const cloudMetaRecordId = cloudMeta?.recordId;
+  const cloudMetaKeyB64 = cloudMeta?.keyB64;
+  useEffect(() => {
+    if (!cloudMetaRecordId || !cloudMetaKeyB64) {
+      // Identity-driven reset on cloudMeta clear; see useCloudMatrix.ts
+      // for the same pattern.
+      /* eslint-disable react-hooks/set-state-in-effect */
+      setExistingHandle(null);
+      /* eslint-enable react-hooks/set-state-in-effect */
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const key = await keyFromB64(cloudMetaKeyB64);
+        if (cancelled) return;
+        setExistingHandle({
+          recordId: cloudMetaRecordId,
+          key,
           schemaVersion: SCHEMA_VERSION,
-        }
-      : null;
+        });
+      } catch {
+        if (cancelled) return;
+        setExistingHandle(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [cloudMetaRecordId, cloudMetaKeyB64]);
 
   const dialogHandle = existingHandle ?? tempHandle;
 
@@ -89,7 +116,7 @@ export default function CloudShareControl({
       setTempHandle(created.handle);
       onCloudMetaSet({
         recordId: created.handle.recordId,
-        keyB64: keyToB64(created.handle.key),
+        keyB64: await keyToB64(created.handle.key),
         lastHeadSeq: created.headSeq,
         yDocStateB64: encodeYDocStateForMeta(baseline),
       });

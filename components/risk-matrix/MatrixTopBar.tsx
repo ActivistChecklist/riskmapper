@@ -102,9 +102,9 @@ export default function MatrixTopBar({
                 <Image
                   src="/icon.svg"
                   alt={SITE_NAME}
-                  width={140}
+                  width={32}
                   height={32}
-                  className="h-7 w-auto sm:h-8"
+                  className="size-7 sm:size-8"
                   priority
                 />
               </div>

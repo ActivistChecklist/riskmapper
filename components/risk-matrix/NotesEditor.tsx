@@ -110,6 +110,8 @@ export default function NotesEditor({
         blockquote: false,
         horizontalRule: false,
         heading: { levels: [1, 2] },
+        // StarterKit v3 registers Link by default; we add Link.configure below.
+        link: false,
       }),
       ParagraphWithEmptyMarker,
       Link.configure({
