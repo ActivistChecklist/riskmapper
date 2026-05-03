@@ -7,8 +7,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -20,42 +18,19 @@ import {
 import { cn } from "@/lib/utils";
 
 export type MatrixCopyDropdownProps = {
-  iconOnly?: boolean;
-  toolbar?: boolean;
-  canCopyPool: boolean;
-  canCopyMatrix: boolean;
-  canCopyMitigations: boolean;
-  canCopyActions: boolean;
-  onCopyFull: () => void | Promise<void>;
-  onCopySummary: () => void | Promise<void>;
-  onCopyPool: () => void | Promise<void>;
-  onCopyMatrix: () => void | Promise<void>;
-  onCopyMitigations: () => void | Promise<void>;
-  onCopyActions: () => void | Promise<void>;
+  /** Disable both items when there's nothing meaningful to copy. */
+  hasContent: boolean;
+  /** Plain-text full worksheet (current Markdown-y format). */
+  onCopyAll: () => void | Promise<void>;
+  /** HTML rich-text export with real colored tables. */
+  onCopyRich: () => void | Promise<void>;
 };
 
 export default function MatrixCopyDropdown({
-  iconOnly = false,
-  toolbar = false,
-  canCopyPool,
-  canCopyMatrix,
-  canCopyMitigations,
-  canCopyActions,
-  onCopyFull,
-  onCopySummary,
-  onCopyPool,
-  onCopyMatrix,
-  onCopyMitigations,
-  onCopyActions,
+  hasContent,
+  onCopyAll,
+  onCopyRich,
 }: MatrixCopyDropdownProps) {
-  // The dropdown trigger lives in the title row alongside Share — keep
-  // it neutral (outline) so Share remains the visual primary CTA.
-  // `iconOnly` and `toolbar` are kept on the API for compatibility, but
-  // label visibility is now driven by Tailwind responsive classes
-  // matching the title-row collapse sequence (label hidden below md).
-  void toolbar;
-  void iconOnly;
-
   const triggerButton = (
     <Button
       type="button"
@@ -88,55 +63,23 @@ export default function MatrixCopyDropdown({
           Copy worksheet
         </TooltipContent>
       </Tooltip>
-      <DropdownMenuContent align="end" className="min-w-[13.5rem]">
-        <DropdownMenuLabel>Copy as text</DropdownMenuLabel>
+      <DropdownMenuContent align="end" className="min-w-[14rem]">
         <DropdownMenuItem
+          disabled={!hasContent}
           onSelect={() => {
-            void onCopyFull();
+            void onCopyAll();
           }}
         >
-          Full worksheet
+          Copy plain text (markdown)
           <DropdownMenuShortcut>⌘⇧C</DropdownMenuShortcut>
         </DropdownMenuItem>
         <DropdownMenuItem
+          disabled={!hasContent}
           onSelect={() => {
-            void onCopySummary();
+            void onCopyRich();
           }}
         >
-          Summary
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          disabled={!canCopyPool}
-          onSelect={() => {
-            void onCopyPool();
-          }}
-        >
-          Risk pool only
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          disabled={!canCopyMatrix}
-          onSelect={() => {
-            void onCopyMatrix();
-          }}
-        >
-          Matrix only
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          disabled={!canCopyMitigations}
-          onSelect={() => {
-            void onCopyMitigations();
-          }}
-        >
-          All mitigations (Markdown)
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          disabled={!canCopyActions}
-          onSelect={() => {
-            void onCopyActions();
-          }}
-        >
-          Actions only
+          Copy rich text
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

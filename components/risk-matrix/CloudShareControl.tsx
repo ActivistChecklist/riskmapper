@@ -183,9 +183,7 @@ export default function CloudShareControl({
             </span>
           </Button>
         </TooltipTrigger>
-        <TooltipContent side="bottom" className="md:hidden">
-          Share
-        </TooltipContent>
+        <TooltipContent side="bottom">End-to-end encrypted</TooltipContent>
       </Tooltip>
       <ShareMatrixDialog
         open={open}

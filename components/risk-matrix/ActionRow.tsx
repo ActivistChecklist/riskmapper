@@ -60,14 +60,14 @@ const ActionRow = React.memo(function ActionRow({
           />
         </div>
       </div>
-      <div className="mt-1 min-w-0 pl-7">
+      <div className="mt-1 flex min-w-0 pl-7">
         <span
           className={[
-            "inline-flex max-w-full min-w-0 items-center truncate rounded-[5px] border border-black/8 px-1 py-0.5 text-[10px] font-medium leading-snug text-rm-ink",
+            "flex min-w-0 max-w-full items-center rounded-[5px] border border-black/8 px-1 py-0.5 text-[10px] font-medium leading-snug text-rm-ink",
             toneClass,
           ].join(" ")}
         >
-          {riskLabel}
+          <span className="block min-w-0 truncate">{riskLabel}</span>
         </span>
       </div>
     </div>

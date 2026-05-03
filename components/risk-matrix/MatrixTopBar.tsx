@@ -16,6 +16,9 @@ type Props = {
   /** Copy / export control. Rendered in the title row's far right
    *  cluster, immediately to the left of `cloudShareControl`. */
   copyMenu?: (opts: { iconOnly: boolean }) => React.ReactNode;
+  /** Download-as-PDF button. Sits between the copy menu and the share
+   *  control. */
+  pdfButton?: React.ReactNode;
   /** Cloud share control. Rendered in the title row's far right (Google
    *  Docs style), not in the toolbar. */
   cloudShareControl?: React.ReactNode;
@@ -53,6 +56,7 @@ function MatrixToolbarWidthProbe() {
 export default function MatrixTopBar({
   workspace: ws,
   copyMenu,
+  pdfButton,
   cloudShareControl,
   statusIndicator,
 }: Props) {
@@ -60,7 +64,7 @@ export default function MatrixTopBar({
   const measureRef = useRef<HTMLDivElement>(null);
   const titleMirrorRef = useRef<HTMLSpanElement>(null);
   const [iconOnlyToolbar, setIconOnlyToolbar] = useState(false);
-  const [titleInputWidthPx, setTitleInputWidthPx] = useState(220);
+  const [titleInputWidthPx, setTitleInputWidthPx] = useState(0);
 
   useLayoutEffect(() => {
     const toolbar = toolbarRef.current;
@@ -87,9 +91,7 @@ export default function MatrixTopBar({
   useLayoutEffect(() => {
     const mirror = titleMirrorRef.current;
     if (!mirror) return;
-    const measured = Math.ceil(mirror.getBoundingClientRect().width);
-    // Clamp to a readable minimum while allowing the field to grow naturally.
-    setTitleInputWidthPx(Math.max(140, measured));
+    setTitleInputWidthPx(Math.ceil(mirror.getBoundingClientRect().width));
   }, [ws.activeTitle]);
 
   return (
@@ -140,7 +142,7 @@ export default function MatrixTopBar({
               }}
               placeholder="Matrix title"
               aria-label="Matrix title"
-              className="w-full min-w-0 rounded-md border border-transparent bg-transparent px-2 py-1 text-lg font-semibold text-rm-ink outline-none placeholder:opacity-45 hover:border-black/20 hover:bg-black/2 focus-visible:border-rm-primary focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-rm-primary/20 sm:text-xl"
+              className="w-full min-w-0 truncate rounded-md border border-transparent bg-transparent px-2 py-1 text-lg font-semibold text-rm-ink outline-none placeholder:opacity-45 hover:border-black/20 hover:bg-black/2 focus-visible:border-rm-primary focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-rm-primary/20 sm:text-xl"
             />
           </div>
           {statusIndicator ? (
@@ -149,13 +151,14 @@ export default function MatrixTopBar({
           {/* Right-anchored cluster (Google Docs style):
               [Copy] [Share]. Copy is neutral (outline), Share is the
               primary CTA. */}
-          {copyMenu || cloudShareControl ? (
+          {copyMenu || pdfButton || cloudShareControl ? (
             <div className="ml-auto flex shrink-0 items-center gap-2">
               {/* iconOnly is the small-screen hint; child components also
                   use Tailwind responsive classes to hide labels at the
                   same breakpoint, so the rendered DOM matches the layout
                   decision at every width. */}
               {copyMenu ? copyMenu({ iconOnly: false }) : null}
+              {pdfButton}
               {cloudShareControl}
             </div>
           ) : null}
