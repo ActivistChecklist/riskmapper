@@ -20,6 +20,7 @@ import DragPreviewLayer from "./DragPreviewLayer";
 import KeyboardShortcutsDialog from "./KeyboardShortcutsDialog";
 import LikelihoodImpactMatrix from "./LikelihoodImpactMatrix";
 import MatrixCopyDropdown from "./MatrixCopyDropdown";
+import MatrixDownloadPdfButton from "./pdf/MatrixDownloadPdfButton";
 import MatrixHelpSection from "./MatrixHelpSection";
 import MatrixTopBar from "./MatrixTopBar";
 import NotesEditor from "./NotesEditor";
@@ -33,9 +34,8 @@ import {
   copyFullReport,
   copyMatrixRisks,
   copyMitigationsMarkdown,
+  copyRichWorksheet,
   copyRiskPool,
-  copyStarredActions,
-  copySummary,
 } from "./matrixClipboard";
 import { canCopyMatrix, canCopyPool } from "./matrixExport";
 import { createLocalMatrixRepository } from "./matrixDataLayer";
@@ -189,29 +189,15 @@ function RiskMatrixCanvas({ workspace: ws, cloud }: CanvasProps) {
     [ws.activeTitle, m.pool, m.grid, m.allActions, m.otherActions],
   );
 
-  const handleCopyFull = useCallback(() => {
+  const handleCopyAll = useCallback(() => {
     void copyFullReport(copyArgs);
   }, [copyArgs]);
 
-  const handleCopySummary = useCallback(() => {
-    void copySummary(copyArgs);
-  }, [copyArgs]);
+  const handleCopyRich = useCallback(() => {
+    void copyRichWorksheet({ ...copyArgs, notes: m.notes });
+  }, [copyArgs, m.notes]);
 
-  const handleCopyPool = useCallback(() => {
-    void copyRiskPool(m.pool);
-  }, [m.pool]);
-
-  const handleCopyMatrix = useCallback(() => {
-    void copyMatrixRisks(m.grid);
-  }, [m.grid]);
-
-  const handleCopyMitigations = useCallback(() => {
-    void copyMitigationsMarkdown(m.grid);
-  }, [m.grid]);
-
-  const handleCopyActionsOnly = useCallback(() => {
-    void copyStarredActions(m.allActions, m.otherActions);
-  }, [m.allActions, m.otherActions]);
+  const hasAnyCopyableContent = canPool || canMx || canMit || canAct;
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -278,22 +264,20 @@ function RiskMatrixCanvas({ workspace: ws, cloud }: CanvasProps) {
     >
       <MatrixTopBar
         workspace={ws}
-        copyMenu={({ iconOnly }) => (
+        copyMenu={() => (
           <MatrixCopyDropdown
-            iconOnly={iconOnly}
-            toolbar
-            canCopyPool={canPool}
-            canCopyMatrix={canMx}
-            canCopyMitigations={canMit}
-            canCopyActions={canAct}
-            onCopyFull={handleCopyFull}
-            onCopySummary={handleCopySummary}
-            onCopyPool={handleCopyPool}
-            onCopyMatrix={handleCopyMatrix}
-            onCopyMitigations={handleCopyMitigations}
-            onCopyActions={handleCopyActionsOnly}
+            hasContent={hasAnyCopyableContent}
+            onCopyAll={handleCopyAll}
+            onCopyRich={handleCopyRich}
           />
         )}
+        pdfButton={
+          <MatrixDownloadPdfButton
+            title={ws.activeTitle}
+            snapshot={m.getSnapshot()}
+            disabled={!canMx && !canPool && !canAct}
+          />
+        }
         statusIndicator={
           <MatrixStatusIndicator
             shared={Boolean(cloudMeta)}

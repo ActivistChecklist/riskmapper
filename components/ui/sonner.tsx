@@ -23,12 +23,12 @@ export function Toaster() {
           description: "text-white/80",
           actionButton: "bg-white text-zinc-900 hover:bg-zinc-100",
           cancelButton: "bg-white/10 text-white hover:bg-white/15",
-          // Sonner places the close button on the LEFT by default; that's
-          // the same library default in the shadcn wrapper. We move it to
-          // the top-right (the convention most apps use) and re-skin to
-          // match the dark surface.
+          // Sonner places the close button on the LEFT by default. Pin it
+          // to the right edge, vertically centered so single- and multi-
+          // line toasts both look right (the previous fixed `top-2`
+          // landed above-middle on tall toasts).
           closeButton:
-            "!left-auto !right-2 !top-2 !-translate-x-0 !bg-zinc-800 !border-white/15 !text-white/85 hover:!bg-zinc-700",
+            "!left-auto !right-2 !top-1/2 !translate-x-0 !-translate-y-1/2 !bg-zinc-800 !border-white/15 !text-white/85 hover:!bg-zinc-700",
           success: "border-l-4 border-l-emerald-400",
           error: "border-l-4 border-l-red-400",
           info: "border-l-4 border-l-sky-400",
