@@ -1,8 +1,124 @@
 @import "tailwindcss";
 
+/* Dark mode is class-based: the `.dark` token is set on <html> by an
+   inline boot script in app/layout.tsx so the theme is painted before
+   first frame (no FOUC). Tailwind utilities like `dark:bg-rm-surface`
+   are gated by this variant. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
+  /* Sticky-topbar offset — driven by MatrixTopBar's ResizeObserver so
+     descendant sticky elements (matrix impact-axis row, mitigations
+     headers) can pin under the title bar without overlapping it. The
+     CSS-only default covers the case before JS runs (or when JS fails)
+     so descendants always have a sensible fallback rather than 0. */
+  --rm-topbar-h: 0px;
+
+  /* Page chrome */
   --background: #fafaf7;
   --foreground: #171717;
+
+  /* Risk matrix palette — light mode (warm canvas + pastel cells) */
+  --rm-canvas: #fafaf7;
+  --rm-ink: #1a1a1a;
+  --rm-line: #f5f5f2;
+  --rm-actions: #2a2a28;
+  --rm-actions-fg: #fafaf7;
+  --rm-primary: #0f7669;
+  --rm-primary-hover: #115e59;
+  --rm-primary-fg: #fafaf7;
+
+  /* Risk severity fills */
+  --rm-green: #d4ebd4;
+  --rm-yellow: #f1e6b8;
+  --rm-orange: #f2d2b6;
+  --rm-red: #eebcbc;
+  /* Saturated section-header variants (one step darker than the cell fills) */
+  --rm-green-saturated: #b8d8b8;
+  --rm-yellow-saturated: #e4d398;
+  --rm-orange-saturated: #e6bb98;
+  --rm-red-saturated: #e0a3a3;
+  /* Brighter pastel accents (used for star fills, etc) */
+  --rm-green-strong: #4ccd7a;
+  --rm-yellow-strong: #e4c23d;
+  --rm-orange-strong: #f2934a;
+  --rm-red-strong: #ef6f6f;
+
+  /* Star always tracks ink */
+  --rm-star: var(--rm-ink);
+  --rm-star-strong: var(--rm-ink);
+
+  /* Generic surfaces / borders / muted text — drives dark mode swap */
+  --rm-surface: #ffffff;
+  --rm-surface-2: #f4f4f1;
+  --rm-surface-hover: rgba(0, 0, 0, 0.05);
+  --rm-surface-hover-2: rgba(0, 0, 0, 0.08);
+  --rm-surface-translucent: rgba(255, 255, 255, 0.85);
+  --rm-border: rgba(0, 0, 0, 0.10);
+  --rm-border-strong: rgba(0, 0, 0, 0.18);
+  --rm-divider: rgba(0, 0, 0, 0.06);
+  --rm-muted: #3f3f46;
+  --rm-muted-2: #71717a;
+  --rm-overlay: rgba(0, 0, 0, 0.35);
+  --rm-ring: rgba(0, 0, 0, 0.20);
+  --rm-shadow-1: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --rm-shadow-2: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.dark {
+  /* Cool charcoal with a warm-ish off-white text. */
+  --background: #0e1014;
+  --foreground: #e7e5dc;
+
+  --rm-canvas: #0e1014;
+  --rm-ink: #e7e5dc;
+  --rm-line: #1d2026;
+  /* Inverted accent: in dark mode the "actions" surface flips to a
+     near-white pill so it still reads as the loud accent control. */
+  --rm-actions: #f0efea;
+  --rm-actions-fg: #15171b;
+  /* Step-header / brand primary: a deeper teal that integrates with the
+     dark canvas instead of looking like a bright light-mode bar pasted
+     onto dark UI. Keeps enough chroma to read as the brand teal, sits
+     two steps darker than the light value to feel "native" to dark
+     mode, and still hits AA against the off-white primary-fg below. */
+  --rm-primary: #14584f;
+  --rm-primary-hover: #1c7669;
+  --rm-primary-fg: #ecf6f4;
+
+  /* Severity fills — same hue families as light, dialed for a calm
+     dark UI. Identifiable at a glance without dominating the cells. */
+  --rm-green: #1d3f2c;
+  --rm-yellow: #483b18;
+  --rm-orange: #4d301a;
+  --rm-red: #4d2020;
+  --rm-green-saturated: #25593c;
+  --rm-yellow-saturated: #5e4d22;
+  --rm-orange-saturated: #683d22;
+  --rm-red-saturated: #6b2c2c;
+  /* Strong (star fills, etc) — pastels at high chroma, share both modes */
+  --rm-green-strong: #4ccd7a;
+  --rm-yellow-strong: #e4c23d;
+  --rm-orange-strong: #f2934a;
+  --rm-red-strong: #ef6f6f;
+
+  --rm-star: var(--rm-ink);
+  --rm-star-strong: var(--rm-ink);
+
+  --rm-surface: #181b21;
+  --rm-surface-2: #21252d;
+  --rm-surface-hover: rgba(255, 255, 255, 0.06);
+  --rm-surface-hover-2: rgba(255, 255, 255, 0.10);
+  --rm-surface-translucent: rgba(24, 27, 33, 0.82);
+  --rm-border: rgba(255, 255, 255, 0.10);
+  --rm-border-strong: rgba(255, 255, 255, 0.20);
+  --rm-divider: rgba(255, 255, 255, 0.06);
+  --rm-muted: #b6b3aa;
+  --rm-muted-2: #8a8780;
+  --rm-overlay: rgba(0, 0, 0, 0.55);
+  --rm-ring: rgba(255, 255, 255, 0.25);
+  --rm-shadow-1: 0 1px 2px rgba(0, 0, 0, 0.40);
+  --rm-shadow-2: 0 1px 2px rgba(0, 0, 0, 0.35);
 }
 
 @theme inline {
@@ -12,32 +128,45 @@
   --font-mono: var(--font-geist-mono);
 
   /* Risk matrix palette */
-  --color-rm-green: #d4ebd4;
-  --color-rm-yellow: #f1e6b8;
-  --color-rm-orange: #f2d2b6;
-  --color-rm-red: #eebcbc;
-  /* Brighter pastel accents (same families as rm-* fills, more chroma, not muddy) */
-  --color-rm-green-strong: #4ccd7a;
-  --color-rm-yellow-strong: #e4c23d;
-  --color-rm-orange-strong: #f2934a;
-  --color-rm-red-strong: #ef6f6f;
-  --color-rm-canvas: #fafaf7;
-  --color-rm-ink: #1a1a1a;
-  --color-rm-line: #f5f5f2;
-  --color-rm-actions: #2a2a28;
-  --color-rm-actions-fg: #fafaf7;
-  /* Primary CTA (teal — distinct from risk pastels and charcoal actions chrome) */
-  --color-rm-primary: #0f7669;
-  --color-rm-primary-hover: #115e59;
-  --color-rm-primary-fg: #fafaf7;
-  /* Star matches body text */
-  --color-rm-star: var(--color-rm-ink);
-  --color-rm-star-strong: var(--color-rm-ink);
-}
+  --color-rm-canvas: var(--rm-canvas);
+  --color-rm-ink: var(--rm-ink);
+  --color-rm-line: var(--rm-line);
+  --color-rm-actions: var(--rm-actions);
+  --color-rm-actions-fg: var(--rm-actions-fg);
+  --color-rm-primary: var(--rm-primary);
+  --color-rm-primary-hover: var(--rm-primary-hover);
+  --color-rm-primary-fg: var(--rm-primary-fg);
 
-/* No prefers-color-scheme overrides: UI is light-only (rm-canvas pastels). Dark
-   system theme was turning `body` near-black while content stayed light, which
-   read as a broken layout (especially wide-viewport side gutters). */
+  --color-rm-green: var(--rm-green);
+  --color-rm-yellow: var(--rm-yellow);
+  --color-rm-orange: var(--rm-orange);
+  --color-rm-red: var(--rm-red);
+  --color-rm-green-saturated: var(--rm-green-saturated);
+  --color-rm-yellow-saturated: var(--rm-yellow-saturated);
+  --color-rm-orange-saturated: var(--rm-orange-saturated);
+  --color-rm-red-saturated: var(--rm-red-saturated);
+  --color-rm-green-strong: var(--rm-green-strong);
+  --color-rm-yellow-strong: var(--rm-yellow-strong);
+  --color-rm-orange-strong: var(--rm-orange-strong);
+  --color-rm-red-strong: var(--rm-red-strong);
+
+  --color-rm-star: var(--rm-star);
+  --color-rm-star-strong: var(--rm-star-strong);
+
+  /* Semantic surfaces / borders / muted text */
+  --color-rm-surface: var(--rm-surface);
+  --color-rm-surface-2: var(--rm-surface-2);
+  --color-rm-surface-hover: var(--rm-surface-hover);
+  --color-rm-surface-hover-2: var(--rm-surface-hover-2);
+  --color-rm-surface-translucent: var(--rm-surface-translucent);
+  --color-rm-border: var(--rm-border);
+  --color-rm-border-strong: var(--rm-border-strong);
+  --color-rm-divider: var(--rm-divider);
+  --color-rm-muted: var(--rm-muted);
+  --color-rm-muted-2: var(--rm-muted-2);
+  --color-rm-overlay: var(--rm-overlay);
+  --color-rm-ring: var(--rm-ring);
+}
 
 body {
   background: var(--background);
@@ -45,8 +174,22 @@ body {
   font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
 }
 
-/* Pool/matrix line drag: “closed hand” under the pointer (overrides nested cursor-text). */
+/* Pool/matrix line drag: "closed hand" under the pointer (overrides nested cursor-text). */
 .rm-dragging-active,
 .rm-dragging-active * {
   cursor: grabbing !important;
+}
+
+/* Native form controls (text inputs, focus rings) flip to match the theme. */
+:root { color-scheme: light; }
+.dark { color-scheme: dark; }
+
+/* CSS-only fallback for the sticky title-row offset at md+. Matches the
+   title row's `min-h-10 + py-3` (40 + 24 = 64px) so descendant stickies
+   align flush with the title row even if the JS measurement hasn't
+   landed yet. JS overrides this with the real measured height. */
+@media (min-width: 768px) {
+  :root {
+    --rm-topbar-h: 4rem;
+  }
 }

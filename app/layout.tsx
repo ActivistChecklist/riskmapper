@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
+import { buildThemeBootScript } from "@/lib/theme";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -48,6 +49,15 @@ export default function RootLayout({
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
+      <head>
+        {/* Paint the correct theme before first frame to avoid a flash of
+            light theme on dark-preferring users (and vice versa). The
+            script reads the saved preference from localStorage and
+            falls back to `prefers-color-scheme`. See lib/theme.ts. */}
+        <script
+          dangerouslySetInnerHTML={{ __html: buildThemeBootScript() }}
+        />
+      </head>
       <body className="flex min-h-full flex-col">
         {children}
         <Toaster />

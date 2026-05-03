@@ -8,12 +8,12 @@ export default function MatrixHelpSection() {
   const [open, setOpen] = useState(false);
 
   return (
-    <section className="mb-5 w-full rounded-lg border border-black/10 bg-zinc-100/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)]">
+    <section className="mb-5 w-full rounded-lg border border-rm-border bg-rm-surface-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-rm-ink outline-none transition-colors hover:bg-black/4 focus-visible:ring-2 focus-visible:ring-black/15 sm:px-4 sm:py-3 sm:text-[15px]"
+        className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-rm-ink outline-none transition-colors hover:bg-rm-surface-hover focus-visible:ring-2 focus-visible:ring-rm-ring sm:px-4 sm:py-3 sm:text-[15px]"
       >
         {open ? (
           <ChevronDown size={18} className="shrink-0 opacity-70" aria-hidden />
@@ -24,7 +24,7 @@ export default function MatrixHelpSection() {
         <span>How to do risk mapping</span>
       </button>
       {open ? (
-        <div className="border-t border-black/10 px-3 pb-3.5 pt-4 text-sm leading-relaxed text-rm-ink/90 sm:px-4 sm:pb-4 sm:pt-5">
+        <div className="border-t border-rm-border px-3 pb-3.5 pt-4 text-sm leading-relaxed text-rm-ink/90 sm:px-4 sm:pb-4 sm:pt-5">
           <div className="mx-auto max-w-3xl">
             <h2 className="mb-3 text-base font-semibold leading-tight text-rm-ink sm:text-lg">
               How to do risk mapping

@@ -55,7 +55,7 @@ export default function RiskPoolSection({
         className={[
           "group flex min-h-[100px] w-full cursor-text flex-col px-3 py-2.5 sm:px-4 sm:py-3",
           dragOverTarget === "pool"
-            ? "shadow-[inset_0_0_0_2px_rgba(0,0,0,0.35)]"
+            ? "shadow-[inset_0_0_0_2px_rgba(0,0,0,0.35)] dark:shadow-[inset_0_0_0_2px_rgba(255,255,255,0.4)]"
             : "",
         ].join(" ")}
       >
@@ -86,7 +86,7 @@ export default function RiskPoolSection({
           </div>
           <div
             className={[
-              "mt-1 flex shrink-0 justify-start border-t border-black/5 pt-1",
+              "mt-1 flex shrink-0 justify-start border-t border-rm-divider pt-1",
               POINTER_ADD_ROW_HOVER_CLASSES,
             ].join(" ")}
           >

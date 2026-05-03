@@ -149,8 +149,8 @@ export default function NotesEditor({
           // explicitly opt-in via list-disc / list-decimal + a left
           // pad to make room for the marker.
           "min-h-[5rem] outline-none max-w-none text-rm-ink " +
-          "[&_h1]:text-lg [&_h1]:font-semibold [&_h1]:mt-0 [&_h1]:mb-2 " +
-          "[&_h2]:text-base [&_h2]:font-semibold [&_h2]:mt-3 [&_h2]:mb-1.5 " +
+          "[&_h1]:text-2xl [&_h1]:font-semibold [&_h1]:leading-tight [&_h1]:mt-0 [&_h1]:mb-2 " +
+          "[&_h2]:text-xl [&_h2]:font-semibold [&_h2]:leading-snug [&_h2]:mt-4 [&_h2]:mb-2 " +
           "[&_p]:my-1.5 " +
           "[&_ul]:my-1.5 [&_ul]:list-disc [&_ul]:pl-6 " +
           "[&_ol]:my-1.5 [&_ol]:list-decimal [&_ol]:pl-6 " +
@@ -191,8 +191,8 @@ export default function NotesEditor({
       className={cn(
         "h-8 w-8 p-0",
         isActive
-          ? "bg-rm-primary/10 text-rm-primary hover:bg-rm-primary/15"
-          : "text-rm-ink/70 hover:bg-black/5 hover:text-rm-ink",
+          ? "bg-rm-primary/10 text-rm-primary hover:bg-rm-primary/15 dark:bg-rm-primary/20"
+          : "text-rm-ink/70 hover:bg-rm-surface-hover hover:text-rm-ink",
       )}
     >
       {icon}
@@ -202,7 +202,7 @@ export default function NotesEditor({
   return (
     <div
       className={cn(
-        "flex flex-col overflow-hidden rounded-md border border-black/10 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)]",
+        "flex flex-col overflow-hidden rounded-md border border-rm-border bg-rm-surface shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:shadow-[0_1px_2px_rgba(0,0,0,0.4)]",
         className,
       )}
     >
@@ -215,7 +215,7 @@ export default function NotesEditor({
         </span>
       </div>
       <div
-        className="flex flex-wrap items-center gap-0.5 border-b border-black/10 bg-zinc-50/80 px-1.5 py-1"
+        className="flex flex-wrap items-center gap-0.5 border-b border-rm-border bg-rm-surface-2 px-1.5 py-1"
         role="toolbar"
         aria-label="Notes formatting"
       >
@@ -231,7 +231,7 @@ export default function NotesEditor({
           editor.isActive("italic"),
           () => editor.chain().focus().toggleItalic().run(),
         )}
-        <span className="mx-0.5 inline-block h-5 w-px bg-black/10" aria-hidden />
+        <span className="mx-0.5 inline-block h-5 w-px bg-rm-border" aria-hidden />
         {toolbarButton(
           <Heading1 size={14} strokeWidth={2} aria-hidden />,
           "Heading 1",
@@ -244,7 +244,7 @@ export default function NotesEditor({
           editor.isActive("heading", { level: 2 }),
           () => editor.chain().focus().toggleHeading({ level: 2 }).run(),
         )}
-        <span className="mx-0.5 inline-block h-5 w-px bg-black/10" aria-hidden />
+        <span className="mx-0.5 inline-block h-5 w-px bg-rm-border" aria-hidden />
         {toolbarButton(
           <List size={14} strokeWidth={2} aria-hidden />,
           "Bulleted list",
@@ -257,7 +257,7 @@ export default function NotesEditor({
           editor.isActive("orderedList"),
           () => editor.chain().focus().toggleOrderedList().run(),
         )}
-        <span className="mx-0.5 inline-block h-5 w-px bg-black/10" aria-hidden />
+        <span className="mx-0.5 inline-block h-5 w-px bg-rm-border" aria-hidden />
         {toolbarButton(
           <LinkIcon size={14} strokeWidth={2} aria-hidden />,
           "Link",

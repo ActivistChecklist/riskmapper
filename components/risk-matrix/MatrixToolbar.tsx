@@ -147,7 +147,7 @@ export function MatrixDocumentActions({
       className={cn(
         iconBtn,
         toolbar &&
-          "text-zinc-700 hover:bg-red-50 hover:text-red-800 active:bg-red-100/80",
+          "text-rm-muted hover:bg-red-50 hover:text-red-800 active:bg-red-100/80 dark:hover:bg-red-950/40 dark:hover:text-red-200 dark:active:bg-red-900/50",
       )}
       aria-label="Delete this matrix from this browser"
     >
@@ -155,7 +155,7 @@ export function MatrixDocumentActions({
         size={15}
         strokeWidth={2}
         aria-hidden
-        className="text-zinc-600 transition-colors group-hover:text-red-600"
+        className="text-rm-muted transition-colors group-hover:text-red-600"
       />
       {!iconOnly ? "Delete" : null}
     </Button>
@@ -215,11 +215,11 @@ export function MatrixDocumentActions({
               ws.recentSorted.map((m) => (
                 <div
                   key={m.id}
-                  className="flex gap-1 rounded-md border border-black/10 bg-white p-1"
+                  className="flex gap-1 rounded-md border border-rm-border bg-rm-surface p-1"
                 >
                   <button
                     type="button"
-                    className="flex min-w-0 flex-1 flex-col items-start rounded px-2 py-1.5 text-left text-sm hover:bg-black/[0.04] focus-visible:ring-2 focus-visible:ring-black/15"
+                    className="flex min-w-0 flex-1 flex-col items-start rounded px-2 py-1.5 text-left text-sm hover:bg-rm-surface-hover focus-visible:ring-2 focus-visible:ring-rm-ring"
                     onClick={() => {
                       ws.openSaved(m.id);
                       setRecentOpen(false);
@@ -231,7 +231,7 @@ export function MatrixDocumentActions({
                       </span>
                       {m.cloud ? (
                         <span
-                          className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-900"
+                          className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-900 dark:bg-emerald-950/50 dark:text-emerald-200"
                           title="Shared via cloud sync"
                         >
                           <UsersRound size={12} aria-hidden />
@@ -262,7 +262,7 @@ export function MatrixDocumentActions({
                       size={15}
                       strokeWidth={2}
                       aria-hidden
-                      className="text-zinc-600 transition-colors group-hover:text-red-600"
+                      className="text-rm-muted transition-colors group-hover:text-red-600"
                     />
                   </Button>
                 </div>
@@ -308,7 +308,7 @@ export function MatrixDocumentActions({
                   submitCreate();
                 }
               }}
-              className="mt-1 w-full rounded-md border border-black/15 bg-white px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-black/15"
+              className="mt-1 w-full rounded-md border border-rm-border-strong bg-rm-surface px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-rm-ring"
               placeholder="e.g. Direct action — safety & legal risks"
               autoFocus
               aria-label="Name for the current matrix"

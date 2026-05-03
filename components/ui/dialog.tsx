@@ -34,7 +34,7 @@ function DialogOverlay({
 }: React.ComponentProps<typeof DialogPrimitive.Overlay>) {
   return (
     <DialogPrimitive.Overlay
-      className={cn("fixed inset-0 z-50 bg-black/35", className)}
+      className={cn("fixed inset-0 z-50 bg-rm-overlay", className)}
       {...props}
     />
   );
@@ -50,7 +50,7 @@ function DialogContent({
       <DialogOverlay />
       <DialogPrimitive.Content
         className={cn(
-          "fixed top-1/2 left-1/2 z-50 w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-lg border border-black/10 bg-rm-canvas p-5 shadow-lg",
+          "fixed top-1/2 left-1/2 z-50 w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-lg border border-rm-border bg-rm-canvas p-5 shadow-lg",
           className,
         )}
         {...props}

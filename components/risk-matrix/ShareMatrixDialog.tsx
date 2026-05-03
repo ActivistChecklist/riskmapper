@@ -132,28 +132,28 @@ export default function ShareMatrixDialog({
         </DialogHeader>
 
         <div
-          className="mt-4 flex gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950 shadow-sm"
+          className="mt-4 flex gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950 shadow-sm dark:border-amber-700/70 dark:bg-amber-950/40 dark:text-amber-100"
           role="note"
           aria-label="Who can use this share link"
         >
-          <AlertTriangle className="size-5 shrink-0 text-amber-700" aria-hidden />
+          <AlertTriangle className="size-5 shrink-0 text-amber-700 dark:text-amber-300" aria-hidden />
           <div className="min-w-0">
-            <p className="font-semibold text-amber-950">Anyone with the full link can:</p>
+            <p className="font-semibold text-amber-950 dark:text-amber-100">Anyone with the full link can:</p>
             <ul className="mt-2 space-y-2">
               <li className="flex gap-2">
-                <Pencil className="mt-0.5 size-4 shrink-0 text-amber-800" aria-hidden />
+                <Pencil className="mt-0.5 size-4 shrink-0 text-amber-800 dark:text-amber-300" aria-hidden />
                 <span>Read and edit this matrix (same as you).</span>
               </li>
               <li className="flex gap-2">
-                <Trash2 className="mt-0.5 size-4 shrink-0 text-amber-800" aria-hidden />
+                <Trash2 className="mt-0.5 size-4 shrink-0 text-amber-800 dark:text-amber-300" aria-hidden />
                 <span>
                   Remove the shared copy from the cloud — for example with Stop sharing
                   here, or by wiping the server copy — which affects everyone using the link.
                 </span>
               </li>
             </ul>
-            <p className="mt-3 flex gap-2 border-t border-amber-200/80 pt-3 text-amber-950/95">
-              <EyeOff className="mt-0.5 size-4 shrink-0 text-amber-800" aria-hidden />
+            <p className="mt-3 flex gap-2 border-t border-amber-200/80 pt-3 text-amber-950/95 dark:border-amber-800/50 dark:text-amber-100/95">
+              <EyeOff className="mt-0.5 size-4 shrink-0 text-amber-800 dark:text-amber-300" aria-hidden />
               <span>
                 There is <span className="font-semibold">no view-only</span> share link. The URL
                 is a single password-like capability for full access.
@@ -175,9 +175,9 @@ export default function ShareMatrixDialog({
         {error ? (
           <div
             role="alert"
-            className="mt-4 flex gap-2 rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-900"
+            className="mt-4 flex gap-2 rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-900 dark:border-red-800/70 dark:bg-red-950/40 dark:text-red-200"
           >
-            <AlertTriangle className="mt-0.5 size-4 shrink-0 text-red-700" aria-hidden />
+            <AlertTriangle className="mt-0.5 size-4 shrink-0 text-red-700 dark:text-red-300" aria-hidden />
             <span>{error}</span>
           </div>
         ) : null}
@@ -219,7 +219,7 @@ export default function ShareMatrixDialog({
               <input
                 aria-label="Share link"
                 aria-readonly="true"
-                className="min-w-0 flex-1 rounded-md border border-black/15 bg-black/5 cursor-default select-all px-3 py-2 font-mono text-xs"
+                className="min-w-0 flex-1 rounded-md border border-rm-border-strong bg-rm-surface-hover cursor-default select-all px-3 py-2 font-mono text-xs"
                 readOnly
                 value={shareUrl}
                 onFocus={(e) => e.currentTarget.select()}
@@ -243,7 +243,7 @@ export default function ShareMatrixDialog({
               </Button>
             </div>
             {copyError ? (
-              <p role="alert" className="text-sm text-red-700">
+              <p role="alert" className="text-sm text-red-700 dark:text-red-300">
                 Copy failed — select the link above and copy manually.
               </p>
             ) : null}

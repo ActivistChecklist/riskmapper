@@ -9,6 +9,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { MatrixDocumentActions } from "./MatrixToolbar";
+import ThemeToggle from "./ThemeToggle";
 import type { MatrixWorkspaceApi } from "./useMatrixWorkspace";
 
 type Props = {
@@ -63,6 +64,7 @@ export default function MatrixTopBar({
   const toolbarRef = useRef<HTMLDivElement>(null);
   const measureRef = useRef<HTMLDivElement>(null);
   const titleMirrorRef = useRef<HTMLSpanElement>(null);
+  const titleRowRef = useRef<HTMLDivElement>(null);
   const [iconOnlyToolbar, setIconOnlyToolbar] = useState(false);
   const [titleInputWidthPx, setTitleInputWidthPx] = useState(0);
 
@@ -88,6 +90,39 @@ export default function MatrixTopBar({
     };
   }, []);
 
+  // Publish the title-row height as `--rm-topbar-h` whenever the title row
+  // is actually sticky (md+), so other sticky descendants (matrix impact
+  // header, mitigations table headers) can offset themselves under it.
+  // Below md the var stays 0px so those descendants keep sticking at the
+  // viewport top.
+  useLayoutEffect(() => {
+    if (typeof window === "undefined") return;
+    if (typeof window.matchMedia !== "function") return;
+    const row = titleRowRef.current;
+    if (!row) return;
+    const root = document.documentElement;
+    const mq = window.matchMedia("(min-width: 768px)");
+    const sync = () => {
+      if (mq.matches) {
+        root.style.setProperty("--rm-topbar-h", `${row.offsetHeight}px`);
+      } else {
+        root.style.setProperty("--rm-topbar-h", "0px");
+      }
+    };
+    sync();
+    const ro =
+      typeof ResizeObserver === "undefined"
+        ? null
+        : new ResizeObserver(() => window.requestAnimationFrame(sync));
+    ro?.observe(row);
+    mq.addEventListener("change", sync);
+    return () => {
+      ro?.disconnect();
+      mq.removeEventListener("change", sync);
+      root.style.removeProperty("--rm-topbar-h");
+    };
+  }, []);
+
   useLayoutEffect(() => {
     const mirror = titleMirrorRef.current;
     if (!mirror) return;
@@ -96,8 +131,15 @@ export default function MatrixTopBar({
 
   return (
     <TooltipProvider delayDuration={400}>
-      <div className="mb-3 flex flex-col gap-3">
-        <div className="flex min-h-10 min-w-0 flex-nowrap items-center gap-x-3 sm:gap-x-4">
+      {/* No flex-column wrapper here on purpose: the title row is sticky
+          (md+), and a wrapping flex container would constrain its sticky
+          range to the wrapper's own height (~100px). With these as
+          direct children of the page canvas, the row sticks for the
+          entire page scroll. */}
+      <div
+        ref={titleRowRef}
+        className="mb-3 flex min-h-10 min-w-0 flex-nowrap items-center gap-x-3 bg-rm-canvas py-3 sm:gap-x-4 md:sticky md:top-0 md:z-30"
+      >
           <Tooltip>
             <TooltipTrigger asChild>
               <div className="shrink-0">
@@ -142,7 +184,7 @@ export default function MatrixTopBar({
               }}
               placeholder="Matrix title"
               aria-label="Matrix title"
-              className="w-full min-w-0 truncate rounded-md border border-transparent bg-transparent px-2 py-1 text-lg font-semibold text-rm-ink outline-none placeholder:opacity-45 hover:border-black/20 hover:bg-black/2 focus-visible:border-rm-primary focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-rm-primary/20 sm:text-xl"
+              className="w-full min-w-0 truncate rounded-md border border-transparent bg-transparent px-2 py-1 text-lg font-semibold text-rm-ink outline-none placeholder:opacity-45 hover:border-rm-border-strong hover:bg-rm-surface-hover focus-visible:border-rm-primary focus-visible:bg-rm-surface focus-visible:ring-2 focus-visible:ring-rm-primary/20 sm:text-xl"
             />
           </div>
           {statusIndicator ? (
@@ -151,23 +193,22 @@ export default function MatrixTopBar({
           {/* Right-anchored cluster (Google Docs style):
               [Copy] [Share]. Copy is neutral (outline), Share is the
               primary CTA. */}
-          {copyMenu || pdfButton || cloudShareControl ? (
-            <div className="ml-auto flex shrink-0 items-center gap-2">
-              {/* iconOnly is the small-screen hint; child components also
-                  use Tailwind responsive classes to hide labels at the
-                  same breakpoint, so the rendered DOM matches the layout
-                  decision at every width. */}
-              {copyMenu ? copyMenu({ iconOnly: false }) : null}
-              {pdfButton}
-              {cloudShareControl}
-            </div>
-          ) : null}
+          <div className="ml-auto flex shrink-0 items-center gap-2">
+            {/* iconOnly is the small-screen hint; child components also
+                use Tailwind responsive classes to hide labels at the
+                same breakpoint, so the rendered DOM matches the layout
+                decision at every width. */}
+            <ThemeToggle />
+            {copyMenu ? copyMenu({ iconOnly: false }) : null}
+            {pdfButton}
+            {cloudShareControl}
+          </div>
         </div>
 
-        <div
-          ref={toolbarRef}
-          className="relative flex min-h-10 w-full min-w-0 flex-nowrap items-center rounded-lg border border-black/10 bg-white/85 px-1.5 py-1 shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
-        >
+      <div
+        ref={toolbarRef}
+        className="relative mb-3 flex min-h-10 w-full min-w-0 flex-nowrap items-center rounded-lg border border-rm-border bg-rm-surface-translucent px-1.5 py-1 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:shadow-[0_1px_2px_rgba(0,0,0,0.4)]"
+      >
           <div
             ref={measureRef}
             className="pointer-events-none invisible absolute top-0 left-0 z-0 flex w-max max-w-none flex-nowrap items-center"
@@ -175,12 +216,11 @@ export default function MatrixTopBar({
           >
             <MatrixToolbarWidthProbe />
           </div>
-          <MatrixDocumentActions
-            iconOnly={iconOnlyToolbar}
-            toolbar
-            workspace={ws}
-          />
-        </div>
+        <MatrixDocumentActions
+          iconOnly={iconOnlyToolbar}
+          toolbar
+          workspace={ws}
+        />
       </div>
     </TooltipProvider>
   );

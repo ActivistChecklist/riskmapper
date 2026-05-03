@@ -48,17 +48,30 @@ export default function LikelihoodImpactMatrix({
   return (
     <div
       className={[
-        "grid grid-cols-[32px_repeat(3,1fr)] grid-rows-[auto_repeat(3,minmax(140px,auto))] gap-px overflow-hidden bg-black/6 sm:grid-cols-[44px_repeat(3,1fr)]",
+        // overflow-clip (not -hidden) lets the sticky impact-axis row
+        // below stay pinned to the viewport. overflow-hidden establishes
+        // a scrolling container that swallows sticky positioning.
+        "grid grid-cols-[32px_repeat(3,1fr)] grid-rows-[auto_repeat(3,minmax(140px,auto))] gap-px overflow-clip bg-rm-border sm:grid-cols-[44px_repeat(3,1fr)]",
         stepSectionFrame
-          ? "rounded-none border border-black/10 border-t-0 sm:rounded-none sm:rounded-b-md"
-          : "rounded-none border border-black/8 sm:rounded",
+          ? "rounded-none border border-rm-border border-t-0 sm:rounded-none sm:rounded-b-md"
+          : "rounded-none border border-rm-border sm:rounded",
       ].join(" ")}
     >
-      <div className="bg-rm-canvas" />
+      {/* Header row (corner + 3 column labels) is sticky so the
+          impact axis stays visible while you scroll past tall cells.
+          `--rm-topbar-h` is 0 below md, so the header sticks at the
+          viewport top on mobile and just under the sticky top bar at
+          md+. z-10 keeps it above cell content but below the title bar
+          (z-30 in MatrixTopBar). */}
+      <div
+        className="sticky z-10 bg-rm-canvas"
+        style={{ top: "var(--rm-topbar-h, 0px)" }}
+      />
       {COL_LABELS.map((label) => (
         <div
           key={label}
-          className="flex items-center justify-center bg-rm-canvas px-1 py-2 text-xs font-medium tracking-wide opacity-95 sm:px-2 sm:py-2.5 sm:text-sm"
+          className="sticky z-10 flex items-center justify-center bg-rm-canvas px-1 py-2 text-xs font-medium tracking-wide opacity-95 sm:px-2 sm:py-2.5 sm:text-sm"
+          style={{ top: "var(--rm-topbar-h, 0px)" }}
         >
           {label}
         </div>
@@ -84,7 +97,7 @@ export default function LikelihoodImpactMatrix({
                   CELL_BG_CLASSES[row][col],
                   "group relative flex min-h-0 cursor-text flex-col px-1 py-1 transition-shadow duration-100 sm:px-1.5",
                   isDragOver
-                    ? "shadow-[inset_0_0_0_2px_rgba(0,0,0,0.5)]"
+                    ? "shadow-[inset_0_0_0_2px_rgba(0,0,0,0.5)] dark:shadow-[inset_0_0_0_2px_rgba(255,255,255,0.5)]"
                     : "",
                 ].join(" ")}
               >

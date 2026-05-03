@@ -49,8 +49,11 @@ export default function StepSection({
     >
       <div
         className={cn(
-          "rounded-md border border-black/10 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.05)]",
-          !allowOverflow && "overflow-hidden",
+          "rounded-md border border-rm-border bg-rm-surface shadow-[0_1px_2px_rgba(0,0,0,0.05)] dark:shadow-[0_1px_2px_rgba(0,0,0,0.4)]",
+          // overflow-clip (not -hidden) so sticky descendants (e.g. the
+          // matrix impact-axis row) are not trapped in this card's
+          // scroll container and can stick to the page viewport.
+          !allowOverflow && "overflow-clip",
         )}
       >
         <div
@@ -72,7 +75,7 @@ export default function StepSection({
             </div>
           ) : null}
         </div>
-        <div className="min-w-0 bg-white">{children}</div>
+        <div className="min-w-0 bg-rm-surface">{children}</div>
       </div>
     </div>
   );

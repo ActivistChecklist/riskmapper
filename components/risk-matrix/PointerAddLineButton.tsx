@@ -40,7 +40,7 @@ export default function PointerAddLineButton({
   tooltip = (
     <>
       Click to add a line. You can also press{" "}
-      <kbd className="rounded border border-black/15 bg-black/6 px-1 font-mono text-[10px]">
+      <kbd className="rounded border border-rm-border-strong bg-rm-surface-hover px-1 font-mono text-[10px]">
         Enter
       </kbd>{" "}
       while typing in a line to add another.
@@ -63,9 +63,9 @@ export default function PointerAddLineButton({
               onTrigger();
             }}
             className={cn(
-              "inline-flex items-center gap-1 rounded border border-transparent px-1.5 py-0.5 text-left text-[11px] font-medium text-zinc-600",
-              "hover:border-black/10 hover:bg-white/80 hover:text-zinc-900",
-              "focus-visible:border-black/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20",
+              "inline-flex items-center gap-1 rounded border border-transparent px-1.5 py-0.5 text-left text-[11px] font-medium text-rm-muted",
+              "hover:border-rm-border hover:bg-rm-surface hover:text-rm-ink",
+              "focus-visible:border-rm-border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rm-ring",
               className,
             )}
           >

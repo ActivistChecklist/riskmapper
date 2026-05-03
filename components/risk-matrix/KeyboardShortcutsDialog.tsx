@@ -20,7 +20,7 @@ function Kbd({
   return (
     <kbd
       className={cn(
-        "pointer-events-none inline-flex h-6 min-w-[1.5rem] select-none items-center justify-center rounded border border-black/12 bg-zinc-100 px-1.5 font-mono text-[11px] font-medium text-rm-ink/90",
+        "pointer-events-none inline-flex h-6 min-w-[1.5rem] select-none items-center justify-center rounded border border-rm-border bg-rm-surface-2 px-1.5 font-mono text-[11px] font-medium text-rm-ink/90",
         className,
       )}
     >
@@ -37,7 +37,7 @@ function ShortcutTable({ rows }: { rows: Row[] }) {
       {rows.map((row) => (
         <div
           key={row.label}
-          className="flex flex-col gap-1 border-b border-black/[0.06] pb-3 last:border-0 last:pb-0 sm:flex-row sm:items-start sm:justify-between sm:gap-4"
+          className="flex flex-col gap-1 border-b border-rm-divider pb-3 last:border-0 last:pb-0 sm:flex-row sm:items-start sm:justify-between sm:gap-4"
         >
           <div className="flex shrink-0 flex-wrap items-center gap-1">{row.keys}</div>
           <div className="min-w-0 flex-1 text-rm-ink/90">

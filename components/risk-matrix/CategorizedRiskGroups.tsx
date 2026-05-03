@@ -133,16 +133,6 @@ export default function CategorizedRiskGroups({
     });
   }, [sections, hiddenSet, categorizedRevealHidden]);
 
-  const riskRowOffsetByGroup = useMemo(() => {
-    let acc = 0;
-    const m = new Map<ColorGroupKey, number>();
-    for (const { group, displayRisks } of sectionsWithDisplay) {
-      m.set(group.key, acc);
-      acc += displayRisks.length;
-    }
-    return m;
-  }, [sectionsWithDisplay]);
-
   useLayoutEffect(() => {
     const root = rootRef.current;
     const thead = theadRef.current;
@@ -165,10 +155,10 @@ export default function CategorizedRiskGroups({
     <div
       ref={rootRef}
       className={cn(
-        "min-w-0 bg-white [--rm-mit-thead-h:3.25rem]",
+        "min-w-0 bg-rm-surface [--rm-mit-thead-h:3.25rem]",
         embeddedInStepSection
-          ? "mb-0 rounded-t-none rounded-b-md border border-x-0 border-b border-black/10 border-t border-black/10"
-          : "mb-3.5 rounded-md border border-black/10",
+          ? "mb-0 rounded-t-none rounded-b-md border border-x-0 border-b border-rm-border border-t border-rm-border"
+          : "mb-3.5 rounded-md border border-rm-border",
       )}
     >
       <MitigationsTableHeaderRow ref={theadRef} />
@@ -180,7 +170,7 @@ export default function CategorizedRiskGroups({
           return (
             <section
               key={group.key}
-              className={sectionIndex > 0 ? "border-t border-black/10" : undefined}
+              className={sectionIndex > 0 ? "border-t border-rm-border" : undefined}
             >
               <div
                 role="button"
@@ -195,8 +185,14 @@ export default function CategorizedRiskGroups({
                     setCollapsed((c) => ({ ...c, [group.key]: !c[group.key] }));
                   }
                 }}
+                // Sticks below the (md+ only) sticky title bar +
+                // mitigations column-header row. `--rm-topbar-h`
+                // falls back to 0px below md.
+                style={{
+                  top: "calc(var(--rm-mit-thead-h) + var(--rm-topbar-h, 0px))",
+                }}
                 className={cn(
-                  "sticky top-[var(--rm-mit-thead-h)] z-20 flex w-full cursor-pointer select-none items-center justify-between gap-3 border-b border-black/8 px-3 py-2 shadow-[0_1px_0_rgba(0,0,0,0.03)]",
+                  "sticky z-20 flex w-full cursor-pointer select-none items-center justify-between gap-3 border-b border-rm-border px-3 py-2 shadow-[0_1px_0_rgba(0,0,0,0.03)]",
                   GROUP_HEADER_SATURATED_CLASS[group.key],
                 )}
               >
@@ -223,13 +219,10 @@ export default function CategorizedRiskGroups({
               </div>
 
               {!isCollapsed && (
-                <div className="bg-white px-0 pb-2">
+                <div className="bg-rm-surface px-0 pb-2">
                   {displayRisks.map((r, i) => {
                     const reduce = r.line.reduce || [];
                     const prepare = r.line.prepare || [];
-                    const rowIdx =
-                      (riskRowOffsetByGroup.get(group.key) ?? 0) + i;
-                    const stripe = rowIdx % 2 === 1 ? "bg-black/3" : "";
                     const rowKey = categorizedRiskRowKey(r.cellKey, r.line.id);
                     const isMarkedHidden = hiddenSet.has(rowKey);
                     const dimHiddenButRevealed = isMarkedHidden && reveal;
@@ -238,17 +231,16 @@ export default function CategorizedRiskGroups({
                         key={r.line.id}
                         className={[
                           "group/riskrow grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] items-start gap-4 px-3 py-2",
-                          dimHiddenButRevealed ? "bg-zinc-100/90" : GROUP_HEADER_CLASS[group.key],
-                          stripe,
-                          i === 0 ? "" : "border-t border-black/5",
+                          dimHiddenButRevealed ? "bg-rm-surface-2" : GROUP_HEADER_CLASS[group.key],
+                          i === 0 ? "" : "border-t border-rm-divider",
                         ].join(" ")}
                       >
                         <div
                           className={[
                             "min-w-0 rounded-[5px] px-1.5 py-1",
                             dimHiddenButRevealed
-                              ? "border border-zinc-300/90 bg-zinc-100"
-                              : "border border-black/10 bg-white/45",
+                              ? "border border-rm-border-strong bg-rm-surface-2"
+                              : "border border-rm-border bg-white/45 dark:bg-white/[0.04]",
                           ].join(" ")}
                         >
                           <div className="flex min-w-0 items-start gap-1">
@@ -265,7 +257,7 @@ export default function CategorizedRiskGroups({
                                 <TooltipTrigger asChild>
                                   <button
                                     type="button"
-                                    className="mt-0.5 shrink-0 rounded p-1 text-zinc-800 opacity-100 hover:bg-black/10 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500/50 md:opacity-0 md:group-hover/riskrow:opacity-100"
+                                    className="mt-0.5 shrink-0 rounded p-1 text-rm-ink opacity-100 hover:bg-rm-surface-hover-2 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rm-ring md:opacity-0 md:group-hover/riskrow:opacity-100"
                                     aria-label={
                                       isMarkedHidden
                                         ? "Always show this risk in the list"
@@ -395,11 +387,11 @@ export default function CategorizedRiskGroups({
                     );
                   })}
                   {hiddenInGroupCount > 0 ? (
-                    <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] items-start gap-4 bg-zinc-100/90 px-3 pt-1 pb-2">
+                    <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] items-start gap-4 bg-rm-surface-2 px-3 pt-1 pb-2">
                       <div className="min-w-0">
                         <button
                           type="button"
-                          className="rounded-sm px-1 py-0.5 text-left text-[11px] font-medium text-zinc-800 underline decoration-zinc-600/90 underline-offset-2 hover:bg-black/4 hover:text-zinc-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500/40 sm:text-xs"
+                          className="rounded-sm px-1 py-0.5 text-left text-[11px] font-medium text-rm-ink underline decoration-rm-muted underline-offset-2 hover:bg-rm-surface-hover hover:text-rm-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rm-ring sm:text-xs"
                           aria-pressed={reveal}
                           onClick={(e) => {
                             e.stopPropagation();

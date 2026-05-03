@@ -84,10 +84,10 @@ export const GROUP_HEADER_CLASS: Record<ColorGroupKey, string> = {
  * carry white type cleanly.
  */
 export const GROUP_HEADER_SATURATED_CLASS: Record<ColorGroupKey, string> = {
-  red: "bg-[#e0a3a3] text-rm-ink",
-  orange: "bg-[#e6bb98] text-rm-ink",
-  yellow: "bg-[#e4d398] text-rm-ink",
-  green: "bg-[#b8d8b8] text-rm-ink",
+  red: "bg-rm-red-saturated text-rm-ink",
+  orange: "bg-rm-orange-saturated text-rm-ink",
+  yellow: "bg-rm-yellow-saturated text-rm-ink",
+  green: "bg-rm-green-saturated text-rm-ink",
 };
 
 // Ordered from highest to lowest risk. Cells within a group are listed

@@ -47,8 +47,8 @@ const LineRow = React.memo(function LineRow({
         isEmpty
           ? "border-transparent bg-transparent"
           : inCell
-            ? "border-black/8 bg-white/55"
-            : "border-black/8 bg-rm-line",
+            ? "border-rm-border bg-white/55 dark:bg-white/[0.05]"
+            : "border-rm-border bg-rm-line",
       )}
       leftAffordance={
         <span

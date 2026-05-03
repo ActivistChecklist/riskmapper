@@ -64,7 +64,7 @@ const MitigationLineRow = React.memo(function MitigationLineRow({
         "my-0.5",
         isEmpty
           ? "border-transparent bg-transparent"
-          : "border-black/8 bg-rm-line",
+          : "border-rm-border bg-rm-line",
       )}
       leftAffordance={
         <TooltipProvider>
@@ -82,7 +82,7 @@ const MitigationLineRow = React.memo(function MitigationLineRow({
                   "flex w-[22px] shrink-0 cursor-pointer select-none items-center justify-center self-stretch sm:w-[24px]",
                   starred
                     ? "text-rm-star-strong"
-                    : "text-black opacity-70 hover:opacity-100",
+                    : "text-rm-ink opacity-70 hover:opacity-100",
                 )}
               >
                 <Star

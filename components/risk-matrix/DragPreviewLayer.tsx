@@ -19,8 +19,8 @@ export default function DragPreviewLayer({ dragState }: DragPreviewLayerProps) {
   return (
     <div
       className={cn(
-        "pointer-events-none fixed z-[1000] overflow-hidden rounded-[5px] border border-black/8",
-        "shadow-[0_10px_28px_rgba(0,0,0,0.2)]",
+        "pointer-events-none fixed z-[1000] overflow-hidden rounded-[5px] border border-rm-border",
+        "shadow-[0_10px_28px_rgba(0,0,0,0.2)] dark:shadow-[0_10px_28px_rgba(0,0,0,0.7)]",
         "rotate-[-2.5deg] origin-top-left",
       )}
       style={{
@@ -42,11 +42,11 @@ export default function DragPreviewLayer({ dragState }: DragPreviewLayerProps) {
       <div
         className={cn(
           "relative flex min-h-full items-start gap-0 p-0 sm:gap-0.5",
-          isCell ? "bg-white/55" : "bg-rm-line",
+          isCell ? "bg-white/55 dark:bg-white/[0.05]" : "bg-rm-line",
         )}
       >
         <span
-          className="flex w-[18px] shrink-0 select-none items-center justify-center self-stretch text-zinc-800 sm:w-[22px]"
+          className="flex w-[18px] shrink-0 select-none items-center justify-center self-stretch text-rm-ink sm:w-[22px]"
           aria-hidden
         >
           <GripVertical size={14} className="opacity-50" />

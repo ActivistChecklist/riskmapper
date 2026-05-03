@@ -10,7 +10,10 @@ const MitigationsTableHeaderRow = React.forwardRef<HTMLDivElement>(
     return (
       <div
         ref={ref}
-        className="sticky top-0 z-[21] grid gap-2 border-b border-black/10 bg-white px-2 py-2 text-xs font-medium leading-snug opacity-95 shadow-[0_1px_0_rgba(0,0,0,0.04)] sm:gap-4 sm:px-4 sm:py-3 sm:text-sm [grid-template-columns:minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)]"
+        // Sticks below the (md+ only) sticky title bar via --rm-topbar-h,
+        // which falls back to 0px on mobile.
+        className="sticky z-[21] grid gap-2 border-b border-rm-border bg-rm-surface px-2 py-2 text-xs font-medium leading-snug opacity-95 shadow-[0_1px_0_rgba(0,0,0,0.04)] sm:gap-4 sm:px-4 sm:py-3 sm:text-sm [grid-template-columns:minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)]"
+        style={{ top: "var(--rm-topbar-h, 0px)" }}
       >
         <div className="px-1 py-0.5 sm:px-2">Risk</div>
         <div className="px-1 py-0.5 sm:px-2">

@@ -77,7 +77,7 @@ export default function ActionsAside({
 
   const listBody =
     allActions.length > 0 || otherActions.length > 0 ? (
-      <div className="min-h-0 bg-white px-2 pb-1.5 pt-2">
+      <div className="min-h-0 bg-rm-surface px-2 pb-1.5 pt-2">
         {allActions.map((action) => (
           <ActionRow
             key={`${action.cellKey}-${action.parentLineId}-${action.subType}-${action.subLine.id}`}
@@ -98,15 +98,15 @@ export default function ActionsAside({
         {addOtherActionControl}
       </div>
     ) : (
-      <div className="flex min-h-[12.5rem] flex-col bg-white px-3 pb-2 pt-2.5 sm:min-h-[14rem]">
+      <div className="flex min-h-[12.5rem] flex-col bg-rm-surface px-3 pb-2 pt-2.5 sm:min-h-[14rem]">
         <div
-          className="flex min-h-[10.5rem] flex-1 flex-col items-center justify-center rounded-lg border border-dashed border-zinc-300/90 bg-zinc-50/70 px-4 py-8 sm:min-h-[11.5rem]"
+          className="flex min-h-[10.5rem] flex-1 flex-col items-center justify-center rounded-lg border border-dashed border-rm-border-strong bg-rm-surface-2 px-4 py-8 sm:min-h-[11.5rem]"
           aria-label="Placeholder: starred mitigations and preparations also list here."
         >
-          <p className="max-w-[17rem] text-center text-[13px] leading-snug font-normal italic text-zinc-400 sm:text-sm sm:leading-relaxed">
+          <p className="max-w-[17rem] text-center text-[13px] leading-snug font-normal italic text-rm-muted-2 sm:text-sm sm:leading-relaxed">
             Star a mitigation or preparation item to also show it here as a
             prioritized action, or use{" "}
-            <span className="font-medium not-italic text-zinc-500">
+            <span className="font-medium not-italic text-rm-muted">
               Add other action
             </span>{" "}
             below for anything else.
@@ -121,7 +121,7 @@ export default function ActionsAside({
   // ActionsAside itself just lays out normally.
   return (
     <aside className="min-w-0">
-      <div className="flex flex-col overflow-hidden rounded-md border border-black/10 bg-white">
+      <div className="flex flex-col overflow-hidden rounded-md border border-rm-border bg-rm-surface">
         <div className="flex shrink-0 items-center gap-1.5 border-b border-white/25 bg-rm-primary px-2 py-2 text-rm-primary-fg sm:px-3">
           <Star size={13} fill="currentColor" strokeWidth={1.5} />
           <span className="min-w-0 flex-1 text-xs font-semibold uppercase tracking-wide sm:text-sm">

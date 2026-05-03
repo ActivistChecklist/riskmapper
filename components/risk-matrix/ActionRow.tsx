@@ -36,7 +36,7 @@ const ActionRow = React.memo(function ActionRow({
     <div className="my-1.5">
       <div
         className={[
-          "flex items-start rounded-[5px] border border-black/12 bg-white py-1.5 pr-2.5 pl-2.5 transition-[background,border-color,box-shadow] duration-150 hover:border-black/30 hover:bg-white hover:ring-1 hover:ring-black/12 focus-within:border-rm-primary focus-within:ring-2 focus-within:ring-rm-primary/20",
+          "flex items-start rounded-[5px] border border-rm-border bg-rm-surface py-1.5 pr-2.5 pl-2.5 transition-[background,border-color,box-shadow] duration-150 hover:border-rm-border-strong hover:bg-rm-surface hover:ring-1 hover:ring-rm-border focus-within:border-rm-primary focus-within:ring-2 focus-within:ring-rm-primary/20",
         ].join(" ")}
       >
         <span
@@ -63,7 +63,7 @@ const ActionRow = React.memo(function ActionRow({
       <div className="mt-1 flex min-w-0 pl-7">
         <span
           className={[
-            "flex min-w-0 max-w-full items-center rounded-[5px] border border-black/8 px-1 py-0.5 text-[10px] font-medium leading-snug text-rm-ink",
+            "flex min-w-0 max-w-full items-center rounded-[5px] border border-rm-border px-1 py-0.5 text-[10px] font-medium leading-snug text-rm-ink",
             toneClass,
           ].join(" ")}
         >

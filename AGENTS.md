@@ -58,6 +58,16 @@ This is a single Next.js app with both client (SPA) and server (Route Handlers) 
 - Use loading.tsx, error.tsx, and not-found.tsx for route-level UI states.
 - Accessibility is required: meet WCAG 2.1 AA color contrast, preserve visible keyboard focus states, and ensure all interactive controls have clear labels.
 
+## Theming: keep dark mode in lockstep with light
+
+The app supports light + dark modes via class-based Tailwind v4 (`@custom-variant dark` in `app/globals.css`). Whenever you touch styles, **the dark mode treatment must land in the same change as the light mode treatment.** Do not ship a light-mode-only update.
+
+- **Prefer the semantic tokens.** `bg-rm-surface`, `bg-rm-surface-2`, `bg-rm-surface-hover`, `border-rm-border`, `border-rm-border-strong`, `border-rm-divider`, `text-rm-muted`, `text-rm-muted-2`, `bg-rm-overlay`, `ring-rm-ring`, plus the matrix palette (`rm-canvas`, `rm-ink`, `rm-line`, `rm-actions`, `rm-primary`, `rm-{green,yellow,orange,red}` and their `-saturated`/`-strong` siblings) all auto-swap via CSS variables defined in `:root` and `.dark`. Reach for one of these before adding a literal `bg-white` or `text-zinc-600`.
+- **If a token doesn't fit, define one.** Add the variable in both `:root` and `.dark` in `app/globals.css`, expose it under `@theme inline`, and use it. Don't sprinkle ad-hoc `dark:` variants when a token would do.
+- **`dark:` variants are reserved for status tints.** Domain colors that don't live in the rm-* palette (sky/amber/red/emerald pills, etc.) should pair every light-mode utility with a `dark:` counterpart in the same className: `bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200`.
+- **Test every change in both themes.** Toggle via the Theme button in the top bar (light / dark / system). Watch for: tinted hover backgrounds that don't cover the underlying cell color, focus rings that disappear on dark, shadows that vanish on dark canvas, and copy that drops below WCAG AA contrast.
+- **Avoid raw hardcoded colors.** `bg-white`, `border-black/X`, `text-zinc-X`, `bg-black/X`, `ring-black/X` are smells — they don't switch with the theme. Replace with semantic tokens.
+
 ## Testing
 
 - Write or update tests alongside every major change. If we're debugging something major, wait to add tests until the change is actually fixes the problem.
