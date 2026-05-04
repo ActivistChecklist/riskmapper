@@ -50,6 +50,15 @@ export function createFakeCollection(): FakeCollection {
     async findOneAndUpdate(filter, update): Promise<MatrixDoc | null> {
       const doc = store.get(filter._id);
       if (!doc) return null;
+      // Conditional filter (compaction). Mongo treats a missing match as
+      // "no document"; mirror that here so the caller can detect a lost
+      // race the same way it does in production.
+      if (filter.baselineSeq !== undefined) {
+        if (!(doc.baselineSeq < filter.baselineSeq.$lt)) return null;
+      }
+      if (filter.headSeq !== undefined) {
+        if (!(doc.headSeq >= filter.headSeq.$gte)) return null;
+      }
       const next: MatrixDoc = { ...doc };
       if ("$set" in update && update.$set) {
         Object.assign(next, update.$set);
@@ -118,6 +127,20 @@ export function createFakeUpdatesCollection(): FakeUpdatesCollection {
       let removed = 0;
       for (let i = store.length - 1; i >= 0; i--) {
         if (store[i].recordId === filter.recordId) {
+          store.splice(i, 1);
+          removed += 1;
+        }
+      }
+      return { deletedCount: removed };
+    },
+
+    async deleteUpToSeq(filter): Promise<{ deletedCount?: number }> {
+      let removed = 0;
+      for (let i = store.length - 1; i >= 0; i--) {
+        if (
+          store[i].recordId === filter.recordId &&
+          store[i].seq <= filter.maxSeqInclusive
+        ) {
           store.splice(i, 1);
           removed += 1;
         }

@@ -33,6 +33,18 @@ export type RemoteUpdate = {
   clientId: string;
 };
 
+/**
+ * Server-pushed baseline replacement. Emitted by the SSE stream when the
+ * caller's `Last-Event-ID` is older than the current `baselineSeq` — the
+ * intervening updates have been pruned by compaction and can't be replayed
+ * one-by-one. Apply via `Y.applyUpdate(doc, bytes)` (idempotent merge), then
+ * advance `lastHeadSeq` to `baselineSeq`.
+ */
+export type RemoteBaseline = {
+  baselineSeq: number;
+  bytes: Uint8Array;
+};
+
 export type CloudReadResult = {
   /** Decrypted baseline bytes. Null when the caller passed `since` and the
    *  server elected to skip baseline (i.e. since >= baselineSeq). */
@@ -74,6 +86,13 @@ export type Fetcher = typeof fetch;
 
 export type SubscribeHandlers = {
   onUpdate: (event: RemoteUpdate) => void;
+  /**
+   * Called when the server pushes a baseline replacement frame. Only fires
+   * on reconnect with a stale `Last-Event-ID` (older than the server's
+   * current `baselineSeq`). Hosts apply via Y.applyUpdate and advance
+   * `lastHeadSeq` to `event.baselineSeq`.
+   */
+  onBaseline?: (event: RemoteBaseline) => void;
   /** Called on transient errors; the EventSource auto-reconnects. */
   onError?: (err: Error) => void;
   onOpen?: () => void;
@@ -83,6 +102,19 @@ export type Subscription = {
   /** Unsubscribe and close the stream. Idempotent. */
   close(): void;
 };
+
+export type CompactResult =
+  /** Server accepted our compaction; baseline + baselineSeq advanced. */
+  | { kind: "applied"; baselineSeq: number; headSeq: number }
+  /**
+   * Race lost — another client (or another tab on the same key) already
+   * compacted to `baselineSeq` >= the value we sent, OR our claimed
+   * `baselineSeq` exceeded the server's `headSeq` (caller bug or racing
+   * an append that we hadn't observed). Either way: no write happened.
+   * Caller should update its bookkeeping to the returned `baselineSeq`
+   * and stand down.
+   */
+  | { kind: "raceLost"; baselineSeq: number; headSeq: number };
 
 export type MatrixCloudRepository = {
   create(args: {
@@ -97,6 +129,20 @@ export type MatrixCloudRepository = {
     bytes: Uint8Array;
     clientId: string;
   }): Promise<{ seq: number }>;
+  /**
+   * Replace the server-side baseline with a freshly-encoded `state-as-update`
+   * snapshot. The server validates that `baselineSeq` is forward-progress
+   * and within the issued `headSeq` range, atomically swaps the baseline,
+   * and prunes updates with `seq <= baselineSeq` from the log.
+   *
+   * Race-loss is non-fatal — see `CompactResult["raceLost"]`.
+   */
+  compact(args: {
+    handle: CloudMatrixHandle;
+    bytes: Uint8Array;
+    baselineSeq: number;
+    clientId: string;
+  }): Promise<CompactResult>;
   subscribe(
     args: { handle: CloudMatrixHandle; sinceSeq: number },
     handlers: SubscribeHandlers,
@@ -131,6 +177,16 @@ type ServerUpdateRow = {
 
 type ServerAppendResponse = {
   seq?: unknown;
+};
+
+type ServerCompactResponse = {
+  baselineSeq?: unknown;
+  headSeq?: unknown;
+};
+
+type ServerSseBaselineFrame = {
+  baselineSeq?: unknown;
+  baseline?: unknown;
 };
 
 function asInt(value: unknown, field: string): number {
@@ -259,6 +315,30 @@ export function createMatrixCloudRepository(args?: {
     return (await readBodyJson(res)) as ServerAppendResponse;
   }
 
+  async function putBaseline(
+    recordId: string,
+    body: { baseline: string; baselineSeq: number; clientId: string },
+  ): Promise<{ status: number; data: ServerCompactResponse }> {
+    const res = await fetchFn(
+      cloudUrl(`/api/matrix/${encodeURIComponent(recordId)}/baseline`),
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      },
+    );
+    if (res.status === 404) throw new CloudNotFoundError();
+    if (res.status === 413) throw new CloudPayloadTooLargeError(body.baseline.length);
+    if (res.status !== 200 && res.status !== 409) {
+      throw new CloudNetworkError(
+        `Compact failed (HTTP ${res.status})`,
+        res.status,
+      );
+    }
+    const data = (await readBodyJson(res)) as ServerCompactResponse;
+    return { status: res.status, data };
+  }
+
   async function deleteRecord(recordId: string): Promise<void> {
     const res = await fetchFn(
       cloudUrl(`/api/matrix/${encodeURIComponent(recordId)}`),
@@ -343,16 +423,41 @@ export function createMatrixCloudRepository(args?: {
       return { seq: asInt(data.seq, "seq") };
     },
 
+    async compact({ handle, bytes, baselineSeq, clientId }) {
+      const { envelope } = await encryptBytes({
+        bytes,
+        key: handle.key,
+        aad: { recordId: handle.recordId, schemaVersion: SCHEMA_VERSION },
+      });
+      checkSize(envelope);
+      const { status, data } = await putBaseline(handle.recordId, {
+        baseline: envelope,
+        baselineSeq,
+        clientId,
+      });
+      const responseBaselineSeq = asInt(data.baselineSeq, "baselineSeq");
+      const responseHeadSeq = asInt(data.headSeq, "headSeq");
+      return {
+        kind: status === 200 ? "applied" : "raceLost",
+        baselineSeq: responseBaselineSeq,
+        headSeq: responseHeadSeq,
+      };
+    },
+
     subscribe({ handle, sinceSeq }, handlers) {
       const url = cloudUrl(`/api/matrix/${encodeURIComponent(handle.recordId)}/events`);
       const es = eventSourceFactory(url);
       let closed = false;
+      // sinceSeq advances both via the host applying updates AND via a
+      // baseline frame (which jumps it to baselineSeq). Local-mutable so
+      // duplicate-suppression keeps working across the jump.
+      let lastDelivered = sinceSeq;
       const onMessage = (e: { data: string; lastEventId: string }) => {
         if (closed) return;
         try {
           const parsed = JSON.parse(e.data) as ServerUpdateRow;
           const seq = asInt(parsed.seq, "seq");
-          if (seq <= sinceSeq) return; // already saw via initial read
+          if (seq <= lastDelivered) return; // already saw via initial read
           const ct = asNonEmptyString(parsed.ciphertext, "ciphertext");
           const clientId = asNonEmptyString(parsed.clientId, "clientId");
           void decryptBytes({
@@ -371,7 +476,34 @@ export function createMatrixCloudRepository(args?: {
           handlers.onError?.(err instanceof Error ? err : new Error(String(err)));
         }
       };
+      const onBaselineFrame = (e: { data: string; lastEventId: string }) => {
+        if (closed) return;
+        try {
+          const parsed = JSON.parse(e.data) as ServerSseBaselineFrame;
+          const baselineSeq = asInt(parsed.baselineSeq, "baselineSeq");
+          if (baselineSeq <= lastDelivered) return;
+          const ct = asNonEmptyString(parsed.baseline, "baseline");
+          void decryptBytes({
+            envelope: ct,
+            key: handle.key,
+            aad: { recordId: handle.recordId, schemaVersion: SCHEMA_VERSION },
+          })
+            .then((bytes) => {
+              if (closed) return;
+              // Suppress any in-flight `update` frames that arrive before
+              // the host advances its own seq tracking.
+              if (baselineSeq > lastDelivered) lastDelivered = baselineSeq;
+              handlers.onBaseline?.({ baselineSeq, bytes });
+            })
+            .catch((err) => {
+              handlers.onError?.(err instanceof Error ? err : new Error(String(err)));
+            });
+        } catch (err) {
+          handlers.onError?.(err instanceof Error ? err : new Error(String(err)));
+        }
+      };
       es.addEventListener("update", onMessage);
+      es.addEventListener("baseline", onBaselineFrame);
       es.onopen = () => handlers.onOpen?.();
       es.onerror = () => {
         if (closed) return;

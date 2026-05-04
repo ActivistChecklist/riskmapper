@@ -38,12 +38,24 @@ export type MatrixUpdate = {
 
 /**
  * Narrow Mongo surface for the matrices collection.
+ *
+ * `findOneAndUpdate` accepts an optional `baselineSeq` / `headSeq`
+ * comparison filter alongside `_id`. Compaction uses both: it must only
+ * apply when `baselineSeq < N` (forward progress) AND `headSeq >= N`
+ * (the seq has actually been issued). If the filter doesn't match,
+ * Mongo returns null and the caller backs off.
  */
+export type CompactionFilter = {
+  _id: string;
+  baselineSeq?: { $lt: number };
+  headSeq?: { $gte: number };
+};
+
 export type AppCollection = {
   insertOne(doc: MatrixDoc): Promise<unknown>;
   findOne(filter: { _id: string }): Promise<MatrixDoc | null>;
   findOneAndUpdate(
-    filter: { _id: string },
+    filter: CompactionFilter,
     update:
       | { $set: Partial<MatrixDoc> }
       | { $set: Partial<MatrixDoc>; $inc: Partial<Pick<MatrixDoc, "headSeq">> }
@@ -55,8 +67,9 @@ export type AppCollection = {
 };
 
 /**
- * Narrow Mongo surface for the matrix_updates collection. Append-only;
- * read by `(recordId, seq)`.
+ * Narrow Mongo surface for the matrix_updates collection. Append-only
+ * except for two prune paths: full-record deletion (matrix delete) and
+ * compaction (drop updates already folded into a newer baseline).
  */
 export type UpdatesCollection = {
   insertOne(doc: MatrixUpdate): Promise<unknown>;
@@ -65,6 +78,15 @@ export type UpdatesCollection = {
     minSeqExclusive?: number;
   }): Promise<MatrixUpdate[]>;
   deleteMany(filter: { recordId: string }): Promise<{ deletedCount?: number }>;
+  /**
+   * Drop every update for `recordId` with `seq <= maxSeqInclusive`. Used by
+   * compaction once the matrix doc's `baselineSeq` has advanced past those
+   * seqs — the read path already filters them out, this just reclaims space.
+   */
+  deleteUpToSeq(filter: {
+    recordId: string;
+    maxSeqInclusive: number;
+  }): Promise<{ deletedCount?: number }>;
 };
 
 /** Today as `YYYY-MM-DD` (UTC). */

@@ -71,6 +71,13 @@ export async function getUpdatesCollection(): Promise<UpdatesCollection> {
       const res = await raw.deleteMany({ recordId: filter.recordId });
       return { deletedCount: res.deletedCount };
     },
+    async deleteUpToSeq(filter) {
+      const res = await raw.deleteMany({
+        recordId: filter.recordId,
+        seq: { $lte: filter.maxSeqInclusive },
+      });
+      return { deletedCount: res.deletedCount };
+    },
   };
 }
 

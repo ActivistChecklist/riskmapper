@@ -52,6 +52,18 @@ const REMOTE_ORIGIN = "remote";
 const INITIAL_BACKOFF_MS = 1000;
 const MAX_BACKOFF_MS = 30_000;
 /**
+ * Trigger a server-side rebaseline once the unfolded update log grows
+ * past this many entries. Compaction reduces stored ciphertext bytes,
+ * speeds up cold reads, and bounds SSE backfill replay length.
+ *
+ * Compaction is best-effort and races between tabs are non-fatal — the
+ * loser sees a 409 and updates its bookkeeping. So this threshold is a
+ * "when, not whether" knob: lower = more frequent compaction, higher =
+ * larger update log between snapshots. 100 keeps catch-up reads fast
+ * while not POSTing a full snapshot for every typing burst.
+ */
+const COMPACTION_THRESHOLD_UPDATES = 100;
+/**
  * Trailing-edge debounce for the outbox drain. Local Y.Doc ops merge
  * via Y.mergeUpdates while the timer is pending, so a continuous typing
  * burst ships as ONE POST after the user pauses for this long. Tuned
@@ -70,11 +82,21 @@ const LOCAL_DRAIN_DEBOUNCE_MS = 300;
  */
 const TRANSIENT_DISPLAY_DELAY_MS = 600;
 
-type Live = {
+/** Exported for test-only construction via `__test`. Not stable API. */
+export type Live = {
   handle: CloudMatrixHandle;
   doc: Y.Doc;
   clientId: string;
   lastHeadSeq: number;
+  /**
+   * Server's current `baselineSeq` from our perspective. Initialized on
+   * catch-up read, advanced when our compaction call returns, and bumped
+   * by SSE `baseline` frames. Used by `maybeCompact` to decide whether
+   * the unfolded update log is long enough to warrant a snapshot.
+   */
+  lastBaselineSeq: number;
+  /** Guard: at most one compaction in flight per matrix. */
+  compactionInFlight: boolean;
   pending: Uint8Array | null;
   inFlight: boolean;
   backoffMs: number;
@@ -196,6 +218,10 @@ export function useCloudMatrix(
       doc: yDoc,
       clientId: String(yDoc.clientID),
       lastHeadSeq: activeMeta.lastHeadSeq,
+      // Real value lands once we read; until then assume 0 (the initial
+      // baselineSeq for every record).
+      lastBaselineSeq: 0,
+      compactionInFlight: false,
       pending: null,
       inFlight: false,
       backoffMs: INITIAL_BACKOFF_MS,
@@ -284,6 +310,26 @@ export function useCloudMatrix(
               callbacksRef.current.onChange?.(yDoc);
             }
           },
+          onBaseline(event) {
+            if (live.cancelled) return;
+            log.info("sse onBaseline", {
+              recordId: live.handle.recordId,
+              baselineSeq: event.baselineSeq,
+              priorHeadSeq: live.lastHeadSeq,
+            });
+            // Idempotent merge: if the local doc has already converged to
+            // (or past) the baseline state, this is a no-op. If the client
+            // missed pruned updates, the baseline brings them in.
+            Y.applyUpdate(yDoc, event.bytes, REMOTE_ORIGIN);
+            if (event.baselineSeq > live.lastHeadSeq) {
+              live.lastHeadSeq = event.baselineSeq;
+            }
+            if (event.baselineSeq > live.lastBaselineSeq) {
+              live.lastBaselineSeq = event.baselineSeq;
+            }
+            persistMetaFromLive(live, callbacksRef);
+            callbacksRef.current.onChange?.(yDoc);
+          },
           onError() {
             if (live.cancelled) return;
             // EventSource auto-reconnects; reflect the disruption in the UI
@@ -331,7 +377,11 @@ export function useCloudMatrix(
           // Apply it on top of the locally-hydrated doc — Yjs merges are
           // idempotent, so re-applying state we already have is a no-op.
           Y.applyUpdate(yDoc, remote.baseline, REMOTE_ORIGIN);
+          if (remote.baselineSeq > live.lastHeadSeq) {
+            live.lastHeadSeq = remote.baselineSeq;
+          }
         }
+        live.lastBaselineSeq = remote.baselineSeq;
         for (const u of remote.updates) {
           Y.applyUpdate(yDoc, u.bytes, REMOTE_ORIGIN);
           if (u.seq > live.lastHeadSeq) live.lastHeadSeq = u.seq;
@@ -507,6 +557,9 @@ async function drainOutbox(
       setSyncState((s) =>
         s.kind === "syncing" || s.kind === "offline" ? { kind: "idle" } : s,
       );
+      // Outbox is fully drained — a good moment to consider compaction.
+      // Fire-and-forget; failures are non-fatal.
+      void maybeCompact(live, repo, callbacksRef);
     }
   } catch (err) {
     if (live.cancelled) return;
@@ -546,6 +599,77 @@ async function drainOutbox(
   }
 }
 
+/**
+ * If the unfolded update log past the current baseline is large enough,
+ * encode the live Y.Doc as a state-as-update snapshot and PUT it to the
+ * server. Idempotent and lock-protected: only one compaction runs per
+ * matrix at a time. Race-loss against a concurrent tab is non-fatal —
+ * we just adopt the server's reported `baselineSeq` and stand down.
+ *
+ * Errors here are swallowed: compaction is opportunistic. The data is
+ * fine if it never runs (just bigger over time).
+ *
+ * Exported for tests only — `__test_maybeCompact` is the same function;
+ * production callers go through `drainOutbox`.
+ */
+async function maybeCompact(
+  live: Live,
+  repo: MatrixCloudRepository,
+  callbacksRef: { current: UseCloudMatrixCallbacks },
+): Promise<void> {
+  if (live.cancelled) return;
+  if (!live.ready) return;
+  if (live.compactionInFlight) return;
+  // Don't compact while local edits are in flight; we'd snapshot a
+  // doc the server hasn't fully observed yet, leading to an immediate
+  // race-loss against `appendUpdate`.
+  if (live.inFlight || live.pending) return;
+  const ahead = live.lastHeadSeq - live.lastBaselineSeq;
+  if (ahead < COMPACTION_THRESHOLD_UPDATES) return;
+
+  live.compactionInFlight = true;
+  // Snapshot the seq we're encoding against. If a concurrent SSE update
+  // bumps lastHeadSeq while encryption is in flight, that's fine: the
+  // server still accepts our baselineSeq because it's <= the new headSeq.
+  const baselineSeq = live.lastHeadSeq;
+  try {
+    const stateBytes = Y.encodeStateAsUpdate(live.doc);
+    log.info("compact start", {
+      recordId: live.handle.recordId,
+      baselineSeq,
+      priorBaselineSeq: live.lastBaselineSeq,
+      stateBytes: stateBytes.length,
+    });
+    const result = await repo.compact({
+      handle: live.handle,
+      bytes: stateBytes,
+      baselineSeq,
+      clientId: live.clientId,
+    });
+    if (live.cancelled) return;
+    if (result.baselineSeq > live.lastBaselineSeq) {
+      live.lastBaselineSeq = result.baselineSeq;
+    }
+    if (result.headSeq > live.lastHeadSeq) {
+      live.lastHeadSeq = result.headSeq;
+    }
+    log.info("compact done", {
+      recordId: live.handle.recordId,
+      kind: result.kind,
+      baselineSeq: result.baselineSeq,
+      headSeq: result.headSeq,
+    });
+    persistMetaFromLive(live, callbacksRef);
+  } catch (err) {
+    log.info("compact failed (will retry on next drain)", {
+      recordId: live.handle.recordId,
+      message: err instanceof Error ? err.message : String(err),
+    });
+  } finally {
+    live.compactionInFlight = false;
+  }
+}
+
 function sameBytes(a: Uint8Array, b: Uint8Array): boolean {
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
@@ -559,6 +683,16 @@ function countRisks(doc: Y.Doc): number {
   if (!(risks instanceof Y.Map)) return 0;
   return risks.size;
 }
+
+/**
+ * Test-only re-exports. `__test` prefix keeps the public surface clean
+ * while letting the co-located test file exercise compaction logic
+ * without spinning up the entire React hook + Y.Doc + SSE pipeline.
+ */
+export const __test = {
+  maybeCompact,
+  COMPACTION_THRESHOLD_UPDATES,
+};
 
 function teardown(live: Live | null): void {
   if (!live) return;

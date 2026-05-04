@@ -350,6 +350,208 @@ describe("POST /api/matrix/[id]/updates", () => {
   });
 });
 
+describe("PUT /api/matrix/[id]/baseline", () => {
+  async function put(id: string, body: unknown) {
+    const { PUT } = await import("@/app/api/matrix/[id]/baseline/route");
+    return PUT(
+      jsonRequest(`http://localhost/api/matrix/${id}/baseline`, {
+        method: "PUT",
+        json: body,
+      }),
+      { params: Promise.resolve({ id }) },
+    );
+  }
+
+  function seedUpdate(seq: number, ct = `v1.U${seq}`): void {
+    collHolder.updates!.__seed({
+      recordId: VALID_ID,
+      seq,
+      ciphertext: ct,
+      clientId: "c",
+      createdAt: "2026-01-01",
+    });
+  }
+
+  const NEW_BASELINE = "v1." + "Z".repeat(80);
+
+  it("advances baselineSeq, replaces the baseline, and prunes folded updates", async () => {
+    seedMatrix({ headSeq: 5, baselineSeq: 0 });
+    for (const seq of [1, 2, 3, 4, 5]) seedUpdate(seq);
+
+    const res = await put(VALID_ID, {
+      baseline: NEW_BASELINE,
+      baselineSeq: 4,
+      clientId: "alice",
+    });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ baselineSeq: 4, headSeq: 5 });
+
+    const stored = collHolder.matrices!.__dump()[0];
+    expect(stored.baseline).toBe(NEW_BASELINE);
+    expect(stored.baselineSeq).toBe(4);
+    expect(stored.headSeq).toBe(5);
+    // TTL: write bumps lastActivityDate to today.
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    expect(stored.lastActivityDate.getTime()).toBe(today.getTime());
+
+    // Updates at seq <= 4 are pruned; seq=5 survives.
+    expect(collHolder.updates!.__dump().map((u) => u.seq)).toEqual([5]);
+  });
+
+  it("returns 409 with current state when baselineSeq has already been reached", async () => {
+    seedMatrix({ headSeq: 7, baselineSeq: 5 });
+    seedUpdate(6);
+    seedUpdate(7);
+    const res = await put(VALID_ID, {
+      baseline: NEW_BASELINE,
+      baselineSeq: 5,
+      clientId: "alice",
+    });
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({
+      error: "baseline not advanced",
+      baselineSeq: 5,
+      headSeq: 7,
+    });
+    // Baseline doc + updates are untouched.
+    expect(collHolder.matrices!.__dump()[0].baseline).toBe(VALID_CT);
+    expect(collHolder.updates!.__dump().map((u) => u.seq)).toEqual([6, 7]);
+  });
+
+  it("returns 409 when baselineSeq is in the future (exceeds headSeq)", async () => {
+    seedMatrix({ headSeq: 3, baselineSeq: 0 });
+    const res = await put(VALID_ID, {
+      baseline: NEW_BASELINE,
+      baselineSeq: 99,
+      clientId: "alice",
+    });
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({
+      error: "baseline not advanced",
+      baselineSeq: 0,
+      headSeq: 3,
+    });
+  });
+
+  it("rejects an invalid baseline envelope", async () => {
+    seedMatrix({ headSeq: 2, baselineSeq: 0 });
+    for (const baseline of [undefined, 42, "no-prefix", ""]) {
+      const res = await put(VALID_ID, {
+        baseline,
+        baselineSeq: 1,
+        clientId: "alice",
+      });
+      expect(res.status).toBe(400);
+      expect(await res.json()).toEqual({ error: "invalid baseline" });
+    }
+  });
+
+  it("rejects invalid baselineSeq values", async () => {
+    seedMatrix({ headSeq: 2, baselineSeq: 0 });
+    for (const baselineSeq of [undefined, -1, 1.5, "1", null]) {
+      const res = await put(VALID_ID, {
+        baseline: NEW_BASELINE,
+        baselineSeq,
+        clientId: "alice",
+      });
+      expect(res.status).toBe(400);
+      expect(await res.json()).toEqual({ error: "invalid baselineSeq" });
+    }
+  });
+
+  it("rejects missing or malformed clientId", async () => {
+    seedMatrix({ headSeq: 2, baselineSeq: 0 });
+    for (const clientId of [undefined, "", "x".repeat(100), 42]) {
+      const res = await put(VALID_ID, {
+        baseline: NEW_BASELINE,
+        baselineSeq: 1,
+        clientId,
+      });
+      expect(res.status).toBe(400);
+      expect(await res.json()).toEqual({ error: "invalid clientId" });
+    }
+  });
+
+  it("returns 413 on oversized baseline", async () => {
+    vi.stubEnv("MAX_CIPHERTEXT_BYTES", "50");
+    seedMatrix({ headSeq: 2, baselineSeq: 0 });
+    const res = await put(VALID_ID, {
+      baseline: "v1." + "Y".repeat(200),
+      baselineSeq: 1,
+      clientId: "alice",
+    });
+    expect(res.status).toBe(413);
+    expect(await res.json()).toEqual({ error: "baseline too large" });
+  });
+
+  it("returns 404 when the matrix doesn't exist", async () => {
+    const res = await put(VALID_ID, {
+      baseline: NEW_BASELINE,
+      baselineSeq: 1,
+      clientId: "alice",
+    });
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ error: "not found" });
+  });
+
+  it("returns 404 for an implausible id", async () => {
+    const res = await put("short", {
+      baseline: NEW_BASELINE,
+      baselineSeq: 1,
+      clientId: "alice",
+    });
+    expect(res.status).toBe(404);
+  });
+
+  it("post-prune leaves later appends intact and read returns baseline + tail", async () => {
+    seedMatrix({ headSeq: 5, baselineSeq: 0 });
+    for (const seq of [1, 2, 3, 4, 5]) seedUpdate(seq);
+
+    await put(VALID_ID, {
+      baseline: NEW_BASELINE,
+      baselineSeq: 5,
+      clientId: "alice",
+    });
+
+    // A fresh read with no `since` returns the new baseline + no updates.
+    const { GET } = await import("@/app/api/matrix/[id]/route");
+    const res = await GET(new Request(`http://localhost/api/matrix/${VALID_ID}`), {
+      params: Promise.resolve({ id: VALID_ID }),
+    });
+    const body = await res.json();
+    expect(body.baseline).toBe(NEW_BASELINE);
+    expect(body.baselineSeq).toBe(5);
+    expect(body.updates).toEqual([]);
+  });
+
+  it("only one of two concurrent compactors wins; the loser sees 409", async () => {
+    seedMatrix({ headSeq: 10, baselineSeq: 0 });
+    for (const seq of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]) seedUpdate(seq);
+
+    const [r1, r2] = await Promise.all([
+      put(VALID_ID, {
+        baseline: NEW_BASELINE,
+        baselineSeq: 8,
+        clientId: "alice",
+      }),
+      put(VALID_ID, {
+        baseline: NEW_BASELINE,
+        baselineSeq: 6,
+        clientId: "bob",
+      }),
+    ]);
+    const winners = [r1, r2].filter((r) => r.status === 200);
+    const losers = [r1, r2].filter((r) => r.status === 409);
+    expect(winners).toHaveLength(1);
+    expect(losers).toHaveLength(1);
+    // The seq-8 baseline must win regardless of arrival order — or, if seq=6
+    // arrived first, seq=8 still wins because 8 > 6.
+    const finalBaselineSeq = collHolder.matrices!.__dump()[0].baselineSeq;
+    expect(finalBaselineSeq).toBeGreaterThanOrEqual(6);
+  });
+});
+
 describe("DELETE /api/matrix/[id]", () => {
   async function del(id: string) {
     const { DELETE } = await import("@/app/api/matrix/[id]/route");
@@ -390,6 +592,129 @@ describe("DELETE /api/matrix/[id]", () => {
     collHolder.updates = null;
     const res = await del("short");
     expect(res.status).toBe(204);
+  });
+});
+
+describe("GET /api/matrix/[id]/events (SSE backfill)", () => {
+  /**
+   * Read frames from the SSE response stream until at least `wantFrames`
+   * complete frames (delimited by `\n\n`) are available, then abort.
+   * Returns the parsed frames, each as `{ event, id, data }`.
+   */
+  async function readFrames(
+    res: Response,
+    wantFrames: number,
+    abort: AbortController,
+    timeoutMs = 1000,
+  ): Promise<Array<{ event: string; id: string | null; data: string }>> {
+    const reader = res.body!.getReader();
+    const decoder = new TextDecoder();
+    let buffered = "";
+    const frames: Array<{ event: string; id: string | null; data: string }> = [];
+    const start = Date.now();
+    while (frames.length < wantFrames) {
+      if (Date.now() - start > timeoutMs) break;
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffered += decoder.decode(value, { stream: true });
+      while (true) {
+        const idx = buffered.indexOf("\n\n");
+        if (idx < 0) break;
+        const raw = buffered.slice(0, idx);
+        buffered = buffered.slice(idx + 2);
+        if (raw.startsWith(":")) continue; // heartbeat comment
+        const frame: { event: string; id: string | null; data: string } = {
+          event: "message",
+          id: null,
+          data: "",
+        };
+        for (const line of raw.split("\n")) {
+          if (line.startsWith("event: ")) frame.event = line.slice(7);
+          else if (line.startsWith("id: ")) frame.id = line.slice(4);
+          else if (line.startsWith("data: ")) frame.data += line.slice(6);
+        }
+        frames.push(frame);
+      }
+    }
+    abort.abort();
+    try {
+      reader.releaseLock();
+    } catch {
+      // already released
+    }
+    return frames;
+  }
+
+  it("replays a `baseline` frame when Last-Event-ID is older than baselineSeq", async () => {
+    seedMatrix({ headSeq: 5, baselineSeq: 3 });
+    // After compaction, only updates with seq > baselineSeq survive.
+    collHolder.updates!.__seed({
+      recordId: VALID_ID,
+      seq: 4,
+      ciphertext: "v1.U4",
+      clientId: "c",
+      createdAt: "2026-01-01",
+    });
+    collHolder.updates!.__seed({
+      recordId: VALID_ID,
+      seq: 5,
+      ciphertext: "v1.U5",
+      clientId: "c",
+      createdAt: "2026-01-01",
+    });
+
+    const { GET } = await import("@/app/api/matrix/[id]/events/route");
+    const abort = new AbortController();
+    const req = new Request(`http://localhost/api/matrix/${VALID_ID}/events`, {
+      headers: { "last-event-id": "1" },
+      signal: abort.signal,
+    });
+    const res = await GET(req, { params: Promise.resolve({ id: VALID_ID }) });
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toContain("text/event-stream");
+
+    const frames = await readFrames(res, 3, abort);
+    // First: baseline frame.
+    expect(frames[0].event).toBe("baseline");
+    expect(frames[0].id).toBe("3");
+    expect(JSON.parse(frames[0].data)).toEqual({
+      baselineSeq: 3,
+      baseline: VALID_CT,
+    });
+    // Then update frames for seq 4 and 5 — NOT seq 1..3.
+    expect(frames[1].event).toBe("update");
+    expect(frames[1].id).toBe("4");
+    expect(frames[2].event).toBe("update");
+    expect(frames[2].id).toBe("5");
+  });
+
+  it("does NOT send a baseline frame when Last-Event-ID is at or past baselineSeq", async () => {
+    seedMatrix({ headSeq: 5, baselineSeq: 3 });
+    collHolder.updates!.__seed({
+      recordId: VALID_ID,
+      seq: 4,
+      ciphertext: "v1.U4",
+      clientId: "c",
+      createdAt: "2026-01-01",
+    });
+    collHolder.updates!.__seed({
+      recordId: VALID_ID,
+      seq: 5,
+      ciphertext: "v1.U5",
+      clientId: "c",
+      createdAt: "2026-01-01",
+    });
+
+    const { GET } = await import("@/app/api/matrix/[id]/events/route");
+    const abort = new AbortController();
+    const req = new Request(`http://localhost/api/matrix/${VALID_ID}/events`, {
+      headers: { "last-event-id": "3" },
+      signal: abort.signal,
+    });
+    const res = await GET(req, { params: Promise.resolve({ id: VALID_ID }) });
+    const frames = await readFrames(res, 2, abort);
+    expect(frames.every((f) => f.event === "update")).toBe(true);
+    expect(frames.map((f) => f.id)).toEqual(["4", "5"]);
   });
 });
 

@@ -1,4 +1,4 @@
-import { getUpdatesCollection } from "@/lib/cloud/db";
+import { getCollection, getUpdatesCollection } from "@/lib/cloud/db";
 import { isPlausibleId, jsonError } from "@/lib/cloud/helpers";
 import { subscribe, type UpdateEvent } from "@/lib/cloud/pubsub";
 
@@ -15,6 +15,14 @@ import { subscribe, type UpdateEvent } from "@/lib/cloud/pubsub";
  * collection, then forwards live events via the pubsub bus. Live events
  * received during the backfill read are buffered and de-duped against the
  * backfilled seqs before flushing.
+ *
+ * Compaction interaction: if `Last-Event-ID` is older than the current
+ * `baselineSeq`, the requested updates have been pruned. We can't replay
+ * them. Instead we emit a single `event: baseline` frame carrying the
+ * current ciphertext baseline + its seq, then resume normal updates from
+ * `seq > baselineSeq`. The client treats baseline frames the same way as
+ * a baseline returned from the cold-load read: apply via Yjs (idempotent
+ * merge) and bump its `lastHeadSeq` to `baselineSeq`.
  *
  * One open SSE request per active tab. Single-process pubsub for now —
  * see lib/cloud/pubsub.ts.
@@ -74,10 +82,37 @@ export async function GET(req: Request, ctx: RouteParams) {
       });
 
       try {
+        // If the client's Last-Event-ID predates the current baseline, the
+        // updates they want have been pruned. Send a baseline frame first
+        // so they can converge, then replay only updates past the baseline.
+        let backfillFromSeq = lastEventId ?? -1;
+        if (lastEventId !== null) {
+          const coll = await getCollection();
+          const doc = await coll.findOne({ _id: id });
+          if (doc && lastEventId < doc.baselineSeq) {
+            const frame =
+              `id: ${doc.baselineSeq}\n` +
+              `event: baseline\n` +
+              `data: ${JSON.stringify({
+                baselineSeq: doc.baselineSeq,
+                baseline: doc.baseline,
+              })}\n\n`;
+            try {
+              controller.enqueue(encoder.encode(frame));
+            } catch {
+              // Stream closed; nothing to do.
+            }
+            // Pretend we already forwarded everything up through the
+            // baseline so update enqueue's seq guard skips anything older.
+            lastForwardedSeq = doc.baselineSeq;
+            backfillFromSeq = doc.baselineSeq;
+          }
+        }
+
         const updatesColl = await getUpdatesCollection();
         const backfill = await updatesColl.findSorted({
           recordId: id,
-          minSeqExclusive: lastEventId ?? -1,
+          minSeqExclusive: backfillFromSeq,
         });
         for (const u of backfill) {
           enqueue({ seq: u.seq, ciphertext: u.ciphertext, clientId: u.clientId });
