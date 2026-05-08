@@ -215,12 +215,12 @@ function RiskMatrixCanvas({ workspace: ws, cloud }: CanvasProps) {
   );
 
   const handleCopyAll = useCallback(() => {
-    trackEvent("copy_worksheet_plain");
+    trackEvent("copy_worksheet", { type: "plain" });
     void copyFullReport(copyArgs);
   }, [copyArgs]);
 
   const handleCopyRich = useCallback(() => {
-    trackEvent("copy_worksheet_rich");
+    trackEvent("copy_worksheet", { type: "rich" });
     void copyRichWorksheet({ ...copyArgs, notes: m.notes });
   }, [copyArgs, m.notes]);
 

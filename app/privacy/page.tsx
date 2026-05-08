@@ -16,12 +16,9 @@ const TRACKED_EVENTS: { name: string; description: string }[] = [
     description: "You created a cloud share link for a matrix.",
   },
   {
-    name: "copy_worksheet_plain",
-    description: "You copied the matrix as plain-text Markdown.",
-  },
-  {
-    name: "copy_worksheet_rich",
-    description: "You copied the matrix as rich-text HTML.",
+    name: "copy_worksheet",
+    description:
+      "You copied the matrix to the clipboard. Includes a `type` of `plain` (Markdown) or `rich` (HTML).",
   },
   {
     name: "download_pdf",

@@ -59,10 +59,17 @@ export type FirstTimeEvent =
 
 export type AnalyticsEvent =
   | "share_matrix"
-  | "copy_worksheet_plain"
-  | "copy_worksheet_rich"
+  | "copy_worksheet"
   | "download_pdf"
   | FirstTimeEvent;
+
+/**
+ * Free-form key/value data attached to an event. Restricted to
+ * primitive types so it's clear at the call site that nothing
+ * structured (and nothing that could accidentally include user-typed
+ * content) is being passed through.
+ */
+export type AnalyticsEventData = Record<string, string | number | boolean>;
 
 const FIRST_TIME_KEYS: FirstTimeEvent[] = [
   "first_pool_item",
@@ -82,10 +89,16 @@ export function trackPageview(): void {
   );
 }
 
-/** Fire a named event. Never includes user-typed content. */
-export function trackEvent(name: AnalyticsEvent): void {
+/**
+ * Fire a named event. Optional `data` carries umami event properties
+ * (e.g. `{ type: "plain" }`). Never include user-typed content.
+ */
+export function trackEvent(
+  name: AnalyticsEvent,
+  data?: AnalyticsEventData,
+): void {
   void sendAnalytics(
-    { name, url: currentUrl(), referrer: currentReferrer() },
+    { name, data, url: currentUrl(), referrer: currentReferrer() },
     { endpoint: ENDPOINT, skip: skipInDev },
   );
 }
