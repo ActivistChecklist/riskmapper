@@ -8,6 +8,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { trackEvent } from "@/lib/analytics/events";
 import { cn } from "@/lib/utils";
 import type { RiskMatrixSnapshot } from "../matrixTypes";
 
@@ -55,6 +56,7 @@ export default function MatrixDownloadPdfButton({
       a.remove();
       // Defer revoke so browsers reliably initiate the download first.
       setTimeout(() => URL.revokeObjectURL(url), 1000);
+      trackEvent("download_pdf");
     } catch (err) {
       console.error("PDF generation failed", err);
     } finally {

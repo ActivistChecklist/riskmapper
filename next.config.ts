@@ -8,7 +8,9 @@ const nextConfig: NextConfig = {
   // so this app is no longer statically exportable.
   turbopack: {
     resolveAlias: {
-      yjs: yjsResolved,
+      // Turbopack treats absolute paths in resolveAlias as server-relative
+      // and rejects them; it accepts paths relative to the project root.
+      yjs: "./node_modules/yjs",
     },
   },
   webpack: (config) => {
