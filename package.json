@@ -20,7 +20,7 @@
     "cleanup:orphan-updates": "node scripts/cleanup-orphan-updates.mjs"
   },
   "dependencies": {
-    "@activistchecklist/umami-extra-privacy": "https://github.com/ActivistChecklist/umami-extra-privacy.git#18782edf107ac7a2ba04705af9b96af1c54ef63a",
+    "@activistchecklist/umami-extra-privacy": "https://github.com/ActivistChecklist/umami-extra-privacy.git#7669154d772ecbf3410c1243e8014ac8a0e74c5e",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-dropdown-menu": "^2.1.16",
     "@radix-ui/react-slot": "^1.2.4",
