@@ -52,6 +52,11 @@ import {
   setShareUrlInAddressBar,
 } from "./shareUrl";
 import { sharedSnapshotFieldsEqual } from "./snapshotEquality";
+import {
+  createFirstTimeTracker,
+  trackEvent,
+  type FirstTimeTracker,
+} from "@/lib/analytics/events";
 import { base64urlEncode, keyFromB64 } from "@/lib/e2ee";
 import { createLogger } from "@/lib/log";
 import { Button } from "@/components/ui/button";
@@ -116,6 +121,26 @@ function RiskMatrixCanvas({ workspace: ws, cloud }: CanvasProps) {
   });
   const { matrixGetterRef } = ws;
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+
+  // Per-canvas first-time-event tracker. Recreated when the canvas
+  // remounts (matrix switch) so each fresh canvas seeds its own
+  // `blocked` set; per-session dedupe is handled inside the module.
+  const firstTimeTrackerRef = useRef<FirstTimeTracker | null>(null);
+  if (firstTimeTrackerRef.current === null) {
+    firstTimeTrackerRef.current = createFirstTimeTracker();
+  }
+  useEffect(() => {
+    // The pre-hydrate render uses an EMPTY workspace until localStorage
+    // loads in useMatrixWorkspace's layout effect. Skip until we have a
+    // real surface so the seed isn't taken against a stub snapshot.
+    if (ws.surfaceId === "pre-hydrate") return;
+    firstTimeTrackerRef.current?.(m.getSnapshot());
+    // The first-time flags are derived from pool/grid/notes only.
+    // `m.getSnapshot` is a stable callback that re-observes each time
+    // any of those change; the lint can't see across the property
+    // access so we list the inputs directly.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ws.surfaceId, m.pool, m.grid, m.notes]);
 
   useLayoutEffect(() => {
     matrixGetterRef.current = m.getSnapshot;
@@ -190,10 +215,12 @@ function RiskMatrixCanvas({ workspace: ws, cloud }: CanvasProps) {
   );
 
   const handleCopyAll = useCallback(() => {
+    trackEvent("copy_worksheet_plain");
     void copyFullReport(copyArgs);
   }, [copyArgs]);
 
   const handleCopyRich = useCallback(() => {
+    trackEvent("copy_worksheet_rich");
     void copyRichWorksheet({ ...copyArgs, notes: m.notes });
   }, [copyArgs, m.notes]);
 
@@ -210,18 +237,12 @@ function RiskMatrixCanvas({ workspace: ws, cloud }: CanvasProps) {
       }
       if (e.shiftKey && (e.key === "c" || e.key === "C")) {
         e.preventDefault();
-        void copyFullReport({
-          title: ws.activeTitle,
-          pool: m.pool,
-          grid: m.grid,
-          allActions: m.allActions,
-          otherActions: m.otherActions,
-        });
+        handleCopyAll();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [ws.activeTitle, m.pool, m.grid, m.allActions, m.otherActions]);
+  }, [handleCopyAll]);
 
   const stepCopyBtn = (opts: {
     disabled: boolean;

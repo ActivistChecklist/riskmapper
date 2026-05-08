@@ -2,6 +2,10 @@
 # yarn lockfile v1
 
 
+"@activistchecklist/umami-extra-privacy@https://github.com/ActivistChecklist/umami-extra-privacy.git#18782edf107ac7a2ba04705af9b96af1c54ef63a":
+  version "0.1.0"
+  resolved "https://github.com/ActivistChecklist/umami-extra-privacy.git#18782edf107ac7a2ba04705af9b96af1c54ef63a"
+
 "@alloc/quick-lru@^5.2.0":
   version "5.2.0"
   resolved "https://registry.yarnpkg.com/@alloc/quick-lru/-/quick-lru-5.2.0.tgz#7bf68b20c0a350f936915fcae06f58e32007ce30"

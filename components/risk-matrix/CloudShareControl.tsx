@@ -9,6 +9,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { trackEvent } from "@/lib/analytics/events";
 import { keyFromB64, keyToB64, SCHEMA_VERSION } from "@/lib/e2ee";
 import ShareMatrixDialog from "./ShareMatrixDialog";
 import { seedYDoc } from "./matrixYDoc";
@@ -120,6 +121,7 @@ export default function CloudShareControl({
         lastHeadSeq: created.headSeq,
         yDocStateB64: encodeYDocStateForMeta(baseline),
       });
+      trackEvent("share_matrix");
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Failed to share matrix.";
