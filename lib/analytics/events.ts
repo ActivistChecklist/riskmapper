@@ -15,6 +15,41 @@ import type { RiskMatrixSnapshot } from "@/components/risk-matrix/matrixTypes";
 const ENDPOINT = "/api/counter";
 const skipInDev = () => process.env.NODE_ENV !== "production";
 
+/**
+ * Strip the per-matrix recordId from share URLs before reporting them.
+ * `/grid/<recordId>` collapses to `/grid/`; every other path passes
+ * through unchanged. The umami client auto-fills `url` from
+ * `window.location.pathname`, so without this any pageview or event
+ * fired on a shared matrix would leak the recordId to our analytics.
+ *
+ * Exported for testing.
+ */
+export function sanitizePath(pathname: string): string {
+  if (pathname === "/grid" || pathname === "/grid/") return "/grid/";
+  if (pathname.startsWith("/grid/")) return "/grid/";
+  return pathname;
+}
+
+function sanitizeReferrer(ref: string): string {
+  if (!ref) return "";
+  try {
+    const u = new URL(ref);
+    return u.origin + sanitizePath(u.pathname);
+  } catch {
+    return "";
+  }
+}
+
+function currentUrl(): string {
+  if (typeof window === "undefined") return "/";
+  return sanitizePath(window.location.pathname);
+}
+
+function currentReferrer(): string {
+  if (typeof document === "undefined") return "";
+  return sanitizeReferrer(document.referrer);
+}
+
 export type FirstTimeEvent =
   | "first_pool_item"
   | "first_grid_item"
@@ -41,13 +76,16 @@ type FirstTimeFlags = Record<FirstTimeEvent, boolean>;
 
 /** Fire a Umami pageview through the relay. */
 export function trackPageview(): void {
-  void sendAnalytics(undefined, { endpoint: ENDPOINT, skip: skipInDev });
+  void sendAnalytics(
+    { url: currentUrl(), referrer: currentReferrer() },
+    { endpoint: ENDPOINT, skip: skipInDev },
+  );
 }
 
 /** Fire a named event. Never includes user-typed content. */
 export function trackEvent(name: AnalyticsEvent): void {
   void sendAnalytics(
-    { name },
+    { name, url: currentUrl(), referrer: currentReferrer() },
     { endpoint: ENDPOINT, skip: skipInDev },
   );
 }

@@ -122,7 +122,9 @@ export default function PrivacyPage() {
       <p className="mt-4 leading-relaxed">
         Events carry the name only. They do not carry the title of your
         matrix, the text of any risk or mitigation, or any other content
-        you have typed.
+        you have typed. When you view a shared matrix, the unique
+        identifier in the URL (the part after <code>/grid/</code>) is
+        stripped before the page URL is reported.
       </p>
 
       <h2 className="mt-10 text-xl font-semibold">How we anonymize your IP</h2>
@@ -134,7 +136,7 @@ export default function PrivacyPage() {
         from, but not enough to identify you across visits, and the salt used
         for the remaining randomization rotates daily.
       </p>
-``
+
       <h2 className="mt-10 text-xl font-semibold">Verify any of this</h2>
       <p className="mt-3 leading-relaxed">
         The entire site is open source. If you want to confirm any of the

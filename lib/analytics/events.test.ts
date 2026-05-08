@@ -3,6 +3,7 @@ import {
   __resetAnalyticsSessionForTests,
   computeFirstTimeFlags,
   createFirstTimeTracker,
+  sanitizePath,
   type FirstTimeEvent,
 } from "./events";
 import type { RiskMatrixSnapshot } from "@/components/risk-matrix/matrixTypes";
@@ -46,6 +47,34 @@ function withMitigationStarred(text = ""): RiskMatrixSnapshot {
 
 afterEach(() => {
   __resetAnalyticsSessionForTests();
+});
+
+describe("sanitizePath", () => {
+  it("passes through the home path", () => {
+    expect(sanitizePath("/")).toBe("/");
+  });
+
+  it("passes through non-share paths unchanged", () => {
+    expect(sanitizePath("/privacy")).toBe("/privacy");
+    expect(sanitizePath("/about/team")).toBe("/about/team");
+  });
+
+  it("collapses any /grid/<recordId> to /grid/", () => {
+    expect(sanitizePath("/grid/abc123")).toBe("/grid/");
+    expect(sanitizePath("/grid/AbCdEf-GhIjK_-LmNoPqRsTuVwXyZ_0_1234")).toBe(
+      "/grid/",
+    );
+  });
+
+  it("collapses /grid and /grid/ themselves", () => {
+    expect(sanitizePath("/grid")).toBe("/grid/");
+    expect(sanitizePath("/grid/")).toBe("/grid/");
+  });
+
+  it("does not match unrelated paths that contain 'grid'", () => {
+    expect(sanitizePath("/gridiron")).toBe("/gridiron");
+    expect(sanitizePath("/about/grid")).toBe("/about/grid");
+  });
 });
 
 describe("computeFirstTimeFlags", () => {
