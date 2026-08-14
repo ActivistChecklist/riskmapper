@@ -34,11 +34,11 @@ yarn dev
 
 | Command         | What it does                                          |
 | --------------- | ----------------------------------------------------- |
-| `yarn dev`      | Next.js dev server (HMR). Use this, not `build`.      |
-| `yarn build`    | Production build. **Don't run during agent sessions.** |
+| `yarn dev`      | Vite dev server (HMR) plus the API.                   |
+| `yarn build`    | Production build: `dist/` + `dist-server/`.           |
 | `yarn start`    | Serve the production build.                           |
 | `yarn lint`     | ESLint                                                |
-| `yarn test`     | Vitest (UI + Route Handler tests).                    |
+| `yarn test`     | Vitest (UI, server route, and static-resolution tests).|
 | `yarn typecheck`| `tsc --noEmit`                                        |
 | `yarn db:up`    | Start the dev MongoDB container.                      |
 | `yarn db:down`  | Stop it (volume preserved).                           |
@@ -51,24 +51,32 @@ Cloud-saved matrices and link sharing are **opt-in per matrix** and
 end-to-end encrypted: the server never sees plaintext, titles, or keys.
 See [THREAT-MODEL.md](THREAT-MODEL.md) for the trust assumptions.
 
-The API lives under `app/api/matrix/**` in this same Next.js app, so
-client requests are same-origin (relative URLs). To disable the feature
-entirely on a deploy that has no database, set
-`NEXT_PUBLIC_CLOUD_SYNC_ENABLED=false` — all share affordances are hidden.
+The API is served from the same origin as the app, so client requests use
+relative URLs. To disable the feature entirely on a deploy that has no
+database, set `VITE_CLOUD_SYNC_ENABLED=false` — all share affordances are
+hidden.
 
 ## Project layout
 
 ```
-app/                           Next.js App Router
-  api/healthz/route.ts         GET /api/healthz
-  api/matrix/route.ts          POST /api/matrix
-  api/matrix/[id]/route.ts     GET / PUT / DELETE
+index.html                     SPA entry document (hand-written head)
+privacy/index.html             Privacy page, its own static document
+client/                        Entries, app shell, router-less path dispatch
 components/risk-matrix/        SPA components, hooks, local repo
 lib/cloud/                     Server-side: Mongo, route helpers, rate limit
-lib/e2ee/                      Client-side: XChaCha20-Poly1305 envelope, padding
+lib/e2ee/                      Client-side: XChaCha20-Poly1305 envelope
+server/index.ts                Serves the static build and the API, one origin
+server/routes/                 API handlers (Web Request/Response)
+server/staticFiles.ts          Path resolution, traversal guards, cache policy
+public/theme-boot.js           Blocking pre-paint theme script (never inlined)
 docker-compose.dev.yml         Local Mongo for dev
+MIGRATION.md                   Migration plan, decisions, security gate
 THREAT-MODEL.md                In-scope guarantees and explicit out-of-scope risks
 ```
+
+Built with Vite: `yarn build` produces the static client in `dist/` and the
+server bundle in `dist-server/`. One Node process serves both, so the app is
+same-origin by construction.
 
 ## License
 

@@ -10,6 +10,8 @@ export default defineConfig({
     // is a superset of node for the WHATWG Request/Response globals we
     // need.
     environment: "jsdom",
+    // Unmounts React trees between tests — see vitest.setup.ts.
+    setupFiles: ["./vitest.setup.ts"],
     include: ["**/*.test.{ts,tsx}"],
     exclude: ["**/node_modules/**", "**/dist/**"],
     passWithNoTests: false,

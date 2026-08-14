@@ -6,9 +6,14 @@
     "node": "22"
   },
   "scripts": {
-    "dev": "next dev --turbopack",
-    "build": "next build --webpack",
-    "start": "next start",
+    "dev": "concurrently -k -n web,api -c cyan,magenta \"yarn dev:web\" \"yarn dev:api\"",
+    "dev:web": "vite",
+    "dev:api": "yarn build:server && PORT=3001 yarn start",
+    "build": "yarn build:client && yarn build:server",
+    "build:client": "vite build",
+    "build:server": "vite build --config vite.config.server.ts",
+    "start": "node --env-file-if-exists=.env.local dist-server/index.mjs",
+    "preview": "vite preview",
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -21,6 +26,8 @@
   },
   "dependencies": {
     "@activistchecklist/umami-extra-privacy": "https://github.com/ActivistChecklist/umami-extra-privacy.git#7669154d772ecbf3410c1243e8014ac8a0e74c5e",
+    "@fontsource/geist-mono": "^5",
+    "@fontsource/geist-sans": "^5",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-dropdown-menu": "^2.1.16",
     "@radix-ui/react-slot": "^1.2.4",
@@ -36,7 +43,6 @@
     "libsodium-wrappers": "^0.8.4",
     "lucide-react": "^1.8.0",
     "mongodb": "^7.2.0",
-    "next": "16.2.4",
     "rate-limiter-flexible": "^11.0.1",
     "react": "19.2.4",
     "react-dom": "19.2.4",
@@ -54,11 +60,14 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^6.0.1",
+    "concurrently": "^10.0.4",
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
     "jsdom": "^29.0.2",
+    "next": "16.2.4",
     "tailwindcss": "^4",
     "typescript": "^5",
+    "vite": "^8.0.8",
     "vitest": "^4.1.4"
   }
 }

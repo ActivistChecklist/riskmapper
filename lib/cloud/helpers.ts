@@ -1,5 +1,5 @@
 /**
- * Tiny utilities shared across the `app/api/matrix/**` Route Handlers.
+ * Tiny utilities shared across the `server/routes/matrix*.ts` Route Handlers.
  * Kept narrow on purpose — anything bigger belongs in its own module.
  */
 

@@ -6,10 +6,11 @@
  * boolean (`dark`) at runtime, factoring in `prefers-color-scheme`
  * when the choice is "system".
  *
- * Initial paint is handled by an inline blocking script in
- * `app/layout.tsx` (see {@link buildThemeBootScript}). That script
- * reads localStorage before React hydrates and toggles `.dark` on
- * <html> so the theme is correct on first frame.
+ * Initial paint is handled by `public/theme-boot.js`, a blocking
+ * external script that reads localStorage before React hydrates and
+ * toggles `.dark` on <html> so the theme is correct on first frame. It
+ * hardcodes {@link THEME_STORAGE_KEY}; `lib/theme.test.ts` executes the
+ * real file and asserts the two stay in agreement.
  */
 
 export type ThemePreference = "light" | "dark" | "system";
@@ -56,14 +57,4 @@ export function applyTheme(resolved: "light" | "dark"): void {
   if (typeof document === "undefined") return;
   const root = document.documentElement;
   root.classList.toggle("dark", resolved === "dark");
-}
-
-/**
- * Inline script string injected into <head>. Runs before paint to set
- * `.dark` on <html>, avoiding a flash of light theme on dark-preferring
- * users (or vice versa). Kept tiny on purpose — anything more elaborate
- * lives in the React layer.
- */
-export function buildThemeBootScript(): string {
-  return `(function(){try{var k=${JSON.stringify(THEME_STORAGE_KEY)};var s=localStorage.getItem(k);var p=(s==='light'||s==='dark'||s==='system')?s:'system';var d=p==='dark'||(p==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);}catch(e){}})();`;
 }
