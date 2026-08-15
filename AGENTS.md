@@ -30,7 +30,12 @@ site for anyone running the extension:
 | `yarn test`         | Run test suite                                              |
 | `yarn typecheck`    | `tsc --noEmit`                                              |
 | `yarn build`        | Production build: `dist/` (client) and `dist-server/`        |
-| `yarn start`        | Run the built server, serving `dist/` and the API           |
+| `yarn start`        | Run the built server. Env comes from the platform.           |
+| `yarn start:local`  | Same, but also loads `.env.local`                            |
+
+`start` deliberately carries no `--env-file` flag: that option is only in Node
+22.9+, and `engines` allows any 22.x, so relying on it can break a deploy at
+boot. Local runs use `start:local`.
 
 `yarn build` is safe to run now: it writes `dist/` and `dist-server/` and does
 not disturb the dev server.
