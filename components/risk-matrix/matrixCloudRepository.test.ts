@@ -17,7 +17,7 @@ import { generateKey, SCHEMA_VERSION } from "@/lib/e2ee";
 
 beforeEach(() => {
   // Same-origin: API base is empty, paths are relative.
-  vi.stubEnv("NEXT_PUBLIC_CLOUD_API_URL", "");
+  vi.stubEnv("VITE_CLOUD_API_URL", "");
 });
 
 afterEach(() => {

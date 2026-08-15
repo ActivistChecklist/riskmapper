@@ -13,7 +13,11 @@
 # testing
 /coverage
 
-# next.js
+# build output
+/dist/
+/dist-server/
+
+# legacy next.js output, left behind by the migration
 /.next/
 /out/
 

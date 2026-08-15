@@ -9,7 +9,7 @@ import { __resetRateLimiterForTests } from "./rateLimit";
 import { __resetPubSubForTests, subscribe, type UpdateEvent } from "./pubsub";
 
 /**
- * Route-handler tests for `app/api/matrix/**`. We mock the Mongo accessors
+ * Route-handler tests for `server/routes/**`. We mock the Mongo accessors
  * (`@/lib/cloud/db`) so route logic exercises deterministic in-memory
  * collections, and we control the rate limiter directly via env stubs +
  * `__resetRateLimiterForTests` so the budget is fresh for each case.
@@ -76,7 +76,7 @@ function seedMatrix(opts?: { headSeq?: number; baselineSeq?: number }): void {
 
 describe("GET /api/healthz", () => {
   it("returns ok", async () => {
-    const { GET } = await import("@/app/api/healthz/route");
+    const { GET } = await import("@/server/routes/healthz");
     const res = await GET();
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ ok: true });
@@ -85,7 +85,7 @@ describe("GET /api/healthz", () => {
 
 describe("POST /api/matrix", () => {
   it("creates a record at headSeq=0 with the client-minted id", async () => {
-    const { POST } = await import("@/app/api/matrix/route");
+    const { POST } = await import("@/server/routes/matrix");
     const res = await POST(
       jsonRequest("http://localhost/api/matrix", {
         method: "POST",
@@ -112,7 +112,7 @@ describe("POST /api/matrix", () => {
   });
 
   it("rejects an id that doesn't match the plausible-id regex", async () => {
-    const { POST } = await import("@/app/api/matrix/route");
+    const { POST } = await import("@/server/routes/matrix");
     for (const id of ["abc", "x".repeat(80), "abc def ghi jkl mno"]) {
       const res = await POST(
         jsonRequest("http://localhost/api/matrix", {
@@ -127,7 +127,7 @@ describe("POST /api/matrix", () => {
   });
 
   it("rejects a missing or non-envelope baseline", async () => {
-    const { POST } = await import("@/app/api/matrix/route");
+    const { POST } = await import("@/server/routes/matrix");
     const cases: Array<unknown> = [undefined, 42, "no-dot-prefix", ""];
     for (const baseline of cases) {
       const res = await POST(
@@ -143,7 +143,7 @@ describe("POST /api/matrix", () => {
 
   it("returns 413 when baseline exceeds the cap", async () => {
     vi.stubEnv("MAX_CIPHERTEXT_BYTES", "100");
-    const { POST } = await import("@/app/api/matrix/route");
+    const { POST } = await import("@/server/routes/matrix");
     const res = await POST(
       jsonRequest("http://localhost/api/matrix", {
         method: "POST",
@@ -156,7 +156,7 @@ describe("POST /api/matrix", () => {
 
   it("returns 409 on duplicate id", async () => {
     seedMatrix();
-    const { POST } = await import("@/app/api/matrix/route");
+    const { POST } = await import("@/server/routes/matrix");
     const res = await POST(
       jsonRequest("http://localhost/api/matrix", {
         method: "POST",
@@ -169,7 +169,7 @@ describe("POST /api/matrix", () => {
 
   it("returns 500 on unexpected DB failure (not duplicate)", async () => {
     collHolder.matrices!.__setInsertError(new Error("connection lost"));
-    const { POST } = await import("@/app/api/matrix/route");
+    const { POST } = await import("@/server/routes/matrix");
     const res = await POST(
       jsonRequest("http://localhost/api/matrix", {
         method: "POST",
@@ -182,7 +182,7 @@ describe("POST /api/matrix", () => {
 
 describe("GET /api/matrix/[id]", () => {
   async function get(id: string, search = "") {
-    const { GET } = await import("@/app/api/matrix/[id]/route");
+    const { GET } = await import("@/server/routes/matrixById");
     return GET(new Request(`http://localhost/api/matrix/${id}${search}`), {
       params: Promise.resolve({ id }),
     });
@@ -279,7 +279,7 @@ describe("GET /api/matrix/[id]", () => {
 
 describe("POST /api/matrix/[id]/updates", () => {
   async function post(id: string, body: unknown) {
-    const { POST } = await import("@/app/api/matrix/[id]/updates/route");
+    const { POST } = await import("@/server/routes/matrixUpdates");
     return POST(
       jsonRequest(`http://localhost/api/matrix/${id}/updates`, {
         method: "POST",
@@ -352,7 +352,7 @@ describe("POST /api/matrix/[id]/updates", () => {
 
 describe("PUT /api/matrix/[id]/baseline", () => {
   async function put(id: string, body: unknown) {
-    const { PUT } = await import("@/app/api/matrix/[id]/baseline/route");
+    const { PUT } = await import("@/server/routes/matrixBaseline");
     return PUT(
       jsonRequest(`http://localhost/api/matrix/${id}/baseline`, {
         method: "PUT",
@@ -515,7 +515,7 @@ describe("PUT /api/matrix/[id]/baseline", () => {
     });
 
     // A fresh read with no `since` returns the new baseline + no updates.
-    const { GET } = await import("@/app/api/matrix/[id]/route");
+    const { GET } = await import("@/server/routes/matrixById");
     const res = await GET(new Request(`http://localhost/api/matrix/${VALID_ID}`), {
       params: Promise.resolve({ id: VALID_ID }),
     });
@@ -554,7 +554,7 @@ describe("PUT /api/matrix/[id]/baseline", () => {
 
 describe("DELETE /api/matrix/[id]", () => {
   async function del(id: string) {
-    const { DELETE } = await import("@/app/api/matrix/[id]/route");
+    const { DELETE } = await import("@/server/routes/matrixById");
     return DELETE(new Request(`http://localhost/api/matrix/${id}`, { method: "DELETE" }), {
       params: Promise.resolve({ id }),
     });
@@ -663,7 +663,7 @@ describe("GET /api/matrix/[id]/events (SSE backfill)", () => {
       createdAt: "2026-01-01",
     });
 
-    const { GET } = await import("@/app/api/matrix/[id]/events/route");
+    const { GET } = await import("@/server/routes/matrixEvents");
     const abort = new AbortController();
     const req = new Request(`http://localhost/api/matrix/${VALID_ID}/events`, {
       headers: { "last-event-id": "1" },
@@ -705,7 +705,7 @@ describe("GET /api/matrix/[id]/events (SSE backfill)", () => {
       createdAt: "2026-01-01",
     });
 
-    const { GET } = await import("@/app/api/matrix/[id]/events/route");
+    const { GET } = await import("@/server/routes/matrixEvents");
     const abort = new AbortController();
     const req = new Request(`http://localhost/api/matrix/${VALID_ID}/events`, {
       headers: { "last-event-id": "3" },
@@ -722,7 +722,7 @@ describe("rate limiting", () => {
   it("returns 429 once the per-minute write budget is exceeded", async () => {
     vi.stubEnv("WRITE_RATE_LIMIT_PER_MIN", "2");
     __resetRateLimiterForTests();
-    const { POST } = await import("@/app/api/matrix/route");
+    const { POST } = await import("@/server/routes/matrix");
     const fire = () =>
       POST(
         jsonRequest("http://localhost/api/matrix", {
@@ -745,7 +745,7 @@ describe("rate limiting", () => {
     vi.stubEnv("WRITE_RATE_LIMIT_PER_MIN", "1");
     __resetRateLimiterForTests();
     seedMatrix();
-    const { GET } = await import("@/app/api/matrix/[id]/route");
+    const { GET } = await import("@/server/routes/matrixById");
     for (let i = 0; i < 5; i++) {
       const res = await GET(new Request(`http://localhost/api/matrix/${VALID_ID}`), {
         params: Promise.resolve({ id: VALID_ID }),

@@ -1,0 +1,30 @@
+/*
+ * Self-hosted Geist, replacing `next/font/google`.
+ *
+ * Served from our own origin (Vite copies the woff2/woff into the hashed
+ * asset directory at build time), which is what keeps fonts inside a
+ * `font-src 'self'` policy. Nothing here reaches out to Google.
+ *
+ * Only the weights the app actually uses: 400 (body), 500 (`font-medium`),
+ * and 600 (`font-semibold`) for sans, and 400 for mono, which appears only
+ * in `<kbd>`/`<code>` and the share-link field. Add a weight here if a
+ * `font-bold` or similar shows up, otherwise the browser will synthesize
+ * it and the text will look subtly wrong.
+ *
+ * `latin-*.css` rather than the full `*.css` to skip the Cyrillic and Greek
+ * subsets we have no copy for.
+ */
+@import "@fontsource/geist-sans/latin-400.css";
+@import "@fontsource/geist-sans/latin-500.css";
+@import "@fontsource/geist-sans/latin-600.css";
+@import "@fontsource/geist-mono/latin-400.css";
+
+/*
+ * `next/font` used to inject these as generated class names on <html>.
+ * Defining them at :root instead keeps app/globals.css unchanged, since it
+ * already reads `var(--font-geist-sans)` / `var(--font-geist-mono)`.
+ */
+:root {
+  --font-geist-sans: "Geist Sans";
+  --font-geist-mono: "Geist Mono";
+}

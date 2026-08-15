@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useLayoutEffect, useRef, useState } from "react";
-import Image from "next/image";
 import {
   Tooltip,
   TooltipContent,
@@ -143,13 +142,16 @@ export default function MatrixTopBar({
           <Tooltip>
             <TooltipTrigger asChild>
               <div className="shrink-0">
-                <Image
+                {/* A plain <img>: the source is a static SVG we ship, so
+                    there's nothing for an image optimizer to do, and the
+                    build has no server to do it. */}
+                <img
                   src="/icon.svg"
                   alt={SITE_NAME}
                   width={32}
                   height={32}
                   className="size-7 sm:size-8"
-                  priority
+                  fetchPriority="high"
                 />
               </div>
             </TooltipTrigger>

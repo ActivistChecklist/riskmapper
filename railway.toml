@@ -1,9 +1,12 @@
 [build]
 builder = "NIXPACKS"
+# Builds the static client into dist/ and the Node server into dist-server/.
 buildCommand = "yarn build"
 
 [deploy]
-startCommand = "yarn start -p $PORT -H 0.0.0.0"
+# One process serves both the static build and the API, keeping the app
+# same-origin. Binds 0.0.0.0 and reads $PORT from the platform by default.
+startCommand = "yarn start"
 healthcheckPath = "/api/healthz"
 healthcheckTimeout = 100
 restartPolicyType = "ON_FAILURE"
