@@ -43,7 +43,7 @@ and the app is verified working.
 ## Target architecture
 
 ```
-riskmapper.org  (one origin, one Railway service)
+riskmapper.app  (one origin, one Railway service)
 ├── /                  index.html          → SPA (RiskMatrix)
 ├── /grid/<id>#<key>   index.html           (server fallback; SPA reads the path)
 ├── /privacy           privacy/index.html  → its own static document
@@ -152,7 +152,29 @@ The three items previously flagged for manual verification are resolved:
 - The server stores ciphertext only: the plaintext of a test risk did not appear
   anywhere in the stored record.
 
-### Phase 4 — WEBCAT (not started, deliberately)
+### Deployed to production, 2026-08-14
+
+Live on https://riskmapper.app and verified against the deployed artifact, not
+just a local build:
+
+- `/` 200, `/privacy` 301 → `/privacy/`, `/privacy/` 200, `/grid/<id>` 200
+  fallback, `/nope` 200 fallback, `/api/healthz` 200
+- Path traversal 400, `/api/nope` 404 with `application/json`
+- **Zero inline scripts** in both documents, and **no external origin**
+  referenced anywhere in the served HTML. The only scripts are
+  `/theme-boot.js` and one hashed module. This is the state WEBCAT enrollment
+  requires, now true in production.
+- Self-hosted Geist resolving, theme boot applying `.dark`, footer linking to
+  the canonical `/privacy/`
+
+One thing to tidy: the shipped bundle still contains the debug log literals
+(`mergeSnapshot skipped`, `bridge invoke`, `sse onUpdate`), so `VITE_DEBUG` is
+not set to `"false"` on the Railway build. Production therefore logs sync
+chatter, including `recordId`, to every visitor's console. Not a disclosure to
+any third party, and analytics never receives it, but it is noise the flag
+exists to suppress. Set `VITE_DEBUG=false` as a **build-time** variable.
+
+### Phase 4 — WEBCAT (next)
 
 Only after the above is running well in production. `webcat.config.json`,
 `/.well-known/webcat/`, CI build-sign-deploy, then enrollment. Do not submit the
@@ -342,16 +364,12 @@ Ordered by what would break first if skipped.
 
 **Before the next deploy — will break the site otherwise**
 
-- [ ] **Rename the Railway env vars.** Client vars are now read from
-      `import.meta.env` and inlined at build time, so the old names are simply
-      ignored: `NEXT_PUBLIC_CLOUD_SYNC_ENABLED` → `VITE_CLOUD_SYNC_ENABLED`,
-      `NEXT_PUBLIC_CLOUD_API_URL` → `VITE_CLOUD_API_URL`, `NEXT_PUBLIC_DEBUG` →
-      `VITE_DEBUG`. They must be present **at build time**, not just at runtime.
-      Server vars (`MONGO_URL`, `UMAMI_*`, `IP_HASH_SALT`, …) are unchanged and
-      still read at runtime.
-- [ ] **Check Railway's build runs devDependencies.** `vite` is a devDependency
-      and `yarn build` needs it. If the service is configured to prune dev deps
-      before building, the build will fail.
+- [x] ~~Rename the Railway env vars.~~ Deployed and working 2026-08-14.
+      **Still outstanding:** set `VITE_DEBUG=false` as a build-time variable.
+      The deployed bundle still contains the debug log literals, so production
+      is logging sync chatter (including `recordId`) to visitors' consoles.
+- [x] ~~Check Railway's build runs devDependencies.~~ Confirmed by the
+      successful 2026-08-14 deploy.
 
 **Review, because I changed things a careful reviewer would want to see**
 
