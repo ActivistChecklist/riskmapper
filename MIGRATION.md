@@ -204,6 +204,27 @@ third-party origin appears in any entry document.
 
 ### Findings log
 
+**2026-08-14, found during live testing.**
+
+- **F6 (moderate, availability — FIXED).** `lib/cloud/db.ts` cached the *connect
+  promise*, including a rejected one. A single transient Mongo outage therefore
+  bricked the API for the lifetime of the process: every later request re-awaited
+  the same cached rejection and returned 500 long after the database was healthy
+  again. This mattered little under a framework that reloads modules, but the
+  server is now long-lived, so recovery required a manual restart. Found for real
+  when the dev Mongo container was stopped and the API kept 500ing afterwards;
+  confirmed by a fresh process serving the identical request correctly while the
+  old one still failed. Fixed by evicting a failed attempt (and closing its
+  client) so the next request reconnects. Covered by `lib/cloud/db.test.ts`, and
+  verified live through a full stop/start cycle: same process, no restart,
+  200 after recovery.
+- **F7 (low, footgun — FIXED in docs).** `.env.local.example` claimed to show
+  defaults but listed `MONGO_DB=riskmapper`, while the code default in
+  `lib/cloud/config.ts` is `riskmatrix`. Following the example silently points
+  the app at a different database, where existing records appear to have vanished
+  (the client falls back to its local cache and the server 404s). The example now
+  states the real default and warns about the effect.
+
 **2026-08-14, after Phase 3.** The API handlers were verified byte-identical to
 their originals apart from the deleted `export const runtime = "nodejs"` line
 and two doc-comment path updates (diffed individually against `HEAD`). The new
@@ -334,15 +355,19 @@ Ordered by what would break first if skipped.
 
 **Review, because I changed things a careful reviewer would want to see**
 
-- [ ] **`git diff yarn.lock`.** I hand-edited it once, merging two requirement
-      keys onto the existing `vite` entry to work around a yarn 1 linker bug
-      (`Invariant Violation: could not find a copy of vite to link`). No
-      integrity hash was added or changed, but your threat model names the build
-      pipeline explicitly, so this deserves your eyes.
+- [x] ~~`git diff yarn.lock` for the hand-edit.~~ **Resolved 2026-08-14.** The
+      hand-edit had already been overwritten by yarn's own regeneration during
+      later add/remove operations, and the lockfile was then rebuilt from
+      scratch (`rm yarn.lock node_modules && yarn install`). It is now provably
+      machine-generated: `yarn install --frozen-lockfile` reports "Already
+      up-to-date".
 - [ ] **Three new dependencies.** `@fontsource/geist-sans` and
       `@fontsource/geist-mono` ship to users; I verified they contain only CSS,
       woff/woff2 and a type declaration, with no JS and no install scripts.
       `vite` and `concurrently` are devDependencies.
+- [ ] **The dependency refresh of 2026-08-14** (see the log below), in
+      particular the React 19.2.4 → 19.2.8 and Tailwind 4.2 → 4.3 bumps, which
+      touch every rendered pixel.
 - [ ] **`server/staticFiles.ts` and `server/index.ts`.** This is the code that
       decides which bytes on disk a stranger's URL can reach. It has two
       independent traversal guards and direct tests, and I verified 400s live,
@@ -378,6 +403,42 @@ Ordered by what would break first if skipped.
 - [ ] Phase 4 (WEBCAT). Do not submit the domain at enroll.webcat.tech until the
       manifest pipeline is verified end to end: after enrollment, a manifest
       mismatch hard-blocks the site for every extension user.
+
+## Dependency refresh, 2026-08-14
+
+`yarn.lock` rebuilt from scratch so it is machine-generated end to end, which
+also pulled every in-range update. Four exactly-pinned entries were bumped by
+hand because a fresh install would not move them: `react` and `react-dom`
+19.2.4 → 19.2.8, `@types/node` ^20 → ^22 (it was tracking the wrong major, since
+`engines` pins Node 22), and `next` + `eslint-config-next` 16.2.4 → 16.3.1 kept
+in step with each other.
+
+Notable in-range moves: tailwindcss and @tailwindcss/postcss 4.2.2 → 4.3.3,
+@tiptap/* 3.22.5 → 3.30.1, mongodb 7.2.0 → 7.5.0, yjs 13.6.30 → 13.6.32,
+vite 8.0.8 → 8.2.1, vitest 4.1.4 → 4.1.10, lucide-react 1.8.0 → 1.31.0,
+@radix-ui/* and @react-pdf/renderer minors.
+
+**libsodium-wrappers was already on the latest release (0.8.4) and did not
+move.** The crypto path is unchanged by this refresh.
+
+Majors deliberately held back, each of which needs its own change:
+
+- `typescript` 5.9 → 7.0: a major language-tooling jump, on its own please.
+- `eslint` 9 → 10: `eslint-config-next` does not support it yet.
+- `jsdom` 29 → 30: test-environment major; nothing needs it.
+- `fractional-indexing` 3 → 4: it orders every risk in the matrix, so a major
+  wants deliberate testing of the ordering behaviour.
+- `@types/node` 26 would track Node 26; we are on 22.
+
+`@activistchecklist/umami-extra-privacy` stays pinned to a git commit SHA, which
+is the right call for a dependency that handles analytics on an E2EE app: the
+SHA is immutable in a way a version range is not.
+
+Verified after the refresh: 303 tests, `tsc --noEmit` clean, clean build with
+still zero inline scripts and no external origins, all server routes behaving
+(including traversal 400 and the `/privacy` 301), and a live browser pass on the
+production build covering tiptap input, an encrypted share round trip, and
+realtime two-tab propagation.
 
 ## Verification
 

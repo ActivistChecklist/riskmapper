@@ -14,7 +14,7 @@ export default defineConfig({
 
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "."),
+      "@": path.resolve(import.meta.dirname, "."),
     },
     // One physical copy of yjs — duplicate instances break Y.* constructor
     // checks (see https://github.com/yjs/yjs/issues/438). This replaces the
@@ -34,8 +34,8 @@ export default defineConfig({
     // `default_index` resolves it.
     rollupOptions: {
       input: {
-        main: path.resolve(__dirname, "index.html"),
-        privacy: path.resolve(__dirname, "privacy/index.html"),
+        main: path.resolve(import.meta.dirname, "index.html"),
+        privacy: path.resolve(import.meta.dirname, "privacy/index.html"),
       },
     },
   },

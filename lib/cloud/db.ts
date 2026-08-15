@@ -15,10 +15,11 @@ import type {
 /**
  * Lazy MongoDB client + collection accessors.
  *
- * Caches the connect promise on `globalThis` in development so Next.js
- * hot-reload doesn't open a new connection on every code change. Production
- * caches it on a module-local binding (each lambda / serverful instance
- * holds one connection).
+ * Caches the connect promise so one instance holds one connection, on
+ * `globalThis` in development (so a reloading dev process doesn't open a new
+ * connection per change) and on a module-local binding otherwise.
+ *
+ * A *failed* attempt is deliberately not cached — see `getClient`.
  */
 
 const g = globalThis as typeof globalThis & {
@@ -35,12 +36,34 @@ async function getClient(): Promise<MongoClient> {
       throw new Error("MONGO_URL is not set");
     }
     const client = new MongoClient(MONGO_URL);
-    cachedClientPromise = client.connect();
+    // Evict a failed attempt instead of caching the rejection. Caching it
+    // means one transient outage (Mongo restarting, a failover, the dev
+    // container not up yet) bricks every later request for the lifetime of
+    // the process, because each call re-awaits the same rejected promise.
+    // That is survivable under a framework that reloads modules, but this
+    // server is long-lived: it would need a manual restart to recover.
+    const attempt: Promise<MongoClient> = client.connect().catch((err) => {
+      if (cachedClientPromise === attempt) cachedClientPromise = null;
+      if (g._riskmatrixMongoPromise === attempt) {
+        g._riskmatrixMongoPromise = undefined;
+      }
+      // Release the socket; a retry builds a fresh client.
+      void client.close().catch(() => {});
+      throw err;
+    });
+    cachedClientPromise = attempt;
     if (process.env.NODE_ENV === "development") {
-      g._riskmatrixMongoPromise = cachedClientPromise;
+      g._riskmatrixMongoPromise = attempt;
     }
   }
   return cachedClientPromise;
+}
+
+/** Drops any cached connection. Tests only. */
+export function __resetDbForTests(): void {
+  cachedClientPromise = null;
+  g._riskmatrixMongoPromise = undefined;
+  g._riskmatrixIndexed = false;
 }
 
 export async function getCollection(): Promise<AppCollection> {
