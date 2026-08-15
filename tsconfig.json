@@ -13,6 +13,9 @@
     "isolatedModules": true,
     "jsx": "react-jsx",
     "incremental": true,
+    // vite.config.mts imports scripts/wasmDigests.mts with its extension,
+    // which Vite's ESM config loader requires.
+    "allowImportingTsExtensions": true,
     "types": ["vite/client"],
     "paths": {
       "@/*": ["./*"]

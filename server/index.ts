@@ -186,6 +186,11 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
     case "deny":
       sendJson(res, 400, { error: "bad request" });
       return;
+    case "notFound":
+      // A well-known resource that isn't published. Answer honestly rather
+      // than handing a WEBCAT client the SPA document.
+      sendJson(res, 404, { error: "not found" });
+      return;
     case "redirect":
       res.writeHead(301, { Location: resolved.location });
       res.end();

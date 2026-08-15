@@ -47,3 +47,13 @@ next-env.d.ts
 
 
 .claude
+
+# Derived from the build on every run; see the webcat-config plugin in vite.config.mts
+/webcat.config.generated.json
+
+# Content-addressed enrollment objects; republished into public/.well-known/webcat/
+/cas/
+/webcat.manifest.unsigned.json
+
+# Sigsum rate-limit key: anti-spam credential, private half never committed
+/webcat/rate-limit-key

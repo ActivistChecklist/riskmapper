@@ -174,7 +174,49 @@ chatter, including `recordId`, to every visitor's console. Not a disclosure to
 any third party, and analytics never receives it, but it is noise the flag
 exists to suppress. Set `VITE_DEBUG=false` as a **build-time** variable.
 
-### Phase 4 — WEBCAT (next)
+### Phase 4 — WEBCAT (in progress)
+
+Done so far:
+
+- [x] **CSP established by measurement**, not by guessing. `server/csp.ts` is the
+      single source of truth; the server sends it on every static response and
+      `webcat.config.json` restates it, with a test asserting the two match.
+      `validateWebcatCsp` encodes the spec's rules so loosening the policy in a
+      way the extension rejects fails a test instead of blocking the site.
+- [x] **Third-party font fetch removed** (finding F8) — the PDF export was
+      leaking user IPs to a CDN. Fixed and verified.
+- [x] **`/.well-known/` wired up.** Vite copies `public/.well-known/` into the
+      build, the server serves it with correct content types, and an *absent*
+      well-known resource now 404s rather than returning the SPA document, so a
+      WEBCAT client can tell "not published yet" from "malformed".
+- [x] **`webcat.config.json` committed**, with the wasm digests for the two
+      embedded modules extracted by the `webcat-config` build plugin.
+
+Still to do:
+
+- [ ] `enrollment.json` via Sigstore, which needs the GitHub identity and
+      workflow path to pin as claims
+- [ ] Manifest generation + signing in GitHub Actions
+- [ ] Railway consuming the prebuilt artifact rather than building from source
+- [ ] Post-deploy verification: fetch the live files, hash them, compare to the
+      signed manifest, fail loudly on mismatch
+- [ ] Only then: enroll at enroll.webcat.tech
+
+**The `wasm` digests are derived on every build**, by the `webcat-config`
+plugin in `vite.config.mts`, which scans the emitted chunks and writes
+`webcat.config.generated.json` (gitignored). That file is what the manifest
+step consumes; the committed `webcat.config.json` holds only the decisions a
+human makes.
+
+This was deliberately not left as a manual step. Both `libsodium-wrappers` and
+`@react-pdf/renderer` compile wasm from a base64 literal inside their own
+bundle rather than fetching a `.wasm` file, so the digests change silently on
+any upgrade of either, and a stale digest blocks the site for enrolled users.
+Deriving them from the actual output makes that impossible to forget. The
+extraction logic lives in `scripts/wasmDigests.mts` and is unit-tested against
+synthetic bundles.
+
+### Phase 4 — remaining detail
 
 Only after the above is running well in production. `webcat.config.json`,
 `/.well-known/webcat/`, CI build-sign-deploy, then enrollment. Do not submit the

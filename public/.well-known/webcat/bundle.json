@@ -1,0 +1,71 @@
+{
+  "enrollment": {
+    "type": "sigsum",
+    "policy": "AAIDBg7H4WhDEZsSA3enOROsasvC0D2CQy4sNrhBsJqVhB8l8AwVlmPQm72mEx7hgWhjtq3Kz-gLCyiAALEauo_jgxQV1tAUFUMke3S6s8EHY3LZyJT2GcN21kspqjEswA9hrbIQbbkGXsl_JeCcGIOSFnUabibY7YtB5IWlY9PRSYU2B2voye5-pgkW8N82CMlF13MAguyzd0na0sntM5_qdwxAQQFCAYI",
+    "signers": [
+      "wzRAXpRuYr5CHZmCAdK1Jh2widMU8GOwCNhONOHkV8k"
+    ],
+    "threshold": 1,
+    "max_age": 15552000,
+    "cas_url": "https://riskmapper.app/.well-known/webcat/",
+    "logs": {
+      "8AwVlmPQm72mEx7hgWhjtq3Kz-gLCyiAALEauo_jgxQ": "https://ginkgo.tlog.mullvad.net",
+      "DsfhaEMRmxIDd6c5E6xqy8LQPYJDLiw2uEGwmpWEHyU": "https://seasalp.glasklar.is"
+    }
+  },
+  "manifest": {
+    "app": "https://github.com/ActivistChecklist/riskmapper",
+    "version": "0.1.0",
+    "default_csp": "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self'; font-src 'self'; connect-src 'self' data:; worker-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "files": {
+      "/apple-icon.png": "aGylUEzSZ-Z6voqD5HvLMw-N5FH7Z4glboNHFnnWM0E",
+      "/assets/__vite-browser-external-BbTE95wW.js": "6dU3D5yyBH1fEPuTIu3DiwqrkJ_V2dOEQj_CUFJZMVY",
+      "/assets/geist-mono-latin-400-normal-B2yvC1Cq.woff": "7H7NOTJ8OaKyeSyLQC0JRhm2weUXp0Qgzej9Z6ce0IM",
+      "/assets/geist-mono-latin-400-normal-DTRLJnHl.woff2": "P5g4OxIv4BWkhTbNShzahVogFxiSP_50kxoBWXEHubU",
+      "/assets/geist-sans-latin-400-normal-BOaIZNA2.woff": "svWTHxqQO8xkr5buQbP-1TqM506SYRgZMaaApQVgSFs",
+      "/assets/geist-sans-latin-400-normal-gapTbOY8.woff2": "5u9quznHYu0iWcyBTm8WiIxUDNhINZYiJ7VqsjVPJ_E",
+      "/assets/geist-sans-latin-500-normal-CN2lyvyL.woff": "XWebh5bu1EDW5-LpTDc5C4L523eqks_CHpahze7Puj0",
+      "/assets/geist-sans-latin-500-normal-uokXdC-Q.woff2": "QAc-kIFjFckuT0OBvVC2_clQsisN0BCkF5BGz1iNTxI",
+      "/assets/geist-sans-latin-600-normal-CA1yjETN.woff": "OQPtdjPVY940u79gnoaah45LQIGiUBGhlbeoAEPsr-k",
+      "/assets/geist-sans-latin-600-normal-DFOURf8L.woff2": "nZn715GWhJP6UHrIRt5WHO5HsA-BAMI8rTM7PLeDktY",
+      "/assets/globals-BlLLulWr.css": "sp5gBRO_NlgXEmrOrXcavtQcB-Ko-GZspiu-yFaEyic",
+      "/assets/globals-DNGg7Gyd.js": "qd1p2qwSgOncX-8wDQfp1XfW2YwtbRbpDIgcMvQPmvw",
+      "/assets/libsodium-wrappers-BW3dtC0z.js": "MyUSxp4bHFXwTB6XCRAgwO_3GM1mTDLKb7Cp-d-eAZM",
+      "/assets/main-B2xnuxHD.js": "tJYistUAi_Qm5r5uIMbE9nv3CmL7T3B3TOVNQIjsims",
+      "/assets/MatrixPdfDocument-DccoCIMZ.js": "H2RtDpkqwdRM8VfKGKqt6y__gdDA49b99bHxFLwTcwg",
+      "/assets/privacy-CkSc69Iv.js": "6JEc6UOuTC-RhmWTZq5wTHva5dsxUz3Lv5KwwAumc2o",
+      "/assets/react-pdf.browser-Bx3WT-l7.js": "cv1BmXCUOrPkNWGEieWlC_OuH4_zAA_TsFG84MFxIx8",
+      "/assets/roboto-latin-400-italic-BpsFK_tr.woff": "uSb3uX0va_GhLL_GWgOUEgrkAdX_XMOkhPr93wYY_Ws",
+      "/assets/roboto-latin-400-normal-D27F5sTu.woff": "bP8SEWuDMhIwNH23XQch5wwnxuxp7MypPKSxVW6q9n8",
+      "/assets/roboto-latin-500-normal-fsTFPL3E.woff": "j6jlYuGimXtELNcc4KpcGBSxGagDMdnP3Q9OsDLooL0",
+      "/assets/roboto-latin-700-normal-YuyVweIx.woff": "GeeLHF8saDwogA-E3W1FPdtnmHsAeQYKTL5Qx73e0Ug",
+      "/assets/rolldown-runtime-hePW80VL.js": "WArYxYBhpN3pm94KVpBeOC8FaFFu4vW4Tb-1IIVwkCE",
+      "/favicon.ico": "SdhFlQsKjwKQ2b2zpvRSuBmJaPWZpM4404i67K8M4ls",
+      "/file.svg": "K2eBLDJcGZoCU2zb7qDFk6cvcH0yO3LuPgjbqwZ1O9Q",
+      "/globe.svg": "thS5vxg5JZV2YayFFJj-HYAp_UOmL7_thvniYkpX588",
+      "/icon-16.png": "YMDV9uHIdUiltwCHoTDMsM73zhiqoBbYRUFQ5AEqi8Q",
+      "/icon-192.png": "5WFI55NLhZJqtPVlwspUIMmZTOZ6Xwk37mP2f1RJ36k",
+      "/icon-32.png": "dB5hHIp4ZzyZe6lbI74naYM3rOuRFdSiku_JRCC5mJA",
+      "/icon-48.png": "gvPB3YIYP3971ujn38Z_HlbNRGl3G42jbuaU_nnsgYc",
+      "/icon-512.png": "oukurKb9km1fAlsVoJ5mswR4h4lbnkBG-KzbXsNeFJo",
+      "/icon.svg": "g2SiedkWG96M_UY6xCAPcrQ3IW1nPBxY08-lJZmm1Ac",
+      "/index.html": "q1LLPraRjGuwuhjaewz-3Lpw7AnOP8i7FpO6z-3kvEY",
+      "/next.svg": "VZld-tbstJRaHoVt3KA8XhaqW_E_0htN9qdK55NXvPw",
+      "/privacy/index.html": "Ubg-R_y54nWmupBXNSDmrA4TZ242d4rdWJPY_1Ky1lQ",
+      "/theme-boot.js": "bJLHCgjpkWvF0l9ATZnKCosIr7qmizEHtPzgz5IDTV0",
+      "/vercel.svg": "8IEzey_uY1tFW2MnVAaj5_OdagFOJa2Q2rWmfmKhKsQ",
+      "/window.svg": "ZEdoxKrrR2e84pM0TusMEl-4BKlNgBRAQkByIC2F46E"
+    },
+    "default_index": "index.html",
+    "default_fallback": "/index.html",
+    "wasm": [
+      "Nu4tNOS2WaLcQf_GhxuTSXSx3IhibELj4CC1k0Fdiec",
+      "e6nJSDyMOKRo6a70qV7XL62KQ1lL6OUSPrO9tkee31s"
+    ],
+    "extra_csp": {},
+    "timestamp": "size=3732\nroot_hash=87e92193c465b38b4d6ec92ef5a05394450a37aa12b689719779f5fd96c11473\nsignature=4aa107f7238bd8a50e3f3a79b14c87f9a012d66ae5f84b1b191a5c47f20844d1f82f0b58d646871322342b5c39a20ff7fdc1ab31533befd894219656ac19e703\ncosignature=774fafee07d3b0d9399d669676440a6301db9fa8fe2140d7d352418da25144c5 1786801582 42e32f597b00ff9ea28f252642c4e60d6d94950e7d1aedfd8b2b44207ca0de4628f8660d61f78bd7811c43977f4af23102f5e1690b728a44f4168401f7a09207\ncosignature=5da2b3803c2f802eed9744b74e3e4a3d31e1e77ed994ef56730d57fa52f698a5 1786801582 57066d9cecc29cd4ec134ae72b74f3f70f685b8f2c79434b7e1cb0c54d94ff715b4efaa8ec44f732b736bf0c254f2f0d57cbd14a856e64795fdf099fa835ab0e\ncosignature=6bdf03b285fce48e00ff9b199cb2b77472dcc4a112f067fa5b274929cb9504e3 1786801582 b91538c9b4335c18bfbfb61b028fb5b412fab34d89da5ca0f98c6a6b19dd2b812551dd5ef8f2dd7cf4db4ba05ed41baeb8e982f69cf832cd03345fb85c1f570b"
+  },
+  "signatures": {
+    "wzRAXpRuYr5CHZmCAdK1Jh2widMU8GOwCNhONOHkV8k": "version=2\nlog=c03f05182be9341e33b9edd5f3f8675b08332164640203e743f4285359cace47\nleaf=59994242b50d3a68d7f85c2cc0583f7395238fb346bb69b3eb8174b3f1578fcb 689ec9760b159c64afb001dd646b1e531a21d36e9a419eba7308ef358bc43bcd3bbd70d344c69660f3e7181bf69060806b6b1a1bc36f42dd5932f31007dfb80c\n\nsize=3733\nroot_hash=89e3c87d5dd61244a13fd1f0a710d54d7e961a6e0c4fb38720c3833a482e6f1b\nsignature=c2367a524aa83c7d90d232305803157f7c6ced30bfc5bf129276cc0aec71d7ab4d60769bf17606e443764203692142c73b62af4f453ae28785385fc8775e320b\ncosignature=6bdf03b285fce48e00ff9b199cb2b77472dcc4a112f067fa5b274929cb9504e3 1786801602 f809d5d555a546d658092d49e8168f10819ecaccb6c985555c767fde3413cdf92fbf82b5bf7bc5a9f1e97eb23ad4cb51ac3ee33f4814b426565b142cb3ff8e02\ncosignature=774fafee07d3b0d9399d669676440a6301db9fa8fe2140d7d352418da25144c5 1786801602 a4267f3eded0ce29332040fb3836e9e5671fc7c837f8003d3996dcc8334c4a9eb27fdfb94ab0a33a99511c1b42019dd2b590952764394d942b17f3577b14ce0a\ncosignature=5da2b3803c2f802eed9744b74e3e4a3d31e1e77ed994ef56730d57fa52f698a5 1786801602 f8fd130a570323d6a6e1a9226d45ffd909d83432e93876cf877d4761195d34dcd7582b155b5969c4c36e9575771a0a3836005cd100ada86600738dd2ded99304\n\nleaf_index=3732\nnode_hash=b0adb17a525703515b3b9733e05eed7affbff0fa886e3bd3a8a2826bb1cbd813\nnode_hash=3a57327c49418ce50a8930f40e2e6ce6517b5c41afa38442d136ef617581049f\nnode_hash=1e1ace068323e9cf531a155a26db509311de9c9450d4fab18bd7d7f364269baf\nnode_hash=88b0069ac59523d873a32525fbf3b89b75c4d4f94af1daa910d05b03d4c9b38b\nnode_hash=ae1a4b55d917f93324dad2d4dbfb8f9ac6fbb8d6a7edf5b95893a92eedb3fea3\nnode_hash=bca55f80fac3f75581b36d62d27d4088aaa69bd31be00a9c52bf28d33f3b9832"
+  }
+}

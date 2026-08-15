@@ -1,0 +1,14 @@
+{
+  "type": "sigsum",
+  "policy": "AAIDBg7H4WhDEZsSA3enOROsasvC0D2CQy4sNrhBsJqVhB8l8AwVlmPQm72mEx7hgWhjtq3Kz-gLCyiAALEauo_jgxQV1tAUFUMke3S6s8EHY3LZyJT2GcN21kspqjEswA9hrbIQbbkGXsl_JeCcGIOSFnUabibY7YtB5IWlY9PRSYU2B2voye5-pgkW8N82CMlF13MAguyzd0na0sntM5_qdwxAQQFCAYI",
+  "signers": [
+    "wzRAXpRuYr5CHZmCAdK1Jh2widMU8GOwCNhONOHkV8k"
+  ],
+  "threshold": 1,
+  "max_age": 15552000,
+  "cas_url": "https://riskmapper.app/.well-known/webcat/",
+  "logs": {
+    "8AwVlmPQm72mEx7hgWhjtq3Kz-gLCyiAALEauo_jgxQ": "https://ginkgo.tlog.mullvad.net",
+    "DsfhaEMRmxIDd6c5E6xqy8LQPYJDLiw2uEGwmpWEHyU": "https://seasalp.glasklar.is"
+  }
+}

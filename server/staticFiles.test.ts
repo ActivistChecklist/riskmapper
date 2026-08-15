@@ -116,6 +116,48 @@ describe("exact files", () => {
   });
 });
 
+describe("the .well-known namespace", () => {
+  const withWellKnown = (path: string) =>
+    resolveStaticRequest(path, (p) =>
+      exists(p) || p === "/.well-known/webcat/manifest.json",
+    );
+
+  it("serves a published well-known resource", () => {
+    expect(withWellKnown("/.well-known/webcat/manifest.json")).toEqual({
+      kind: "file",
+      path: "/.well-known/webcat/manifest.json",
+    });
+  });
+
+  it("404s an absent well-known resource instead of returning the SPA", () => {
+    // A WEBCAT client fetching an unpublished manifest must not receive an
+    // HTML document with a 200; that turns "not enrolled yet" into "the
+    // manifest is malformed".
+    for (const path of [
+      "/.well-known/webcat/manifest.json",
+      "/.well-known/webcat/enrollment.json",
+      "/.well-known/webcat/bundle.json",
+      "/.well-known/security.txt",
+    ]) {
+      expect(resolve(path), path).toEqual({ kind: "notFound" });
+    }
+  });
+
+  it("404s a well-known directory path too", () => {
+    expect(resolve("/.well-known/webcat/")).toEqual({ kind: "notFound" });
+  });
+
+  it("still refuses traversal dressed up as a well-known path", () => {
+    expect(resolve("/.well-known/../../etc/passwd").kind).toBe("deny");
+  });
+
+  it("does not treat a lookalike prefix as well-known", () => {
+    // Only the real namespace gets the 404 treatment.
+    expect(resolve("/well-known/webcat/manifest.json").kind).toBe("fallback");
+    expect(resolve("/.well-knownx/thing").kind).toBe("fallback");
+  });
+});
+
 describe("SPA fallback", () => {
   it("falls back for share links, whose ids can never be on disk", () => {
     expect(resolve("/grid/abc123def456ghij")).toEqual({

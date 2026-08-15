@@ -27,6 +27,14 @@
 export const SPA_FALLBACK = "/index.html";
 export const DIRECTORY_INDEX = "index.html";
 
+/**
+ * RFC 8615 machine-readable namespace. WEBCAT publishes its enrollment,
+ * manifest and bundle under `/.well-known/webcat/`, and clients fetching one
+ * of those need an honest 404 when it is absent. Handing back the SPA's HTML
+ * with a 200 would make a missing manifest look like a malformed one.
+ */
+export const WELL_KNOWN_PREFIX = "/.well-known/";
+
 export type StaticResolution =
   /** Serve this exact path from the build root. */
   | { kind: "file"; path: string }
@@ -34,6 +42,8 @@ export type StaticResolution =
   | { kind: "redirect"; location: string }
   /** Serve the SPA document with a 200; the client renders the route. */
   | { kind: "fallback"; path: typeof SPA_FALLBACK }
+  /** Absent, and in a namespace where the SPA is the wrong answer. */
+  | { kind: "notFound" }
   /** Malformed or traversing: refuse without touching the filesystem. */
   | { kind: "deny"; reason: string };
 
@@ -80,11 +90,16 @@ export function resolveStaticRequest(
     return { kind: "deny", reason: "path traversal" };
   }
 
+  // Resolved before the fallback so an absent well-known resource 404s
+  // instead of quietly returning the SPA document.
+  const missing = (): StaticResolution =>
+    decoded.startsWith(WELL_KNOWN_PREFIX)
+      ? { kind: "notFound" }
+      : { kind: "fallback", path: SPA_FALLBACK };
+
   if (decoded.endsWith("/")) {
     const index = decoded + DIRECTORY_INDEX;
-    return exists(index)
-      ? { kind: "file", path: index }
-      : { kind: "fallback", path: SPA_FALLBACK };
+    return exists(index) ? { kind: "file", path: index } : missing();
   }
 
   if (exists(decoded)) {
@@ -95,7 +110,7 @@ export function resolveStaticRequest(
     return { kind: "redirect", location: `${decoded}/` };
   }
 
-  return { kind: "fallback", path: SPA_FALLBACK };
+  return missing();
 }
 
 /**
