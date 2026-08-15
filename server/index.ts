@@ -4,6 +4,7 @@ import path from "node:path";
 import { Readable } from "node:stream";
 import { fileURLToPath } from "node:url";
 import { matchApiRoute, type RouteId } from "./apiRoutes";
+import { CONTENT_SECURITY_POLICY } from "./csp";
 import { cacheControlFor, resolveStaticRequest } from "./staticFiles";
 import { toWebRequest } from "./webRequest";
 import { POST as counterPOST } from "./routes/counter";
@@ -128,6 +129,11 @@ function serveFile(res: ServerResponse, relPath: string, status = 200): void {
   res.writeHead(status, {
     "Content-Type": CONTENT_TYPES[ext] ?? "application/octet-stream",
     "Cache-Control": cacheControlFor(relPath),
+    // Must stay identical to `default_csp` in the WEBCAT manifest: once the
+    // domain is enrolled the extension enforces the signed policy, so a
+    // divergence means extension users get different behaviour from everyone
+    // else. Both read from server/csp.ts for that reason.
+    "Content-Security-Policy": CONTENT_SECURITY_POLICY,
     // Cheap hardening that costs nothing here and is independent of WEBCAT.
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "no-referrer",

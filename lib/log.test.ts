@@ -18,6 +18,12 @@ async function importLog() {
 
 beforeEach(() => {
   vi.resetModules();
+  // Neutralise the ambient value before every case. Vitest loads `.env.local`,
+  // so a developer with `VITE_DEBUG=false` there (which is exactly what you
+  // want set for a production build) would otherwise see the cases that assert
+  // the *default* behaviour fail, for reasons that have nothing to do with
+  // their change. Cases that care about a specific value stub it themselves.
+  vi.stubEnv("VITE_DEBUG", undefined);
 });
 
 afterEach(() => {

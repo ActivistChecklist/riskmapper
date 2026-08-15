@@ -226,6 +226,25 @@ third-party origin appears in any entry document.
 
 ### Findings log
 
+**2026-08-14, Phase 4 CSP work.**
+
+- **F8 (moderate, privacy — FIXED).** PDF export leaked the user's IP to a third
+  party. `components/risk-matrix/pdf/fonts.ts` registered four Roboto faces by
+  URL against `cdn.jsdelivr.net`, fetched at generation time, so exporting a
+  matrix told that CDN the user's IP address and that they had exported. This
+  was live in production and independent of WEBCAT. It also made the privacy
+  page inaccurate, which states "No third-party scripts. Nothing in your browser
+  talks to anyone other than this site." Found by applying the candidate CSP and
+  watching `connect-src` block it. Fixed by importing the fonts as assets so
+  Vite emits them into `dist/assets/` and react-pdf fetches them same-origin.
+  Verified: PDF now generates with zero CSP violations, zero external fetches,
+  and the four font requests going to our own origin.
+- **F9 (informational).** react-pdf fetches its own WebAssembly module as an
+  inline `data:` URI, which `connect-src 'self'` blocks. `connect-src` now
+  allows `data:`, which cannot reach the network and so does not widen
+  exfiltration. It also means `'wasm-unsafe-eval'` is required by react-pdf as
+  well as by libsodium.
+
 **2026-08-14, found during live testing.**
 
 - **F6 (moderate, availability — FIXED).** `lib/cloud/db.ts` cached the *connect

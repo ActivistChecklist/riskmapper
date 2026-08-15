@@ -6,6 +6,34 @@ SPA plus a small Node server. **Do not reintroduce Next.js patterns**: no
 `app/`, or Server Components. `next` remains only as a devDependency because
 `eslint-config-next` needs it.
 
+# Never let a user's IP reach a server that isn't ours
+
+This is the hardest rule in the repo. The people using this tool are planning
+around surveillance; a request to a third party tells that third party the
+user's IP address, roughly when they used the app, and often what they were
+doing. **No exceptions, including for things that feel harmless: fonts, icons,
+CDNs, analytics, error reporting, source maps, telemetry, `<link rel=preconnect>`,
+embedded media.** Vendor the asset into the build and serve it from our own
+origin instead.
+
+This is not hypothetical. The PDF export used to pull four Roboto files from
+`cdn.jsdelivr.net` at generation time, so exporting a matrix told a CDN the
+user's IP and that they had exported. It also made
+[privacy page](client/PrivacyPage.tsx) inaccurate, which claims "Nothing in your
+browser talks to anyone other than this site." Fonts are now imported as assets
+in `components/risk-matrix/pdf/fonts.ts` and emitted into `dist/assets/`.
+
+Analytics is the one deliberate exception, and it is built to obey the rule: the
+browser never contacts Umami. It posts to our own `/api/counter`, which
+anonymizes the IP server-side before forwarding.
+
+Two enforcement mechanisms, keep both working:
+
+- `server/csp.ts` denies every off-origin source, so a new third-party request
+  fails loudly in the browser rather than silently succeeding.
+- `server/csp.test.ts` asserts no directive contains a `//`, so adding a host to
+  the policy fails a test.
+
 Two constraints exist for WEBCAT code-signing, and breaking either breaks the
 site for anyone running the extension:
 
@@ -14,6 +42,15 @@ site for anyone running the extension:
   `public/theme-boot.js`.
 - **Every HTML/JS/CSS byte served is a file built at build time.** No
   server-rendered or otherwise dynamic markup, scripts, or styles.
+
+Inline **styles** are a different story from inline scripts: WEBCAT's CSP spec
+allows `style-src 'unsafe-inline'` (discouraged, but allowed), and we need it
+regardless because sonner, tiptap and Radix all inject `<style>` elements and
+`style` attributes at runtime. So do not go hunting for inline styles expecting
+to tighten the CSP — you cannot remove the library ones without dropping those
+dependencies, and our own are mostly runtime measurements. Prefer a Tailwind
+class anyway (see Conventions), but know it buys tidiness, not a stricter
+policy.
 
 ## Writing
 
@@ -89,6 +126,14 @@ Client and server code share one tree and one origin. Be deliberate about which 
 - Co-locate related files: component, styles, tests, and types in the same directory.
 - Plain `<img>` for images and plain `<a>` for navigation. Fonts are self-hosted via `@fontsource/*`, wired to CSS variables in `client/fonts.css`.
 - Error states go through `client/ErrorBoundary.tsx`. The not-found view is `client/NotFound.tsx`, rendered by path dispatch.
+- **Style with classes and tokens, not `style={{ }}`.** Reserve inline styles for
+  values that genuinely only exist at runtime: a measured element height, a drag
+  position, a width from a ResizeObserver. A static string like
+  `style={{ top: "var(--rm-topbar-h, 0px)" }}` belongs in a class
+  (`top-[var(--rm-topbar-h,0px)]`). This is a readability rule, not a security
+  one — see the CSP note at the top of this file for why it cannot tighten
+  `style-src`. Note `<View style={...}>` in `components/risk-matrix/pdf/` is
+  react-pdf's own styling API and never reaches the DOM.
 - Accessibility is required: meet WCAG 2.1 AA color contrast, preserve visible keyboard focus states, and ensure all interactive controls have clear labels.
 
 ## Theming: keep dark mode in lockstep with light
