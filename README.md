@@ -3,7 +3,7 @@
 A risk matrix and safety planning tool. Designed to help you think through risks
 and how you can prepare for them.
 
-All data is saved locally unless you use the "share" feature. Then all data is
+All data is saved locally unless you use the "share" feature. In that case, all data is
 end-to-end encrypted (not visible to our server).
 
 **[Use Risk Mapper →](https://riskmapper.app/)**
