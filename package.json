@@ -24,7 +24,8 @@
     "db:logs": "docker compose -f docker-compose.dev.yml logs -f mongo",
     "db:reset": "docker compose -p riskmapper -f docker-compose.dev.yml down -v",
     "cleanup:orphan-updates": "node scripts/cleanup-orphan-updates.mjs",
-    "webcat:sign": "node scripts/webcat-sign.mjs"
+    "webcat:sign": "node scripts/webcat-sign.mjs",
+    "webcat:verify": "node scripts/webcat-verify.mjs"
   },
   "dependencies": {
     "@activistchecklist/umami-extra-privacy": "https://github.com/ActivistChecklist/umami-extra-privacy.git#7669154d772ecbf3410c1243e8014ac8a0e74c5e",

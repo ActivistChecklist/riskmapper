@@ -8,6 +8,21 @@ end-to-end encrypted (not visible to our server).
 
 **[Use Risk Mapper →](https://riskmapper.app/)**
 
+## Deploying
+
+Every deploy has to be signed with the YubiKey, or Railway will reject it.
+
+1. Make your changes and commit them.
+2. Plug in the YubiKey.
+3. `yarn webcat:sign` — enter the PIN, then **tap the key** when prompted.
+4. Commit the updated `public/.well-known/webcat/` files.
+5. Push. Railway builds and deploys.
+6. `yarn webcat:verify` to confirm the live site matches.
+
+If a deploy comes back unhealthy, it almost always means step 3 was skipped:
+the build no longer matches the signed manifest, so `/api/healthz` returns 503
+and Railway keeps the previous version. Re-sign and push again.
+
 ## Local Development
 
 ```bash

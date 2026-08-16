@@ -1,0 +1,53 @@
+name: WEBCAT verify
+
+# Checks that riskmapper.app serves exactly the bytes described by the signed
+# WEBCAT manifest in this repo, and reports to a dead-man's-switch monitor.
+#
+# Once the domain is enrolled, any drift between the served bytes and the
+# signed manifest means the browser extension blocks the site — invisibly to
+# everyone not running it. This job is what turns that into an alert.
+#
+# Deliberately NOT in the trust path. It fetches public URLs and compares
+# hashes; it holds no signing key and cannot change what is served. Signing
+# stays local and on a YubiKey precisely so that no CI system, and no third
+# party who could be compelled, can produce a signature. See MIGRATION.md D1.
+#
+# The monitor matters as much for the pings it does *not* receive: if this job
+# stops running, or the site is unreachable, healthchecks.io raises the alarm
+# on its own. A check that only runs after a deploy cannot do that.
+
+on:
+  schedule:
+    # Every 30 minutes. GitHub delays scheduled runs under load, sometimes by
+    # 10+ minutes, so give the monitor a grace period of at least an hour.
+    - cron: "*/30 * * * *"
+  # Right after a deploy, which is when drift is most likely.
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# No repository write access needed; this only reads and reports.
+permissions:
+  contents: read
+
+concurrency:
+  group: webcat-verify
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      # No install step: the verifier uses only Node builtins, so there is
+      # nothing from npm in the path of a security check.
+      - name: Verify the live site against the signed manifest
+        env:
+          WEBCAT_PING_URL: ${{ secrets.WEBCAT_PING_URL }}
+        run: node scripts/webcat-verify.mjs https://riskmapper.app

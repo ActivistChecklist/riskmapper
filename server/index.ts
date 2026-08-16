@@ -5,6 +5,7 @@ import { Readable } from "node:stream";
 import { fileURLToPath } from "node:url";
 import { matchApiRoute, type RouteId } from "./apiRoutes";
 import { CONTENT_SECURITY_POLICY } from "./csp";
+import { runManifestCheck } from "./manifestHealth";
 import { cacheControlFor, resolveStaticRequest } from "./staticFiles";
 import { toWebRequest } from "./webRequest";
 import { POST as counterPOST } from "./routes/counter";
@@ -129,14 +130,7 @@ function serveFile(res: ServerResponse, relPath: string, status = 200): void {
   res.writeHead(status, {
     "Content-Type": CONTENT_TYPES[ext] ?? "application/octet-stream",
     "Cache-Control": cacheControlFor(relPath),
-    // Must stay identical to `default_csp` in the WEBCAT manifest: once the
-    // domain is enrolled the extension enforces the signed policy, so a
-    // divergence means extension users get different behaviour from everyone
-    // else. Both read from server/csp.ts for that reason.
-    "Content-Security-Policy": CONTENT_SECURITY_POLICY,
-    // Cheap hardening that costs nothing here and is independent of WEBCAT.
-    "X-Content-Type-Options": "nosniff",
-    "Referrer-Policy": "no-referrer",
+    // CSP and the hardening headers are set for every response in handle().
   });
   createReadStream(abs).pipe(res);
 }
@@ -150,6 +144,17 @@ const server = createServer((req, res) => {
 });
 
 async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  // Every response, not just files served from disk. WEBCAT treats a missing
+  // Content-Security-Policy as a critical failure and blocks the page, and it
+  // checks redirects, API responses and error pages too — a 301 to
+  // /privacy/ with no CSP is enough to trip ERR_WEBCAT_HEADERS_MISSING_CRITICAL.
+  // Set here so no response path can forget: writeHead() merges with these,
+  // and its own values win, so there is never a duplicate CSP header (which
+  // WEBCAT also rejects).
+  res.setHeader("Content-Security-Policy", CONTENT_SECURITY_POLICY);
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Referrer-Policy", "no-referrer");
+
   // Split before any percent-decoding so a query string cannot smuggle path
   // segments into static resolution.
   const rawPath = (req.url ?? "/").split("?")[0].split("#")[0];
@@ -205,6 +210,12 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
       return;
   }
 }
+
+// Before accepting traffic: confirm the build matches the signed WEBCAT
+// manifest. With WEBCAT_VERIFY=enforce a mismatch fails /api/healthz, so
+// Railway keeps the previous deployment rather than promoting a build the
+// extension would block. See server/verifyManifest.ts.
+runManifestCheck(DIST);
 
 server.listen(PORT, HOST, () => {
   console.log(`[server] listening on http://${HOST}:${PORT} (serving ${DIST})`);

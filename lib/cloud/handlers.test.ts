@@ -79,7 +79,47 @@ describe("GET /api/healthz", () => {
     const { GET } = await import("@/server/routes/healthz");
     const res = await GET();
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ ok: true });
+    expect((await res.json()).ok).toBe(true);
+  });
+
+  it("reports WEBCAT manifest health, which Railway uses to gate a deploy", async () => {
+    // A build whose bytes disagree with the signed manifest must not be
+    // promoted: once enrolled, that state blocks the site for extension
+    // users while looking fine to everyone else. The gate lives here because
+    // healthcheckPath in railway.toml points at this route.
+    const { GET } = await import("@/server/routes/healthz");
+    const body = await (await GET()).json();
+    expect(typeof body.webcat).toBe("string");
+  });
+
+  it("fails the healthcheck when the build does not match the manifest", async () => {
+    const { runManifestCheck } = await import("@/server/manifestHealth");
+    const { mkdtempSync, mkdirSync, writeFileSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const nodePath = (await import("node:path")).default;
+
+    const dist = mkdtempSync(nodePath.join(tmpdir(), "healthz-"));
+    mkdirSync(nodePath.join(dist, ".well-known/webcat"), { recursive: true });
+    writeFileSync(
+      nodePath.join(dist, ".well-known/webcat/manifest.json"),
+      JSON.stringify({ manifest: { files: { "/missing.js": "deadbeef" } } }),
+    );
+
+    vi.stubEnv("WEBCAT_VERIFY", "enforce");
+    const quiet = { log: () => {}, error: () => {} } as unknown as Console;
+    runManifestCheck(dist, quiet);
+
+    const { GET } = await import("@/server/routes/healthz");
+    const res = await GET();
+    expect(res.status).toBe(503);
+    const body = await res.json();
+    expect(body.ok).toBe(false);
+    expect(body.problems.join(" ")).toMatch(/missing from the build/);
+
+    // Leave the module-level cache healthy for any later test.
+    vi.stubEnv("WEBCAT_VERIFY", "off");
+    runManifestCheck(dist, quiet);
+    vi.unstubAllEnvs();
   });
 });
 
