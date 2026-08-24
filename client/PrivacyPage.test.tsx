@@ -31,6 +31,13 @@ describe("PrivacyPage", () => {
     expect(repo.getAttribute("rel")).toBe("noopener noreferrer");
   });
 
+  it("links to the security page for how matrices are protected", () => {
+    render(<PrivacyPage />);
+    expect(
+      screen.getByRole("link", { name: "Security" }).getAttribute("href"),
+    ).toBe("/security/");
+  });
+
   it("shows a last-updated date", () => {
     render(<PrivacyPage />);
     expect(screen.getByText(/last updated/i)).toBeTruthy();

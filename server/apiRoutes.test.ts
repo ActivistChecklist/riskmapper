@@ -51,7 +51,7 @@ describe("matchApiRoute", () => {
   });
 
   it("leaves non-API paths to static resolution", () => {
-    for (const path of ["/", "/privacy/", "/grid/abc", "/assets/main.js"]) {
+    for (const path of ["/", "/privacy/", "/security/", "/grid/abc", "/assets/main.js"]) {
       expect(matchApiRoute("GET", path).kind, path).toBe("notApi");
     }
   });

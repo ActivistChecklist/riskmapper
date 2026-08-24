@@ -11,16 +11,23 @@ and how you can prepare for them.
 
 Every deploy has to be signed with the YubiKey, or Railway will reject it.
 
-1. Make your changes and commit them.
-2. Plug in the YubiKey.
-3. `yarn webcat:sign` — enter the PIN, then **tap the key** when prompted.
-4. Commit the updated `public/.well-known/webcat/` files.
-5. Push. Railway builds and deploys.
+Pushing `main` offers to do it for you, which is the easy path:
+
+1. Make your changes, commit them, plug in the YubiKey.
+2. `git push`. The hook notices the signature is stale and asks. Say yes.
+3. Enter the PIN, then **tap the key** when prompted.
+4. It commits the refreshed `public/.well-known/webcat/` and stops the push,
+   because the ref git was about to send does not include that commit yet.
+5. `git push` again. Railway builds and deploys.
 6. `yarn webcat:verify` to confirm the live site matches.
 
-If a deploy comes back unhealthy, it almost always means step 3 was skipped:
-the build no longer matches the signed manifest, so `/api/healthz` returns 503
-and Railway keeps the previous version. Re-sign and push again.
+By hand it is the same thing in a different order: `yarn webcat:sign`, commit
+`public/.well-known/webcat/`, push.
+
+If a deploy comes back unhealthy, it almost always means the signing was
+skipped: the build no longer matches the signed manifest, so `/api/healthz`
+returns 503 and Railway keeps the previous version. Re-sign and push again.
+See [Git hooks](#git-hooks) for what the prompt does and how to skip it.
 
 ## Local Development
 
@@ -58,6 +65,48 @@ yarn dev
 | `yarn db:down`  | Stop it (volume preserved).                           |
 | `yarn db:logs`  | Tail Mongo logs.                                      |
 | `yarn db:reset` | Stop AND wipe the dev volume.                         |
+| `yarn hooks:install` | Point git at `.githooks/`. Runs on install.      |
+
+### Git hooks
+
+`.githooks/` holds the repo's hooks, and `yarn install` points git at them
+(`core.hooksPath`). Install them by hand with `yarn hooks:install`.
+
+The one that matters is the WEBCAT signing prompt, on **pre-push**. Pushing
+`main` when the tree has changed since the last signature asks `Sign it now?`:
+
+- **Yes** runs `yarn webcat:sign` right there (PIN, tap), commits the result as
+  "Update webcat", and stops the push. The ref list git computed before that
+  commit existed cannot carry it, so the next `git push` is the one that ships
+  it.
+- **No** lets the push through, and says what that costs: the site stops
+  loading for anyone running the WEBCAT extension, invisibly to everyone else,
+  and the deploy does not promote because `/api/healthz` fails on a manifest
+  mismatch.
+
+Push is the right moment for this rather than commit: signing hashes a build,
+so it can only describe a finished state, and a push is the last point where
+signing still changes what ships.
+
+Some details worth knowing:
+
+- It only fires for a push that lands on `refs/heads/main`, and only when files
+  that can change `dist/` have changed since the commit that last touched
+  `manifest.json`. Prose, CI config, and hook edits pass without a word. Sign
+  and the prompt goes quiet on its own.
+- If the working tree has uncommitted changes to build files it will not offer
+  to sign, because signing hashes a build of the working tree and the signature
+  would describe bytes you are not pushing. It asks whether to push unsigned,
+  defaulting to no.
+- With no terminal attached (a scripted push, a GUI client) it prints the
+  reminder and lets the push through rather than hanging on a question nobody
+  can see.
+- `WEBCAT_SIGN_REMINDER=off git push` skips it entirely. So does a gate that
+  crashes: only a deliberate stop blocks a push.
+- A repo-local `core.hooksPath` shadows a global one completely, so each hook
+  in `.githooks/` calls its global namesake first, replaying stdin to both.
+  If your global hooks directory gains a hook that has no matching file in
+  `.githooks/`, `yarn hooks:install` says so.
 
 ## Cloud sync (E2EE)
 

@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Offers to WEBCAT-sign before a push to main. See scripts/webcat-sign-gate.mjs.
+set -euo pipefail
+HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=./lib.sh
+. "${HOOK_DIR}/lib.sh"
+
+# git pipes the ref list in on stdin, and both hooks below want to read it, so
+# capture it once and replay it to each.
+refs="$(cat)"
+
+printf '%s\n' "${refs}" | run_global_hook pre-push "$@"
+
+set +e
+printf '%s\n' "${refs}" | run_repo_script webcat-sign-gate.mjs "$@"
+rc=$?
+set -e
+
+# 10 means the gate stopped the push deliberately (signed and committed, or
+# told not to send). Anything else non-zero is a broken gate, and a reminder
+# that crashes must not be able to wedge a push.
+if [ "${rc}" -eq 10 ]; then
+  exit 1
+fi
+exit 0

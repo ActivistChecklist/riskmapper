@@ -6,6 +6,8 @@
     "node": "22"
   },
   "scripts": {
+    "prepare": "node scripts/install-git-hooks.mjs",
+    "hooks:install": "node scripts/install-git-hooks.mjs",
     "dev": "concurrently -k -n web,api -c cyan,magenta \"yarn dev:web\" \"yarn dev:api\"",
     "dev:web": "vite",
     "dev:api": "yarn build:server && PORT=3001 yarn start:local",

@@ -3,8 +3,10 @@
  * inline code, autolinks, `[text](url)` links, and ordered/unordered lists.
  * Anything else falls through as plain text.
  *
- * Shared between the PDF document renderer (react-pdf) and the rich-text
- * clipboard exporter (HTML). Both consume the same `NotesBlock[]` AST.
+ * Shared by three consumers, all of which read the same `NotesBlock[]` AST:
+ * the PDF document renderer (react-pdf), the rich-text clipboard exporter
+ * (HTML), and `client/Prose.tsx`, which renders the Privacy and Security
+ * documents. Widening the subset is safe; narrowing it is not.
  */
 
 export type NotesInline =

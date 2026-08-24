@@ -69,6 +69,7 @@ policy.
 | `yarn build`        | Production build: `dist/` (client) and `dist-server/`        |
 | `yarn start`        | Run the built server. Env comes from the platform.           |
 | `yarn start:local`  | Same, but also loads `.env.local`                            |
+| `yarn hooks:install`| Point git at `.githooks/` (also runs on `yarn install`)      |
 
 `start` deliberately carries no `--env-file` flag: that option is only in Node
 22.9+, and `engines` allows any 22.x, so relying on it can break a deploy at
@@ -76,6 +77,13 @@ boot. Local runs use `start:local`.
 
 `yarn build` is safe to run now: it writes `dist/` and `dist-server/` and does
 not disturb the dev server.
+
+Pushing `main` offers to WEBCAT-sign first (`.githooks/pre-push` and
+`scripts/webcat-sign-gate.mjs`). Saying yes runs `yarn webcat:sign`, commits
+the artifacts, and stops the push so the next one carries them; saying no lets
+the push through with the consequence spelled out. It stays quiet unless files
+that can change `dist/` have changed since the last signature.
+`WEBCAT_SIGN_REMINDER=off` turns it off for one command.
 
 ## Architecture
 

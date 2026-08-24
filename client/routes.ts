@@ -3,9 +3,10 @@ import { SHARE_PATH_PREFIX } from "@/components/risk-matrix/shareUrl";
 /**
  * Which view `index.html` should render for a given pathname.
  *
- * There is no router library: `/privacy` is its own document, so the only
- * paths that reach here are the app root, share links, and anything the
- * server could not match to a file. See MIGRATION.md decision D2.
+ * There is no router library: `/privacy/` and `/security/` are their own
+ * documents, so the only paths that reach here are the app root, share
+ * links, and anything the server could not match to a file. See
+ * MIGRATION.md decision D2.
  *
  * The server serves `index.html` for unmatched paths rather than a separate
  * 404 document, because WEBCAT resolves every unmanifested main_frame path

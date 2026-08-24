@@ -20,6 +20,14 @@ describe("Footer", () => {
     expect(privacy.getAttribute("href")).toBe("/privacy/");
   });
 
+  it("links to the security page at its canonical path, with the trailing slash", () => {
+    render(<Footer />);
+    // Same directory-index reasoning as the privacy link above.
+    expect(
+      screen.getByRole("link", { name: /security/i }).getAttribute("href"),
+    ).toBe("/security/");
+  });
+
   it("keeps the privacy link in-app (no new tab, no rel)", () => {
     render(<Footer />);
     const privacy = screen.getByRole("link", { name: /privacy/i });

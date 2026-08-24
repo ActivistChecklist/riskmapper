@@ -33,9 +33,15 @@ export function Footer() {
           aria-label="Site"
           className="flex items-center gap-5"
         >
-          {/* A plain anchor, not a router link: the privacy page is its own
-              static document. The trailing slash is canonical and load-bearing
+          {/* Plain anchors, not router links: these are their own static
+              documents. The trailing slash is canonical and load-bearing
               — see MIGRATION.md decisions D2 and D7. */}
+          <a
+            href="/security/"
+            className="hover:text-rm-ink hover:underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rm-ring"
+          >
+            Security
+          </a>
           <a
             href="/privacy/"
             className="hover:text-rm-ink hover:underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rm-ring"

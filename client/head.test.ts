@@ -34,6 +34,7 @@ function iconHrefs(d: Document): string[] {
 const ENTRIES = [
   { label: "index.html", file: "index.html" },
   { label: "privacy/index.html", file: "privacy/index.html" },
+  { label: "security/index.html", file: "security/index.html" },
 ] as const;
 
 describe("index.html", () => {
@@ -54,6 +55,18 @@ describe("privacy/index.html", () => {
   it("declares a description covering the collection stance", () => {
     expect(meta(doc("privacy/index.html"), "description")).toMatch(
       /anonymize ips/i,
+    );
+  });
+});
+
+describe("security/index.html", () => {
+  it("declares a page-specific title", () => {
+    expect(doc("security/index.html").title).toBe("Security — Risk Mapper");
+  });
+
+  it("declares a description covering the security stance", () => {
+    expect(meta(doc("security/index.html"), "description")).toMatch(
+      /end-to-end encrypted/i,
     );
   });
 });

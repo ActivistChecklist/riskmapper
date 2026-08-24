@@ -52,6 +52,7 @@ describe("Content-Security-Policy on every response", () => {
     ["/", "the SPA document"],
     ["/privacy/", "the privacy document"],
     ["/privacy", "the 301 redirect — a main_frame response"],
+    ["/security/", "the security document"],
     ["/grid/abc123def456ghij", "a share link (SPA fallback)"],
     ["/nope", "an unknown path (SPA fallback)"],
     ["/theme-boot.js", "the pre-paint script"],

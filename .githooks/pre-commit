@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Passthrough. Adds nothing of its own; exists so that pointing
+# core.hooksPath at this directory does not disable the user's global hooks.
+set -euo pipefail
+HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=./lib.sh
+. "${HOOK_DIR}/lib.sh"
+
+run_global_hook pre-commit "$@"

@@ -14,6 +14,7 @@ import {
 const FILES = new Set([
   "/index.html",
   "/privacy/index.html",
+  "/security/index.html",
   "/theme-boot.js",
   "/favicon.ico",
   "/icon.svg",
@@ -90,6 +91,10 @@ describe("directory and index resolution", () => {
       kind: "file",
       path: "/privacy/index.html",
     });
+    expect(resolve("/security/")).toEqual({
+      kind: "file",
+      path: "/security/index.html",
+    });
   });
 
   it("redirects a slashless directory to its canonical trailing-slash form", () => {
@@ -97,6 +102,10 @@ describe("directory and index resolution", () => {
     expect(resolve("/privacy")).toEqual({
       kind: "redirect",
       location: "/privacy/",
+    });
+    expect(resolve("/security")).toEqual({
+      kind: "redirect",
+      location: "/security/",
     });
   });
 
@@ -192,6 +201,7 @@ describe("cacheControlFor", () => {
     // once WEBCAT is enforcing.
     expect(cacheControlFor("/index.html")).toBe("no-cache");
     expect(cacheControlFor("/privacy/index.html")).toBe("no-cache");
+    expect(cacheControlFor("/security/index.html")).toBe("no-cache");
   });
 
   it("caches other static files modestly", () => {
