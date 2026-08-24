@@ -34,8 +34,8 @@ export function Footer() {
           className="flex items-center gap-5"
         >
           {/* Plain anchors, not router links: these are their own static
-              documents. The trailing slash is canonical and load-bearing
-              — see MIGRATION.md decisions D2 and D7. */}
+              documents. The trailing slash is canonical and load-bearing.
+              See MIGRATION.md decisions D2 and D7. */}
           <a
             href="/security/"
             className="hover:text-rm-ink hover:underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rm-ring"

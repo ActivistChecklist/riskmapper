@@ -15,8 +15,10 @@
  *      /api/healthz on a mismatch, so Railway keeps the previous version.
  *
  * Saying yes runs scripts/webcat-sign.mjs right here (YubiKey, PIN, tap),
- * commits the refreshed artifacts, and stops the push so the next one carries
- * them. Saying no lets the push through with the consequence spelled out.
+ * commits the refreshed artifacts, and pushes them, because the ref list git
+ * resolved before this hook ran cannot be changed from inside it. The outer
+ * push is then stopped, having nothing left to send. Saying no lets the push
+ * through with the consequence spelled out.
  *
  * Bypass entirely with WEBCAT_SIGN_REMINDER=off.
  */
@@ -35,6 +37,12 @@ export const MANIFEST_PATH = "public/.well-known/webcat/manifest.json";
 
 /** Everything the signing step writes, staged together after a signature. */
 export const ARTIFACT_DIR = "public/.well-known/webcat";
+
+/**
+ * Set on the push this hook makes itself, so the pre-push hook that push
+ * fires returns immediately instead of asking about a signature it just made.
+ */
+export const PUSH_GUARD = "WEBCAT_SIGN_GATE_PUSHING";
 
 /**
  * Exit code meaning "stop the push on purpose". Any other non-zero exit is a
@@ -228,7 +236,7 @@ function dirtyBuildFiles() {
  * their own. Their output has to be inherited too, or a prompt lands in a pipe
  * nobody is reading and the whole thing looks hung.
  */
-function runOnTerminal(cmd, args) {
+function runOnTerminal(cmd, args, env = {}) {
   let ttyFd;
   try {
     ttyFd = openSync("/dev/tty", "r");
@@ -236,7 +244,11 @@ function runOnTerminal(cmd, args) {
     return { ok: false, reason: "no terminal available" };
   }
   try {
-    const res = spawnSync(cmd, args, { cwd: ROOT, stdio: [ttyFd, "inherit", "inherit"] });
+    const res = spawnSync(cmd, args, {
+      cwd: ROOT,
+      stdio: [ttyFd, "inherit", "inherit"],
+      env: { ...process.env, ...env },
+    });
     if (res.error) return { ok: false, reason: res.error.message };
     return { ok: res.status === 0, reason: `exited with ${res.status}` };
   } finally {
@@ -246,6 +258,47 @@ function runOnTerminal(cmd, args) {
 
 function runSigning() {
   return runOnTerminal(process.execPath, [path.join(ROOT, "scripts/webcat-sign.mjs")]);
+}
+
+/**
+ * The refspecs that reproduce the push git was about to make, with the deploy
+ * branch resolved fresh so it carries the signature commit.
+ *
+ * Other refs are pinned to the sha git already resolved, so a push of several
+ * branches at once sends exactly what was asked for and nothing that moved in
+ * the meantime. A zero local sha is a deletion, which is a bare `:ref`.
+ */
+export function pushRefspecs(refs, deployUpdate) {
+  return refs.map((r) => {
+    if (deployUpdate && r.remoteRef === deployUpdate.remoteRef) {
+      // By name, not by sha: the local ref has moved on to the new commit.
+      return `${r.localRef}:${r.remoteRef}`;
+    }
+    if (!r.localSha || ZERO_SHA.test(r.localSha)) return `:${r.remoteRef}`;
+    return `${r.localSha}:${r.remoteRef}`;
+  });
+}
+
+/**
+ * Push what the outer push was going to push, now that the signature is in it.
+ *
+ * git hands the hook the remote name and URL as argv. The push runs on the
+ * terminal because it can need a passphrase, a touch, or a 2FA answer, and it
+ * carries a guard so the pre-push hook it fires does not walk back in here.
+ */
+function pushSigned(refs, update) {
+  const remote = process.argv[2];
+  if (!remote) return { ok: false, reason: "git named no remote" };
+
+  const refspecs = pushRefspecs(refs, update);
+  const res = runOnTerminal("git", ["push", remote, ...refspecs], {
+    [PUSH_GUARD]: "1",
+  });
+  if (!res.ok) return res;
+  return {
+    ok: true,
+    what: `${refspecs.join(", ")} to ${remote}`,
+  };
 }
 
 function commitArtifacts() {
@@ -288,6 +341,9 @@ function unsignedWarning() {
 
 function main() {
   if ((process.env.WEBCAT_SIGN_REMINDER ?? "").toLowerCase() === "off") return 0;
+  // The push this hook makes after signing. It is the signed one by
+  // construction, and re-entering here would be an infinite regress.
+  if (process.env[PUSH_GUARD]) return 0;
 
   let stdinText = "";
   try {
@@ -296,7 +352,8 @@ function main() {
     stdinText = "";
   }
 
-  const update = deployRefUpdate(parsePushRefs(stdinText));
+  const refs = parsePushRefs(stdinText);
+  const update = deployRefUpdate(refs);
   if (!update) return 0;
 
   const { files, when } = unsignedChanges(update.localSha);
@@ -383,12 +440,25 @@ function main() {
     say(dim("  The artifacts were already up to date, so there was nothing to commit."));
   }
   say();
-  // The ref list git is holding was computed before that commit existed, so
-  // this push cannot carry it. Stopping is the only way to make the next one
-  // include the signature.
-  say(bold("  Stopping this push so the signature goes with it. Push again:"));
+
+  // The ref list git is holding was resolved before that commit existed, and
+  // it cannot be changed from in here, so this push can never carry the
+  // signature. Rather than send the wrong thing or make you type the command
+  // again, do the push here, with the signature in it, and stop the outer one.
+  const pushed = pushSigned(refs, update);
+  if (!pushed.ok) {
+    say(yellow(`  The push did not go through (${pushed.reason}).`));
+    say(dim("  The signature is committed, so a plain `git push` will send it."));
+    say();
+    return ABORT;
+  }
+
+  say(green(bold("  Pushed, signature included.")));
+  say(dim(`  ${pushed.what}`));
   say();
-  say(`      ${cyan("git push")}`);
+  say(dim("  git will say \"failed to push some refs\" below. That is this hook"));
+  say(dim("  stopping the push it was asked about, which had nothing left to"));
+  say(dim("  send. Everything is on the remote."));
   say();
   return ABORT;
 }

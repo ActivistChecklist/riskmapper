@@ -24,8 +24,8 @@ import {
  * (`components/risk-matrix/notesMarkdown.ts`) rather than a second one, and
  * rather than a Markdown dependency: headings, paragraphs, lists, bold,
  * italic, inline code and links cover these pages completely. Note there is
- * no HTML pass-through and no `dangerouslySetInnerHTML` anywhere in it —
- * the parser emits an AST and this file turns that into React elements.
+ * no HTML pass-through and no `dangerouslySetInnerHTML` anywhere in it: the
+ * parser emits an AST and this file turns that into React elements.
  */
 
 const LINK_CLASS =
@@ -115,11 +115,16 @@ function renderList(block: Extract<NotesBlock, { kind: "ul" | "ol" }>, key: numb
     return (
       <ul key={key} className="mt-3 space-y-2 leading-relaxed">
         {markers.map((m, i) => (
-          <li key={i}>
+          // Flex rather than an inline marker so a wrapped item hangs under
+          // its own text instead of running back under the emoji.
+          <li key={i} className="flex gap-2">
             {/* Decorative: the surrounding heading already carries the
                 "what we do not collect" sense, so reading "cross mark"
                 aloud before every item would only add noise. */}
-            <span aria-hidden>{m!.marker}</span> {renderInlines(m!.rest)}
+            <span aria-hidden className="shrink-0">
+              {m!.marker}
+            </span>
+            <span>{renderInlines(m!.rest)}</span>
           </li>
         ))}
       </ul>
@@ -141,21 +146,29 @@ function renderList(block: Extract<NotesBlock, { kind: "ul" | "ol" }>, key: numb
   );
 }
 
+// A switch rather than a chain of ifs: `NotesBlock` discriminates on a
+// property whose type is itself a union of literals, and TypeScript only
+// narrows the remaining cases through switch, not through `if (a || b)`.
 function renderBlock(block: NotesBlock, key: number): ReactNode {
-  if (block.kind === "ul" || block.kind === "ol") return renderList(block, key);
-  if (block.kind === "p") {
-    return (
-      <p key={key} className="mt-4 leading-relaxed">
-        {renderInlines(block.inlines)}
-      </p>
-    );
+  switch (block.kind) {
+    case "ul":
+    case "ol":
+      return renderList(block, key);
+    case "p":
+      return (
+        <p key={key} className="mt-4 leading-relaxed">
+          {renderInlines(block.inlines)}
+        </p>
+      );
+    default: {
+      const Heading = block.kind;
+      return (
+        <Heading key={key} className={HEADING_CLASS[block.kind]}>
+          {renderInlines(block.inlines)}
+        </Heading>
+      );
+    }
   }
-  const Heading = block.kind;
-  return (
-    <Heading key={key} className={HEADING_CLASS[block.kind]}>
-      {renderInlines(block.inlines)}
-    </Heading>
-  );
 }
 
 /** Markdown source to React elements. Exported for tests. */

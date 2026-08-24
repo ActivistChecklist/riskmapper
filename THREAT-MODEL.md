@@ -3,7 +3,10 @@
 Risk Mapper can save your matrices to a server and let you share them via a
 link. This page is for users deciding whether the feature fits their needs.
 It's plain-English on purpose; for the cryptographic implementation details,
-see the code under `lib/e2ee/` and `app/api/matrix/`.
+see the code under `lib/e2ee/` and `server/routes/`.
+
+The shorter, friendlier version of this document is the site's own
+[Security page](https://riskmapper.app/security/). Keep the two in step.
 
 ## How it works, in one paragraph
 
@@ -33,6 +36,16 @@ your document instead of showing a dedicated "rollback detected" error.
 Tampering that breaks the authenticated encryption still fails at decrypt
 time; **missing or replayed ciphertext** is handled by CRDT merge rules, not
 by a hard refusal.
+
+**The code you're running is signed, and the signature is public.** The site
+is enrolled in [WEBCAT](https://github.com/freedomofpress/webcat). A visitor
+with the WEBCAT extension installed has their browser verify every HTML, JS
+and CSS file against a manifest signed by a hardware token before any of it
+runs, and refuse the page if it doesn't match. The signature is recorded in a
+public transparency log, so a targeted build served to one person is
+detectable rather than invisible. This narrows, but does not close, the
+"compromised version of Risk Mapper" risk below: see that entry for what
+remains.
 
 **Network observers can't read your matrices.** Anyone watching the
 connection sees only encrypted blobs. The encryption key in the URL
@@ -67,10 +80,20 @@ on your computer can read your screen or your browser's storage, it can
 read your matrices. Same goes for OS-level malware. We don't defend
 against either.
 
-**A compromised version of Risk Matrix itself defeats this.** If someone
+**A compromised version of Risk Mapper itself defeats this.** If someone
 takes over our hosting or build pipeline and ships modified JavaScript,
 that JavaScript can exfiltrate your keys before encryption. This is the
-standard caveat for any browser-based encryption tool.
+standard caveat for any browser-based encryption tool, and WEBCAT reduces it
+rather than removing it:
+
+- Signing needs the physical token, its PIN and a touch, so seizing the
+  server or the CI account is not enough to publish running code.
+- Every signature lands in a public transparency log, so a malicious build
+  can't be shown to one target and hidden from everyone else.
+- **But** it only protects visitors who have the extension installed;
+  everyone else runs whatever is served. And it proves the code came from
+  our signing key, not that the code is safe. If the token itself is
+  compromised, or if we sign a bad build, the signature is still valid.
 
 **There are no accounts, no logins.** The link IS the credential. Lose the
 link, lose access. There's no "log in to recover" flow.

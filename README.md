@@ -3,7 +3,7 @@
 A risk matrix and safety planning tool. Designed to help you think through risks
 and how you can prepare for them.
 
-**Security:** All data is saved locally unless you use the "share" feature. In that case, all data is end-to-end encrypted (not visible to our server).
+**Security:** All data is saved locally unless you use the "share" feature. In that case, all data is end-to-end encrypted (not visible to our server). The full story is on the site's [Security page](https://riskmapper.app/security/), and the trust assumptions are in [THREAT-MODEL.md](THREAT-MODEL.md).
 
 **[Use Risk Mapper →](https://riskmapper.app/)**
 
@@ -11,15 +11,19 @@ and how you can prepare for them.
 
 Every deploy has to be signed with the YubiKey, or Railway will reject it.
 
-Pushing `main` offers to do it for you, which is the easy path:
+Pushing `main` does it for you, which is the easy path:
 
 1. Make your changes, commit them, plug in the YubiKey.
 2. `git push`. The hook notices the signature is stale and asks. Say yes.
 3. Enter the PIN, then **tap the key** when prompted.
-4. It commits the refreshed `public/.well-known/webcat/` and stops the push,
-   because the ref git was about to send does not include that commit yet.
-5. `git push` again. Railway builds and deploys.
-6. `yarn webcat:verify` to confirm the live site matches.
+4. It commits the refreshed `public/.well-known/webcat/` and pushes it. Railway
+   builds and deploys.
+5. `yarn webcat:verify` to confirm the live site matches.
+
+git prints `error: failed to push some refs` at the end of step 4, and the work
+is on the remote anyway. Ref lists are resolved before a pre-push hook runs and
+cannot be changed from inside one, so the hook pushes the signature itself and
+then stops the push it was asked about, which by then has nothing left to send.
 
 By hand it is the same thing in a different order: `yarn webcat:sign`, commit
 `public/.well-known/webcat/`, push.
@@ -76,9 +80,11 @@ The one that matters is the WEBCAT signing prompt, on **pre-push**. Pushing
 `main` when the tree has changed since the last signature asks `Sign it now?`:
 
 - **Yes** runs `yarn webcat:sign` right there (PIN, tap), commits the result as
-  "Update webcat", and stops the push. The ref list git computed before that
-  commit existed cannot carry it, so the next `git push` is the one that ships
-  it.
+  "Update webcat", and pushes it, replaying every ref the original push was
+  going to send. Then it stops that original push, which cannot carry the new
+  commit: git resolved its ref list before the hook ran. So `git push` exits
+  non-zero and prints `error: failed to push some refs` even though everything
+  arrived. Nothing to redo.
 - **No** lets the push through, and says what that costs: the site stops
   loading for anyone running the WEBCAT extension, invisibly to everyone else,
   and the deploy does not promote because `/api/healthz` fails on a manifest
@@ -103,6 +109,11 @@ Some details worth knowing:
   can see.
 - `WEBCAT_SIGN_REMINDER=off git push` skips it entirely. So does a gate that
   crashes: only a deliberate stop blocks a push.
+- `git push --dry-run` looks exactly like a real push from in here, so answering
+  yes to a dry run really does sign, commit, and push. Answer no.
+- The push the hook makes runs on your terminal, so passphrase, touch, and 2FA
+  prompts work, and it carries `WEBCAT_SIGN_GATE_PUSHING=1` so it does not walk
+  back into this hook.
 - A repo-local `core.hooksPath` shadows a global one completely, so each hook
   in `.githooks/` calls its global namesake first, replaying stdin to both.
   If your global hooks directory gains a hook that has no matching file in
@@ -124,7 +135,9 @@ hidden.
 ```
 index.html                     SPA entry document (hand-written head)
 privacy/index.html             Privacy page, its own static document
+security/index.html            Security page, its own static document
 client/                        Entries, app shell, router-less path dispatch
+client/Prose.tsx               Markdown renderer behind both static documents
 components/risk-matrix/        SPA components, hooks, local repo
 lib/cloud/                     Server-side: Mongo, route helpers, rate limit
 lib/e2ee/                      Client-side: XChaCha20-Poly1305 envelope
