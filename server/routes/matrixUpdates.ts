@@ -10,7 +10,7 @@ import {
 } from "@/lib/cloud/helpers";
 import { rateLimit } from "@/lib/cloud/rateLimit";
 import { publish } from "@/lib/cloud/pubsub";
-import { todayUtc, todayUtcDate } from "@/lib/cloud/types";
+import { todayUtc, todayUtcDate, updateRowId } from "@/lib/cloud/types";
 
 /**
  * POST /api/matrix/:id/updates — append one encrypted Y.Doc update.
@@ -68,6 +68,9 @@ export async function POST(req: Request, ctx: RouteParams) {
 
     const updatesColl = await getUpdatesCollection();
     await updatesColl.insertOne({
+      // Deterministic and time-free; see MatrixUpdate._id for why the
+      // driver must not mint an ObjectId here.
+      _id: updateRowId(id, seq),
       recordId: id,
       seq,
       ciphertext: ct,

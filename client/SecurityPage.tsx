@@ -26,12 +26,13 @@ export default function SecurityPage() {
       {`
 The safest thing we can do with your planning is never to have it. By default,
 nothing you type into Risk Mapper leaves your device. If you decide to share a
-matrix by link, it is encrypted in your browser first, and all we ever hold is
-scrambled data we cannot read. If we receive a legal order to turn over the data,
-the only thing we will have are timestamps for when it was created and for each 
-edit that was made.
+matrix by link with others, that data is always end-to-end encrypted and we
+do not have the ability to decrypt it.
 
-Here is exactly how that works, and where it stops working.
+If we receive a legal order to hand that over, the only thing 
+hand over is the encrypted data, the random id from the link, and the calendar day
+each edit was made. We don't store the exact time the matrix was created or the edits
+were made. We have access to store the title, your IP address, or the key that would decrypt the data.
 
 ## Your matrix stays in your browser by default
 
@@ -45,10 +46,10 @@ have no copy to restore. If a matrix matters, export it.
 Export: Exports are local too. Copying the worksheet and downloading the PDF both 
 happen entirely in your browser.
 
-## Share by link is the only time we have data, an it's fully end-to-end encrypted
+## Share by link is the only time we have data, and it's fully end-to-end encrypted
 
 Turning on **Share by link** is the one action that sends any part of your
-data to our servers, and it is full end-to-end encrypted. The key lives in the part of
+data to our servers, and it is fully end-to-end encrypted. The key lives in the part of
 the link after the \`#\`, which browsers never send to a server. We never see
 it, so we cannot decrypt your matrix, hand it over, or lose it in a breach.
 
@@ -62,11 +63,16 @@ What is encrypted:
 What we hold on the server:
 
 - The encrypted data, which we cannot read
-- The ID of tha matrix
-- Coarse dates: the day the matrix was created, and the day it was last edited or opened, rounded to the calendar day in UTC
+- The random id from the link
+- Calendar days in UTC, never times of day: when the matrix was created, when it was last edited or opened, and the day each individual edit was made
 - A counter per edit, plus a random per-browser label, so edits from two devices can be merged
 
-We keep those dates for one reason: a shared matrix is deleted automatically
+Separately from all of that, our web host keeps ordinary server logs, which do
+record request times and IP addresses. Every website has these. They contain
+nothing from your matrix, but they are not nothing, and we would rather say so
+than let you assume otherwise.
+
+We keep the dates for one reason: a shared matrix is deleted automatically
 after ${RETENTION_DAYS} days with no activity. **Stop sharing** deletes the
 server copy immediately, and anyone who had viewed it can still see a copy on their browser.
 

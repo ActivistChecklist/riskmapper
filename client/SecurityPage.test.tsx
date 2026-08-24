@@ -46,11 +46,23 @@ describe("SecurityPage", () => {
     }
   });
 
-  it("names the cipher and key size actually used", () => {
-    // lib/e2ee/envelope.ts: XChaCha20-Poly1305 with a 32-byte key.
+  it("promises calendar-day granularity, never times of day", () => {
+    // The server stores `createdAt` as a UTC calendar day and sets each
+    // update row's `_id` explicitly so no ObjectId can smuggle a
+    // second-precision timestamp back in. If that ever regresses, this
+    // claim becomes false. See lib/cloud/types.ts.
     render(<SecurityPage />);
-    expect(screen.getByText(/XChaCha20-Poly1305/)).toBeTruthy();
-    expect(screen.getByText(/256-bit key/)).toBeTruthy();
+    expect(screen.getByText(/never times of day/i)).toBeTruthy();
+  });
+
+  it("says plainly that the host keeps ordinary server logs", () => {
+    // Access logs carry real timestamps and IPs and sit outside our schema.
+    // THREAT-MODEL.md refuses to claim there is "nothing" responsive to a
+    // subpoena; this page must not claim it either.
+    render(<SecurityPage />);
+    expect(
+      screen.getByText(/our web host keeps ordinary server logs/i),
+    ).toBeTruthy();
   });
 
   it("quotes the retention window from the shared constant", () => {

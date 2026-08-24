@@ -7,6 +7,7 @@ import {
 } from "./fakeCollection";
 import { __resetRateLimiterForTests } from "./rateLimit";
 import { __resetPubSubForTests, subscribe, type UpdateEvent } from "./pubsub";
+import { updateRowId } from "./types";
 
 /**
  * Route-handler tests for `server/routes/**`. We mock the Mongo accessors
@@ -348,6 +349,41 @@ describe("POST /api/matrix/[id]/updates", () => {
     expect(
       collHolder.matrices!.__dump()[0].lastActivityDate.getTime(),
     ).toBe(today.getTime());
+  });
+
+  it("stores a time-free _id rather than letting the driver mint an ObjectId", async () => {
+    // A generated ObjectId embeds its creation time to the second, which
+    // would put a precise wall-clock timestamp on every edit and defeat the
+    // whole point of rounding `createdAt` to a calendar day. Regression
+    // test for that leak; see MatrixUpdate._id.
+    seedMatrix();
+    await post(VALID_ID, { ciphertext: "v1.U1", clientId: "alice" });
+    await post(VALID_ID, { ciphertext: "v1.U2", clientId: "alice" });
+
+    const stored = collHolder.updates!.__dump();
+    expect(stored.map((u) => u._id)).toEqual([
+      updateRowId(VALID_ID, 1),
+      updateRowId(VALID_ID, 2),
+    ]);
+    // Nothing in the id derives from the clock: the same record and seq
+    // always produce the same string.
+    expect(stored[0]._id).toBe(`${VALID_ID}:1`);
+  });
+
+  it("records only a calendar date per edit, never a time of day", async () => {
+    seedMatrix();
+    await post(VALID_ID, { ciphertext: "v1.U1", clientId: "alice" });
+    const [row] = collHolder.updates!.__dump();
+    expect(row.createdAt).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    // No other field may carry a timestamp either.
+    expect(Object.keys(row).sort()).toEqual([
+      "_id",
+      "ciphertext",
+      "clientId",
+      "createdAt",
+      "recordId",
+      "seq",
+    ]);
   });
 
   it("publishes each update to subscribers", async () => {

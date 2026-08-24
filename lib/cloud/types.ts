@@ -28,6 +28,22 @@ export type MatrixDoc = {
 };
 
 export type MatrixUpdate = {
+  /**
+   * Set explicitly on every write, and never left to the driver.
+   *
+   * An auto-generated ObjectId carries its own creation time in its first
+   * four bytes, at one-second resolution. Leaving `_id` off would therefore
+   * have stamped a precise wall-clock timestamp on every single edit, which
+   * is exactly the metadata `createdAt` is rounded to a calendar day to
+   * avoid, and exactly what a database dump or a subpoena would surface.
+   * `recordId:seq` carries no time and is unique by construction, because
+   * `seq` is assigned by an atomic `$inc` on the matrix doc.
+   *
+   * Optional in the type only so the read path keeps working for rows
+   * written before this existed, which still have real ObjectIds. Nothing
+   * reads this field.
+   */
+  _id?: string;
   recordId: string;
   seq: number;
   ciphertext: string;
@@ -35,6 +51,11 @@ export type MatrixUpdate = {
   /** UTC calendar date (`YYYY-MM-DD`). Coarse on purpose — see THREAT-MODEL.md. */
   createdAt: string;
 };
+
+/** The deterministic, time-free `_id` for an update row. */
+export function updateRowId(recordId: string, seq: number): string {
+  return `${recordId}:${seq}`;
+}
 
 /**
  * Narrow Mongo surface for the matrices collection.
