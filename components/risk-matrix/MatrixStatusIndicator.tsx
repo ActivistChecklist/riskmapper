@@ -32,11 +32,16 @@ import type { SyncState } from "./CloudSyncIndicator";
  * (toolbar) — both states render through this component for visual
  * consistency.
  *
- * Local-only matrices show "Saved locally"; the pill is clickable and
- * opens the user's saved-matrices list. Shared matrices show their live
- * sync state (idle/syncing/offline/etc) and only become clickable when
- * there's a terminal failure (rollback / missing / error) the user can
- * action.
+ * Local-only matrices show "Saved locally". Shared matrices show their
+ * live sync state (idle/syncing/offline/etc).
+ *
+ * Three kinds of pill come out of that:
+ *
+ *   - Settled ("Saved locally", "End-to-end encrypted") opens an explainer
+ *     for the claim it is making, which ends at the security page.
+ *   - Terminal failure (rollback / missing / error) is a button that hands
+ *     off to `onIndicatorAction`.
+ *   - Everything mid-flight is a plain `role="status"` with no action.
  */
 
 export type MatrixStatusIndicatorProps = {
@@ -54,6 +59,63 @@ const ACTIONABLE_SHARED_STATES = new Set(["rollback", "missing", "error"]);
 const PILL_CLASS = cn(
   "inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium whitespace-nowrap",
 );
+
+/** Interactive pills get the same affordance whichever branch renders them. */
+const CLICKABLE_PILL_CLASS =
+  "hover:brightness-95 dark:hover:brightness-110 focus-visible:ring-2 focus-visible:ring-rm-ring";
+
+/**
+ * Both explainers end here. The claims they make in two sentences are the
+ * ones the security page makes in full, so the pill is the entry point to it
+ * rather than a dead end. Plain anchor and canonical trailing slash: it is its
+ * own static document, see MIGRATION.md D2 and D7.
+ */
+function SecurityPageLink() {
+  return (
+    <p className="pt-1">
+      <a
+        href="/security/"
+        className="font-medium text-rm-ink underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rm-ring"
+      >
+        How Risk Mapper protects your data
+      </a>
+    </p>
+  );
+}
+
+/** The shell both pills share: title, prose, security link, dismiss. */
+function StatusInfoDialog({
+  open,
+  onOpenChange,
+  title,
+  children,
+}: {
+  open: boolean;
+  onOpenChange: (next: boolean) => void;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription asChild>
+            <div className="space-y-3 pt-1 text-sm leading-relaxed text-rm-ink opacity-90">
+              {children}
+              <SecurityPageLink />
+            </div>
+          </DialogDescription>
+        </DialogHeader>
+        <div className="mt-4 flex justify-end">
+          <Button type="button" onClick={() => onOpenChange(false)}>
+            Got it
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 export default function MatrixStatusIndicator({
   shared,
@@ -92,32 +154,22 @@ export default function MatrixStatusIndicator({
             Saved locally
           </TooltipContent>
         </Tooltip>
-        <Dialog open={infoOpen} onOpenChange={setInfoOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Saved on your device</DialogTitle>
-              <DialogDescription asChild>
-                <div className="space-y-3 pt-1 text-sm leading-relaxed text-rm-ink opacity-90">
-                  <p>
-                    Nothing you type here is sent over the internet or stored on
-                    our servers or in the cloud. Your risks, notes, and saved
-                    matrices stay in this browser on this computer, like notes
-                    in a notebook that never leave your desk.
-                  </p>
-                  <p>
-                    If you clear this site&apos;s data in your browser, the data
-                    will be deleted.
-                  </p>
-                </div>
-              </DialogDescription>
-            </DialogHeader>
-            <div className="mt-4 flex justify-end">
-              <Button type="button" onClick={() => setInfoOpen(false)}>
-                Got it
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <StatusInfoDialog
+          open={infoOpen}
+          onOpenChange={setInfoOpen}
+          title="Saved on your device"
+        >
+          <p>
+            Nothing you type here is sent over the internet or stored on our
+            servers or in the cloud. Your risks, notes, and saved matrices stay
+            in this browser on this computer, like notes in a notebook that
+            never leave your desk.
+          </p>
+          <p>
+            If you clear this site&apos;s data in your browser, the data will be
+            deleted.
+          </p>
+        </StatusInfoDialog>
       </>
     );
   }
@@ -133,12 +185,7 @@ export default function MatrixStatusIndicator({
             type="button"
             onClick={onIndicatorAction}
             aria-label={meta.title}
-            className={cn(
-              PILL_CLASS,
-              meta.tone,
-              "hover:brightness-95 dark:hover:brightness-110 focus-visible:ring-2 focus-visible:ring-rm-ring",
-              className,
-            )}
+            className={cn(PILL_CLASS, meta.tone, CLICKABLE_PILL_CLASS, className)}
           >
             <span aria-hidden className="grid place-items-center">
               {meta.icon}
@@ -150,6 +197,52 @@ export default function MatrixStatusIndicator({
           {meta.label} — {meta.title}
         </TooltipContent>
       </Tooltip>
+    );
+  }
+
+  // The settled state is the one worth explaining, so it opens the same kind
+  // of explainer the local-only pill does. The transient and failed states
+  // stay as they are: mid-flight status, or an error with its own action.
+  if (syncState.kind === "idle") {
+    return (
+      <>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              onClick={() => setInfoOpen(true)}
+              aria-label="End-to-end encrypted: how this is protected"
+              className={cn(PILL_CLASS, meta.tone, CLICKABLE_PILL_CLASS, className)}
+            >
+              <span aria-hidden className="grid place-items-center">
+                {meta.icon}
+              </span>
+              <span className="hidden lg:inline">{meta.label}</span>
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="lg:hidden">
+            {meta.label}
+          </TooltipContent>
+        </Tooltip>
+        <StatusInfoDialog
+          open={infoOpen}
+          onOpenChange={setInfoOpen}
+          title="End-to-end encrypted"
+        >
+          <p>
+            This matrix is shared by link, and everything in it is encrypted in
+            this browser before it is uploaded: the title, every risk, every
+            mitigation, and everything in the notes.
+          </p>
+          <p>
+            The key lives in the part of the link after the{" "}
+            <code className="rounded bg-rm-surface-2 px-1 py-0.5">#</code>,
+            which browsers never send to a server. We hold only encrypted data
+            we cannot read, so we cannot decrypt this matrix, hand it over, or
+            lose it in a breach.
+          </p>
+        </StatusInfoDialog>
+      </>
     );
   }
 
