@@ -7,6 +7,7 @@ import { matchApiRoute, type RouteId } from "./apiRoutes";
 import { CONTENT_SECURITY_POLICY } from "./csp";
 import { runManifestCheck } from "./manifestHealth";
 import { cacheControlFor, resolveStaticRequest } from "./staticFiles";
+import { readSignedManifestVersion, WEBCAT_VERSION_HEADER } from "./webcatVersion";
 import { toWebRequest } from "./webRequest";
 import { POST as counterPOST } from "./routes/counter";
 import { GET as healthzGET } from "./routes/healthz";
@@ -36,6 +37,13 @@ const DIST = path.resolve(
 
 const PORT = Number(process.env.PORT ?? 3002);
 const HOST = process.env.HOST ?? "0.0.0.0";
+
+/**
+ * Read once: the manifest ships inside the build and cannot change under a
+ * running process. Null when this build carries no signed manifest, in which
+ * case no version header is sent. See server/webcatVersion.ts.
+ */
+const WEBCAT_VERSION = readSignedManifestVersion(DIST);
 
 type Handler = (
   req: Request,
@@ -154,6 +162,14 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
   res.setHeader("Content-Security-Policy", CONTENT_SECURITY_POLICY);
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("Referrer-Policy", "no-referrer");
+
+  // Which manifest describes these bytes. A client holding the previous
+  // deploy's manifest sees a newer version here and reloads to fetch the new
+  // one, instead of being blocked with an integrity error for the rest of the
+  // browser session. On every response for the same reason the CSP is: the
+  // extension reads headers from API calls and redirects too, and those are
+  // often the first response a client gets after a deploy lands mid-session.
+  if (WEBCAT_VERSION) res.setHeader(WEBCAT_VERSION_HEADER, WEBCAT_VERSION);
 
   // Split before any percent-decoding so a query string cannot smuggle path
   // segments into static resolution.

@@ -28,6 +28,16 @@ then stops the push it was asked about, which by then has nothing left to send.
 By hand it is the same thing in a different order: `yarn webcat:sign`, commit
 `public/.well-known/webcat/`, push.
 
+Signing picks the manifest's version for you, bumping the patch past whatever
+was last published. That is not bookkeeping. The extension caches an origin's
+manifest for the whole browser session, so anyone with the app open when a
+deploy lands is checking new bytes against the old manifest and gets an
+integrity error until they restart their browser. The server sends the version
+of the manifest it ships as `x-webcat-version` on every response, and a client
+holding an older one reloads instead of breaking. A version that did not move
+makes that header do nothing. For a real release, bump `version` in both
+`package.json` and `webcat.config.json` and signing will use it as-is.
+
 If a deploy comes back unhealthy, it almost always means the signing was
 skipped: the build no longer matches the signed manifest, so `/api/healthz`
 returns 503 and Railway keeps the previous version. Re-sign and push again.

@@ -43,6 +43,27 @@ site for anyone running the extension:
 - **Every HTML/JS/CSS byte served is a file built at build time.** No
   server-rendered or otherwise dynamic markup, scripts, or styles.
 
+A third thing has to keep working, and it is easy to break by accident because
+nothing about it is visible in a browser without the extension. WEBCAT fetches
+an origin's manifest once and caches it for the whole browser session, so a
+deploy that lands while someone has the app open leaves them checking new bytes
+against the old manifest: the site is blocked with an integrity error until
+they restart the browser. The way out is the `x-webcat-version` response
+header, which `server/index.ts` sends on every response, carrying the version
+of the manifest shipped in that build. A client holding an older manifest sees
+a strictly newer version, drops its cached origin, and reloads. **The version
+must therefore increase on every signature**, which is why `yarn webcat:sign`
+chooses it (`scripts/webcatVersion.mjs`) instead of trusting anyone to
+remember, counting from the last published manifest. Two consequences worth
+knowing:
+
+- The version is plain dotted digits. The extension parses each part with
+  `Number()`, so a prerelease suffix like `0.2.0-rc1` compares as `NaN` against
+  everything and the header becomes silently inert. Signing refuses it.
+- `webcat.config.json`'s `version` is a floor, not the manifest's version.
+  Bump it and `package.json` together for a real release and it is used as-is;
+  otherwise signing bumps the patch past whatever was last published.
+
 Inline **styles** are a different story from inline scripts: WEBCAT's CSP spec
 allows `style-src 'unsafe-inline'` (discouraged, but allowed), and we need it
 regardless because sonner, tiptap and Radix all inject `<style>` elements and

@@ -1,4 +1,5 @@
 import { spawn, type ChildProcess } from "node:child_process";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { CONTENT_SECURITY_POLICY } from "./csp";
@@ -81,6 +82,24 @@ describe("Content-Security-Policy on every response", () => {
       const res = await raw(p);
       expect(res.headers.get("x-content-type-options"), p).toBe("nosniff");
       expect(res.headers.get("referrer-policy"), p).toBe("no-referrer");
+    }
+  });
+
+  it("announces the manifest version everywhere too", async () => {
+    // A client that cached the previous deploy's manifest learns about this
+    // one from this header, and the response that carries the news is often an
+    // /api/* call or a redirect rather than a document — so, like the CSP, it
+    // goes on every response path. Expected value is read from the manifest
+    // this build actually serves: a build with none (a fresh clone) correctly
+    // announces nothing rather than a version nothing was signed under.
+    const manifestPath = path.join(ROOT, "dist/.well-known/webcat/manifest.json");
+    const expected = existsSync(manifestPath)
+      ? (JSON.parse(readFileSync(manifestPath, "utf8")).manifest?.version ?? null)
+      : null;
+
+    for (const [p] of paths) {
+      const res = await raw(p);
+      expect(res.headers.get("x-webcat-version"), p).toBe(expected);
     }
   });
 

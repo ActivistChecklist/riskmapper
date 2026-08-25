@@ -145,22 +145,42 @@ async function main() {
     }
   }
 
-  // 3. The CSP the server sends must match the manifest's, or extension users
-  //    get a different policy from everyone else.
-  console.log(cyan("[3/5] ") + bold("Served CSP matches the manifest"));
+  // 3. Two headers that have to agree with the manifest. The CSP, or extension
+  //    users get a different policy from everyone else; and the version, which
+  //    is what lets a client that cached the *previous* manifest notice this
+  //    deploy and reload, rather than sitting on an integrity error until the
+  //    browser is restarted. See server/webcatVersion.ts.
+  console.log(cyan("[3/5] ") + bold("Served headers match the manifest"));
   try {
     const res = await fetch(`${ORIGIN}/`, { redirect: "manual" });
     const sent = res.headers.get("content-security-policy");
     if (!sent) {
       fail("no Content-Security-Policy header on /", "expected the manifest's default_csp");
     } else if (sent.trim() === localManifest.default_csp.trim()) {
-      console.log(`      ${green("✓")} identical to default_csp`);
+      console.log(`      ${green("✓")} CSP identical to default_csp`);
     } else {
       fail("the served CSP differs from the manifest's default_csp",
         `served:   ${sent}\nmanifest: ${localManifest.default_csp}`);
     }
+
+    const version = res.headers.get("x-webcat-version");
+    if (!version) {
+      fail(
+        "no x-webcat-version header on /",
+        "Anyone with the app open when this deploy landed stays blocked until\n" +
+          "they restart their browser.",
+      );
+    } else if (version.trim() === String(localManifest.version).trim()) {
+      console.log(`      ${green("✓")} x-webcat-version is ${version}`);
+    } else {
+      fail(
+        "the served x-webcat-version differs from the manifest's version",
+        `served:   ${version}\nmanifest: ${localManifest.version}\n` +
+          "The deploy is serving a manifest other than the one it announces.",
+      );
+    }
   } catch (err) {
-    fail("could not read the CSP header", err.message);
+    fail("could not read the response headers", err.message);
   }
 
   // 4. The heart of it: every file the manifest describes, fetched from the

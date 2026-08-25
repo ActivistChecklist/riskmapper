@@ -23,6 +23,7 @@ import {
 import path from "node:path";
 import process from "node:process";
 import readline from "node:readline";
+import { nextVersion } from "./webcatVersion.mjs";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
 const WELL_KNOWN = path.join(ROOT, "public/.well-known/webcat");
@@ -47,7 +48,7 @@ const red = (s) => c("31", s);
 const cyan = (s) => c("36", s);
 
 let stepNo = 0;
-const TOTAL_STEPS = 6;
+const TOTAL_STEPS = 7;
 function step(title) {
   stepNo += 1;
   console.log(`\n${cyan(`[${stepNo}/${TOTAL_STEPS}]`)} ${bold(title)}`);
@@ -105,6 +106,51 @@ function ensureSigsumOnPath() {
       "  go install sigsum.org/sigsum-go/cmd/sigsum-submit@latest\n" +
       "then re-run. (It lands in ~/go/bin, which this script looks in.)",
   );
+}
+
+/** The version the manifest that is about to be replaced was signed under. */
+function publishedVersion() {
+  if (!existsSync(MANIFEST)) return null;
+  try {
+    const parsed = JSON.parse(readFileSync(MANIFEST, "utf8"));
+    return (parsed.manifest ?? parsed).version ?? null;
+  } catch {
+    // Unreadable is the same as absent here: there is nothing to count from.
+    return null;
+  }
+}
+
+/**
+ * Settle the version this manifest will carry, and write it into the config
+ * the generator reads.
+ *
+ * A client that cached the previous manifest only picks up this one because
+ * `x-webcat-version` tells it to, and it only believes that header when the
+ * version is strictly newer. So this is not bookkeeping: without it, anyone
+ * with the app open when a deploy lands is blocked until they restart their
+ * browser. See scripts/webcatVersion.mjs.
+ *
+ * It lands in the generated config, which is gitignored and rewritten by every
+ * build, so signing twice in a row never leaves a stray diff to commit. The
+ * committed `webcat.config.json` stays the human's floor: bump it (with
+ * package.json) for a real release, and it is used as-is.
+ */
+function chooseVersion() {
+  const config = JSON.parse(readFileSync(GENERATED_CONFIG, "utf8"));
+  const previous = publishedVersion();
+
+  let chosen;
+  try {
+    chosen = nextVersion(previous, config.version);
+  } catch (err) {
+    die("cannot choose a manifest version", err.message);
+  }
+
+  writeFileSync(
+    GENERATED_CONFIG,
+    JSON.stringify({ ...config, version: chosen.version }, null, 2) + "\n",
+  );
+  return { ...chosen, previous };
 }
 
 /**
@@ -342,6 +388,16 @@ async function main() {
   const wasm = JSON.parse(readFileSync(GENERATED_CONFIG, "utf8")).wasm ?? [];
   ok(`dist/ built, ${wasm.length} embedded wasm module(s) declared`);
 
+  step("Choosing the manifest version");
+  const version = chooseVersion();
+  ok(`this manifest will be version ${bold(version.version)} (${version.reason})`);
+  info(
+    version.previous
+      ? "The server sends it as x-webcat-version, so a client still holding\n" +
+          `      ${version.previous} reloads instead of being blocked with an integrity error.`
+      : "The server sends it as x-webcat-version so later deploys can supersede it.",
+  );
+
   step("Generating the manifest");
   // Dotfiles are skipped by default, which is what keeps /.well-known/webcat/
   // out of the manifest that describes it.
@@ -363,6 +419,18 @@ async function main() {
     );
   }
   ok(`manifest covers ${fileCount} files`);
+  // The version reaches the manifest only because the generator copies it out
+  // of the config. Checking rather than assuming: if a webcat-cli upgrade ever
+  // stops carrying it, every subsequent deploy silently loses the reload and
+  // the symptom is an integrity error in someone else's browser.
+  const carried = (unsigned.manifest ?? unsigned).version;
+  if (carried !== version.version) {
+    die(
+      "the generated manifest does not carry the version we chose",
+      `expected ${version.version}, generator wrote ${JSON.stringify(carried)}.\n` +
+        "Signing this would leave clients unable to tell a new deploy from the old one.",
+    );
+  }
 
   step("Signing with the YubiKey");
   await promptForTouch();

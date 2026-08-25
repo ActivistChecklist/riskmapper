@@ -58,6 +58,12 @@ describe("webcat.config.json", () => {
 
   it("tracks the package version", () => {
     // Bump both together at release so a manifest can be traced to a build.
+    //
+    // This is the floor, not the manifest's version: `yarn webcat:sign` bumps
+    // the patch past whatever was last published, because a version that does
+    // not move makes x-webcat-version inert and leaves anyone mid-session
+    // blocked after a deploy. See scripts/webcatVersion.mjs. Bumping here
+    // still wins when it is genuinely ahead, which is how a release lands.
     expect(config.version).toBe(pkg.version);
   });
 
