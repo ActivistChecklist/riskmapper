@@ -44,6 +44,12 @@ import {
 /** Stable across SSR and client — not derived from `useId()`. */
 const DEFAULT_EMPTY_POOL_LINE_ID = "rm-ln-i-0";
 
+/** The snapshot fields that sync between devices through the Y.Doc. */
+export type SyncedSnapshotFields = Pick<
+  RiskMatrixSnapshot,
+  "pool" | "grid" | "otherActions" | "hiddenCategorizedRiskKeys" | "notes"
+>;
+
 export type UseRiskMatrixOptions = {
   initialSnapshot?: RiskMatrixSnapshot | null;
   onSnapshotChange?: (snapshot: RiskMatrixSnapshot) => void;
@@ -116,13 +122,13 @@ export function useRiskMatrix(options: UseRiskMatrixOptions = {}) {
     newSubLineIdRef.current = newSubLineId;
   }, [newSubLineId]);
 
-  const hydratedSnapshotRef = useRef(initialSnapshot ?? null);
-  useLayoutEffect(() => {
-    const snap = hydratedSnapshotRef.current;
-    if (!snap) return;
-    let maxI = 0;
-    let maxS = 0;
-    let maxO = 0;
+  // Advance the id counters past every id in `snap` so a locally minted
+  // id never collides with one already in the matrix. Only ever moves the
+  // counters forward, so it is safe to call again for remote snapshots.
+  const advanceIdSeqsPast = useCallback((snap: SyncedSnapshotFields) => {
+    let maxI = lineSeq.current;
+    let maxS = subSeq.current;
+    let maxO = otherSeq.current;
     const scanIds = (ids: string[]) => {
       for (const id of ids) {
         const mi = /-i-(\d+)$/.exec(id);
@@ -147,6 +153,38 @@ export function useRiskMatrix(options: UseRiskMatrixOptions = {}) {
     subSeq.current = maxS;
     otherSeq.current = maxO;
   }, []);
+
+  const hydratedSnapshotRef = useRef(initialSnapshot ?? null);
+  useLayoutEffect(() => {
+    const snap = hydratedSnapshotRef.current;
+    if (!snap) return;
+    advanceIdSeqsPast(snap);
+  }, [advanceIdSeqsPast]);
+
+  /**
+   * Replace the synced fields with a snapshot that came from another
+   * device. Updates state in place rather than remounting, so the DOM
+   * survives and whoever is typing keeps focus and caret. Per-viewer
+   * fields (`collapsed`, `categorizedRevealHidden`) are left alone.
+   */
+  const applyRemoteSnapshot = useCallback(
+    (snap: SyncedSnapshotFields) => {
+      advanceIdSeqsPast(snap);
+      const nextPool = snap.pool.length
+        ? snap.pool
+        : [{ id: DEFAULT_EMPTY_POOL_LINE_ID, text: "" }];
+      // Pool edits compute from poolRef rather than an updater, so move
+      // the ref now: a keystroke landing before the re-render must build
+      // on the remote pool, not overwrite it.
+      poolRef.current = nextPool;
+      setPool(nextPool);
+      setGrid(mergeHydratedGrid(snap.grid));
+      setOtherActions(snap.otherActions);
+      setHiddenCategorizedRiskKeys(snap.hiddenCategorizedRiskKeys);
+      setNotes(snap.notes);
+    },
+    [advanceIdSeqsPast],
+  );
 
   // Seed one empty unstarred reduce/prepare row when a risk has none yet
   // (so there is a box to type in). Extra rows are added only via Enter
@@ -1334,5 +1372,6 @@ export function useRiskMatrix(options: UseRiskMatrixOptions = {}) {
     notes,
     setNotes,
     getSnapshot,
+    applyRemoteSnapshot,
   };
 }
