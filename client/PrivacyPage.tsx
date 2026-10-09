@@ -28,7 +28,8 @@ const TRACKED_EVENTS: { name: string; description: string }[] = [
   },
   {
     name: "download_csv",
-    description: "You downloaded the matrix as a CSV spreadsheet.",
+    description:
+      "You downloaded the matrix as a CSV spreadsheet. Includes a `layout` of `worksheet` (laid out like the page) or `table` (one row per item).",
   },
   {
     name: "download_matrix_file",

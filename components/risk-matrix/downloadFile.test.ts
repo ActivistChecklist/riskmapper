@@ -7,13 +7,13 @@ describe("exportFilename", () => {
   });
 
   it("strips bidi overrides so the name cannot display a fake extension", () => {
-    expect(exportFilename("invoice‮fdp.exe", "json")).toBe(
+    expect(exportFilename("invoice\u202Efdp.exe", "json")).toBe(
       "RiskMapper.app - invoicefdp.exe.json",
     );
   });
 
   it("strips controls and zero-width characters, and replaces path characters", () => {
-    expect(exportFilename("a\u0000b​c/d:e\nf", "pdf")).toBe("RiskMapper.app - abc-d-e f.pdf");
+    expect(exportFilename("a\u0000b\u200Bc/d:e\nf", "pdf")).toBe("RiskMapper.app - abc-d-e f.pdf");
   });
 
   it("never splits an emoji when shortening", () => {
@@ -23,6 +23,6 @@ describe("exportFilename", () => {
   });
 
   it("falls back to Untitled", () => {
-    expect(exportFilename(" ‮ ", "csv")).toBe("RiskMapper.app - Untitled.csv");
+    expect(exportFilename(" \u202E ", "csv")).toBe("RiskMapper.app - Untitled.csv");
   });
 });

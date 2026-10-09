@@ -8,7 +8,9 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -19,16 +21,20 @@ import {
 import { trackEvent } from "@/lib/analytics/events";
 import { downloadBlob, exportFilename } from "./downloadFile";
 import MatrixFileDownloadDialog from "./MatrixFileDownloadDialog";
-import { buildMatrixCsv } from "./matrixCsv";
+import { buildMatrixCsv, buildWorksheetCsv } from "./matrixCsv";
 import { buildMatrixFile, serializeMatrixFile } from "./matrixFile";
 import type { RiskMatrixSnapshot } from "./matrixTypes";
 
-export type MatrixDownloadMenuProps = {
+export type MatrixExportMenuProps = {
   title: string;
-  /** Read at click time so the download matches what is on screen. */
+  /** Read at click time so the export matches what is on screen. */
   getSnapshot: () => RiskMatrixSnapshot;
   /** Disable every item when there's nothing to export. */
   hasContent: boolean;
+  /** Plain-text (Markdown) full worksheet to the clipboard. */
+  onCopyPlain: () => void;
+  /** Rich-text (HTML) full worksheet to the clipboard. */
+  onCopyRich: () => void;
 };
 
 async function downloadPdf(title: string, snapshot: RiskMatrixSnapshot) {
@@ -42,12 +48,8 @@ async function downloadPdf(title: string, snapshot: RiskMatrixSnapshot) {
   downloadBlob(blob, exportFilename(title, "pdf"));
 }
 
-function downloadCsv(title: string, snapshot: RiskMatrixSnapshot) {
-  const csv = buildMatrixCsv(snapshot);
-  downloadBlob(
-    new Blob([csv], { type: "text/csv;charset=utf-8" }),
-    exportFilename(title, "csv"),
-  );
+function downloadCsv(csv: string, filename: string) {
+  downloadBlob(new Blob([csv], { type: "text/csv;charset=utf-8" }), filename);
 }
 
 function downloadMatrixFile(title: string, snapshot: RiskMatrixSnapshot) {
@@ -67,11 +69,14 @@ function ItemText({ label, hint }: { label: string; hint: string }) {
   );
 }
 
-export default function MatrixDownloadMenu({
+/** Every way to take a matrix out of the app: downloads and clipboard copies. */
+export default function MatrixExportMenu({
   title,
   getSnapshot,
   hasContent,
-}: MatrixDownloadMenuProps) {
+  onCopyPlain,
+  onCopyRich,
+}: MatrixExportMenuProps) {
   const [pdfBusy, setPdfBusy] = useState(false);
   const [matrixFileOpen, setMatrixFileOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -90,9 +95,20 @@ export default function MatrixDownloadMenu({
     }
   }, [pdfBusy, title, getSnapshot]);
 
-  const handleCsv = useCallback(() => {
-    downloadCsv(title, getSnapshot());
-    trackEvent("download_csv");
+  const handleWorksheetCsv = useCallback(() => {
+    downloadCsv(
+      buildWorksheetCsv({ title, ...getSnapshot() }),
+      exportFilename(title, "csv", "worksheet"),
+    );
+    trackEvent("download_csv", { layout: "worksheet" });
+  }, [title, getSnapshot]);
+
+  const handleTableCsv = useCallback(() => {
+    downloadCsv(
+      buildMatrixCsv(getSnapshot()),
+      exportFilename(title, "csv", "table"),
+    );
+    trackEvent("download_csv", { layout: "table" });
   }, [title, getSnapshot]);
 
   const handleMatrixFile = useCallback(() => {
@@ -108,7 +124,7 @@ export default function MatrixDownloadMenu({
       variant="outline"
       size="default"
       className="gap-2 px-3 text-[15px] sm:px-4"
-      aria-label="Download"
+      aria-label="Export"
       aria-haspopup="menu"
       aria-busy={pdfBusy || undefined}
     >
@@ -123,7 +139,7 @@ export default function MatrixDownloadMenu({
         <Download size={18} strokeWidth={2} aria-hidden />
       )}
       <span className="hidden md:inline-flex md:items-center md:gap-1">
-        Download
+        Export
         <ChevronDown
           size={14}
           strokeWidth={2}
@@ -141,10 +157,13 @@ export default function MatrixDownloadMenu({
           <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
         </TooltipTrigger>
         <TooltipContent side="bottom" className="md:hidden">
-          Download
+          Export
         </TooltipContent>
       </Tooltip>
-      <DropdownMenuContent align="end" className="w-72">
+      {/* Scrolls only when it would run off the screen (a short phone in
+          landscape); collisionPadding keeps it off the screen edges. */}
+      <DropdownMenuContent align="end" collisionPadding={8} className="w-80">
+        <DropdownMenuLabel>Download</DropdownMenuLabel>
         <DropdownMenuItem
           disabled={!hasContent || pdfBusy}
           onSelect={() => {
@@ -153,20 +172,41 @@ export default function MatrixDownloadMenu({
         >
           <ItemText label="PDF" hint="To print or read" />
         </DropdownMenuItem>
-        <DropdownMenuItem disabled={!hasContent} onSelect={handleCsv}>
+        <DropdownMenuItem disabled={!hasContent} onSelect={handleWorksheetCsv}>
           <ItemText
-            label="Spreadsheet (CSV)"
-            hint="Risks, mitigations and actions, one per row"
+            label="Spreadsheet, page layout (CSV)"
+            hint="The matrix, mitigations and actions laid out like this page"
           />
         </DropdownMenuItem>
-        <DropdownMenuSeparator />
+        <DropdownMenuItem disabled={!hasContent} onSelect={handleTableCsv}>
+          <ItemText
+            label="Spreadsheet, one row per item (CSV)"
+            hint="For sorting and filtering"
+          />
+        </DropdownMenuItem>
         <DropdownMenuItem
           disabled={!hasContent}
           onSelect={() => setMatrixFileOpen(true)}
         >
           <ItemText
             label="Matrix file (JSON)"
-            hint="To import elsewhere, no upload needed. Not encrypted."
+            hint="To re-import, or send to someone to import. Not encrypted."
+          />
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuLabel>Copy to clipboard</DropdownMenuLabel>
+        <DropdownMenuItem disabled={!hasContent} onSelect={onCopyPlain}>
+          <ItemText
+            label="Plain text (Markdown)"
+            hint="For chat apps and notes"
+          />
+          {/* Keyboard shortcuts mean nothing on a phone. */}
+          <DropdownMenuShortcut className="max-md:hidden">⌘⇧C</DropdownMenuShortcut>
+        </DropdownMenuItem>
+        <DropdownMenuItem disabled={!hasContent} onSelect={onCopyRich}>
+          <ItemText
+            label="Rich text"
+            hint="For email, Google Docs or Word, with tables and colors"
           />
         </DropdownMenuItem>
       </DropdownMenuContent>

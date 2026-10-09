@@ -2,7 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import MatrixDownloadMenu from "./MatrixDownloadMenu";
+import MatrixExportMenu from "./MatrixExportMenu";
 import { INITIAL_CATEGORIZED_REVEAL_HIDDEN, INITIAL_COLLAPSED } from "./constants";
 import { MATRIX_FILE_FORMAT } from "./matrixFile";
 import type { RiskMatrixSnapshot } from "./matrixTypes";
@@ -49,34 +49,62 @@ function captureDownloads() {
 }
 
 function renderMenu(hasContent = true) {
-  return render(
+  const onCopyPlain = vi.fn();
+  const onCopyRich = vi.fn();
+  render(
     <TooltipProvider>
-      <MatrixDownloadMenu
+      <MatrixExportMenu
         title="Direct action: plan"
         getSnapshot={snapshot}
         hasContent={hasContent}
+        onCopyPlain={onCopyPlain}
+        onCopyRich={onCopyRich}
       />
     </TooltipProvider>,
   );
+  return { onCopyPlain, onCopyRich };
 }
 
-describe("MatrixDownloadMenu", () => {
-  it("downloads a CSV of the matrix", async () => {
+describe("MatrixExportMenu", () => {
+  it("downloads the one-row-per-item CSV", async () => {
     const user = userEvent.setup();
     const { blobs, names } = captureDownloads();
     renderMenu();
-    await user.click(screen.getByRole("button", { name: "Download" }));
-    await user.click(screen.getByRole("menuitem", { name: /spreadsheet/i }));
-    expect(names).toEqual(["RiskMapper.app - Direct action- plan.csv"]);
+    await user.click(screen.getByRole("button", { name: "Export" }));
+    await user.click(screen.getByRole("menuitem", { name: /one row per item/i }));
+    expect(names).toEqual(["RiskMapper.app - Direct action- plan (table).csv"]);
     expect(blobs[0].type).toBe("text/csv;charset=utf-8");
     expect(await blobs[0].text()).toContain("Highest risk,High,High,Doxxing");
+  });
+
+  it("downloads the page-layout CSV", async () => {
+    const user = userEvent.setup();
+    const { blobs, names } = captureDownloads();
+    renderMenu();
+    await user.click(screen.getByRole("button", { name: "Export" }));
+    await user.click(screen.getByRole("menuitem", { name: /page layout/i }));
+    expect(names).toEqual(["RiskMapper.app - Direct action- plan (worksheet).csv"]);
+    const text = await blobs[0].text();
+    expect(text).toContain("━━ STEP 2 · RISK MATRIX ━━");
+    expect(text).toContain("🔴 Doxxing");
+  });
+
+  it("copies to the clipboard from the same menu", async () => {
+    const user = userEvent.setup();
+    const { onCopyPlain, onCopyRich } = renderMenu();
+    await user.click(screen.getByRole("button", { name: "Export" }));
+    await user.click(screen.getByRole("menuitem", { name: /plain text/i }));
+    expect(onCopyPlain).toHaveBeenCalledTimes(1);
+    await user.click(screen.getByRole("button", { name: "Export" }));
+    await user.click(screen.getByRole("menuitem", { name: /rich text/i }));
+    expect(onCopyRich).toHaveBeenCalledTimes(1);
   });
 
   it("downloads an importable matrix file", async () => {
     const user = userEvent.setup();
     const { blobs, names } = captureDownloads();
     renderMenu();
-    await user.click(screen.getByRole("button", { name: "Download" }));
+    await user.click(screen.getByRole("button", { name: "Export" }));
     await user.click(screen.getByRole("menuitem", { name: /matrix file/i }));
     // Nothing is saved until the person has read the handling advice.
     const dialog = await screen.findByRole("dialog", { name: /download matrix file/i });
@@ -94,20 +122,20 @@ describe("MatrixDownloadMenu", () => {
     const user = userEvent.setup();
     const { names } = captureDownloads();
     renderMenu();
-    await user.click(screen.getByRole("button", { name: "Download" }));
+    await user.click(screen.getByRole("button", { name: "Export" }));
     await user.click(screen.getByRole("menuitem", { name: /matrix file/i }));
     const dialog = await screen.findByRole("dialog", { name: /download matrix file/i });
     await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
     expect(names).toEqual([]);
     expect(document.activeElement).toBe(
-      screen.getByRole("button", { name: "Download" }),
+      screen.getByRole("button", { name: "Export" }),
     );
   });
 
   it("disables every format when the matrix is empty", async () => {
     const user = userEvent.setup();
     renderMenu(false);
-    await user.click(screen.getByRole("button", { name: "Download" }));
+    await user.click(screen.getByRole("button", { name: "Export" }));
     for (const item of screen.getAllByRole("menuitem")) {
       expect(item.getAttribute("aria-disabled")).toBe("true");
     }

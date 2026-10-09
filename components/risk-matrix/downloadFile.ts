@@ -22,8 +22,16 @@ export function downloadBlob(blob: Blob, filename: string): void {
 const FILENAME_STRIPPED =
   /[\u0000-\u001F\u007F-\u009F\u200B-\u200F\u202A-\u202E\u2060-\u2069\uFEFF]/g;
 
-/** `RiskMapper.app - <title>.<ext>`, with characters filesystems reject replaced. */
-export function exportFilename(title: string, ext: string): string {
+/**
+ * `RiskMapper.app - <title>.<ext>`, or `... - <title> (<variant>).<ext>` when
+ * one matrix has two exports of the same type. Characters filesystems reject
+ * are replaced.
+ */
+export function exportFilename(
+  title: string,
+  ext: string,
+  variant?: string,
+): string {
   const cleaned = title
     .replace(/[\t\n\r]/g, " ")
     .replace(FILENAME_STRIPPED, "")
@@ -32,5 +40,5 @@ export function exportFilename(title: string, ext: string): string {
     .trim();
   // Slice by code point so a cut never leaves half an emoji (a lone surrogate).
   const short = Array.from(cleaned || "Untitled").slice(0, 80).join("").trim();
-  return `RiskMapper.app - ${short}.${ext}`;
+  return `RiskMapper.app - ${short}${variant ? ` (${variant})` : ""}.${ext}`;
 }

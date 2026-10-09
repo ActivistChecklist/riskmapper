@@ -13,12 +13,10 @@ import type { MatrixWorkspaceApi } from "./useMatrixWorkspace";
 
 type Props = {
   workspace: MatrixWorkspaceApi;
-  /** Copy / export control. Rendered in the title row's far right
-   *  cluster, immediately to the left of `cloudShareControl`. */
-  copyMenu?: (opts: { iconOnly: boolean }) => React.ReactNode;
-  /** Download menu (PDF, CSV, matrix file). Sits between the copy menu
-   *  and the share control. */
-  downloadMenu?: React.ReactNode;
+  /** Export menu (downloads and clipboard copies). Rendered in the title
+   *  row's far right cluster, immediately to the left of
+   *  `cloudShareControl`. */
+  exportMenu?: React.ReactNode;
   /** Cloud share control. Rendered in the title row's far right (Google
    *  Docs style), not in the toolbar. */
   cloudShareControl?: React.ReactNode;
@@ -59,8 +57,7 @@ function MatrixToolbarWidthProbe() {
 
 export default function MatrixTopBar({
   workspace: ws,
-  copyMenu,
-  downloadMenu,
+  exportMenu,
   cloudShareControl,
   statusIndicator,
 }: Props) {
@@ -197,7 +194,7 @@ export default function MatrixTopBar({
             <div className="shrink-0">{statusIndicator}</div>
           ) : null}
           {/* Right-anchored cluster (Google Docs style):
-              [Copy] [Share]. Copy is neutral (outline), Share is the
+              [Export] [Share]. Export is neutral (outline), Share is the
               primary CTA. */}
           <div className="ml-auto flex shrink-0 items-center gap-2">
             {/* iconOnly is the small-screen hint; child components also
@@ -205,8 +202,7 @@ export default function MatrixTopBar({
                 same breakpoint, so the rendered DOM matches the layout
                 decision at every width. */}
             <ThemeToggle />
-            {copyMenu ? copyMenu({ iconOnly: false }) : null}
-            {downloadMenu}
+            {exportMenu}
             {cloudShareControl}
           </div>
         </div>

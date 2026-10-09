@@ -50,8 +50,11 @@ export default function MatrixFileDownloadDialog({
         <DialogHeader>
           <DialogTitle>Download matrix file</DialogTitle>
           <DialogDescription>
-            Anyone with Risk Mapper can import this file. It never touches our
-            servers.
+            Export the current Risk Matrix data so you can re-import it or send
+            it to someone else to import to RiskMapper.app. This has a similar
+            effect to using our end-to-end encrypted &ldquo;share&rdquo;
+            feature, but you never have to send any data to our servers even in
+            an encrypted way.
           </DialogDescription>
         </DialogHeader>
 
