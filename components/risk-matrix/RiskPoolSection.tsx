@@ -3,14 +3,18 @@
 import React from "react";
 import LineRow from "./LineRow";
 import PointerAddLineButton from "./PointerAddLineButton";
-import { POINTER_ADD_ROW_HOVER_CLASSES } from "./constants";
+import {
+  DROP_TARGET_OUTLINE_CLASSES,
+  POINTER_ADD_ROW_HOVER_CLASSES,
+} from "./constants";
 import StepSection from "./StepSection";
-import type { DragState, LineLocation, PoolLine } from "./types";
+import type { DragState, DropIndicator, LineLocation, PoolLine } from "./types";
 
 export type RiskPoolSectionProps = {
   pool: PoolLine[];
   dragState: DragState | null;
   dragOverTarget: string | null;
+  dropIndicator: DropIndicator | null;
   onAddPoolLine: () => void;
   onPoolClick: (e: React.MouseEvent) => void;
   onChange: (loc: LineLocation, id: string, text: string) => void;
@@ -33,6 +37,7 @@ export default function RiskPoolSection({
   pool,
   dragState,
   dragOverTarget,
+  dropIndicator,
   onPoolClick,
   onAddPoolLine,
   onChange,
@@ -54,9 +59,7 @@ export default function RiskPoolSection({
         onClick={onPoolClick}
         className={[
           "group flex min-h-[100px] w-full cursor-text flex-col px-3 py-2.5 sm:px-4 sm:py-3",
-          dragOverTarget === "pool"
-            ? "shadow-[inset_0_0_0_2px_rgba(0,0,0,0.35)] dark:shadow-[inset_0_0_0_2px_rgba(255,255,255,0.4)]"
-            : "",
+          dragOverTarget === "pool" ? DROP_TARGET_OUTLINE_CLASSES : "",
         ].join(" ")}
       >
         <div className="w-full max-w-[42ch]">
@@ -67,6 +70,12 @@ export default function RiskPoolSection({
                 line={line}
                 loc="pool"
                 isDragging={!!dragState && dragState.id === line.id}
+                dropEdge={
+                  dropIndicator?.loc === "pool" &&
+                  dropIndicator.rowId === line.id
+                    ? dropIndicator.edge
+                    : null
+                }
                 placeholder={
                   pool.length === 1 && line.text.length === 0
                     ? "Add your first risk..."

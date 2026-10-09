@@ -365,6 +365,7 @@ function RiskMatrixCanvas({ workspace: ws, cloud, remoteApplyRef }: CanvasProps)
         pool={m.pool}
         dragState={m.dragState}
         dragOverTarget={m.dragOverTarget}
+        dropIndicator={m.dropIndicator}
         onPoolClick={m.onPoolClick}
         onAddPoolLine={m.requestAddPoolLine}
         onChange={m.updateText}
@@ -386,6 +387,7 @@ function RiskMatrixCanvas({ workspace: ws, cloud, remoteApplyRef }: CanvasProps)
             grid={m.grid}
             dragState={m.dragState}
             dragOverTarget={m.dragOverTarget}
+            dropIndicator={m.dropIndicator}
             onAddCellLine={m.requestAddMatrixCellLine}
             onCellClick={m.onCellClick}
             onChange={m.updateText}
