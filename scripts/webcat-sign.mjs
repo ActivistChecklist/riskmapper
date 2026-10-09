@@ -23,6 +23,7 @@ import {
 import path from "node:path";
 import process from "node:process";
 import readline from "node:readline";
+import { dependencyProblem } from "./webcatDeps.mjs";
 import { nextVersion } from "./webcatVersion.mjs";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
@@ -48,7 +49,7 @@ const red = (s) => c("31", s);
 const cyan = (s) => c("36", s);
 
 let stepNo = 0;
-const TOTAL_STEPS = 7;
+const TOTAL_STEPS = 8;
 function step(title) {
   stepNo += 1;
   console.log(`\n${cyan(`[${stepNo}/${TOTAL_STEPS}]`)} ${bold(title)}`);
@@ -360,6 +361,12 @@ async function main() {
   ]) {
     if (!existsSync(p)) die(`missing ${label}: ${path.relative(ROOT, p)}`);
   }
+
+  // Before the YubiKey, so a stale install fails fast and never asks for a PIN.
+  step("Checking dependencies against yarn.lock");
+  const depProblem = dependencyProblem(ROOT);
+  if (depProblem) die(depProblem.message, depProblem.detail);
+  ok("node_modules matches yarn.lock, so this build is the one the deploy makes");
 
   step("Checking the YubiKey");
   const submitPath = ensureSigsumOnPath();
