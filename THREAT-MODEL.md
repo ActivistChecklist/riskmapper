@@ -51,10 +51,6 @@ remains.
 connection sees only encrypted blobs. The encryption key in the URL
 fragment never travels over the wire.
 
-**Opening a shared link doesn't pollute your device.** When you click
-someone's share URL, the matrix appears in a sandboxed preview. Nothing is
-saved locally until you click "Save on this device."
-
 ## What's not protected
 
 **Anyone with the link can read, edit, or delete the cloud copy.** The URL
@@ -62,6 +58,18 @@ is a full capability: same read/write as you, and anyone who has it can
 remove the matrix from the server (or use Stop sharing from their session).
 There is **no view-only** share link. Treat the URL like a password and
 share it through a private channel only.
+
+**Deleting or jamming a shared matrix only takes the id.** The id is the
+part of the link before the `#`. Unlike the key, it does reach our servers,
+so it can turn up in access logs. The server doesn't check anything else
+before it deletes a matrix or accepts a new edit. Someone with only the id
+still can't read the matrix, but they can delete the cloud copy, or send
+one junk edit that stops it from loading for everyone.
+
+**Opening a shared link leaves a copy on your device.** The matrix is saved
+in your browser as soon as the link opens, next to your own matrices, and
+stays there until you delete it. Anyone who gets into that browser later
+can read it, even after the link stops working.
 
 **Subpoenas and lawful requests can still obtain metadata.** Whoever hosts
 the database or HTTP infrastructure can usually be compelled to produce
@@ -98,10 +106,11 @@ rather than removing it:
 **There are no accounts, no logins.** The link IS the credential. Lose the
 link, lose access. There's no "log in to recover" flow.
 
-**No real-time collaboration.** Two people editing the same matrix at once
-will collide; the second to save sees a "this was edited from another
-device" prompt and chooses between their changes and the remote's. We
-don't merge edits live.
+**Collaboration is live, but simple.** Edits reach everyone who has the
+matrix open within a moment or two and merge on their own. But if two
+people change the same thing at the same time (one risk, one mitigation,
+or the notes), only one of the two changes survives, and the other is lost
+without a warning.
 
 **No forward secrecy.** Once a key has leaked, all past and future
 versions of that matrix are exposed for as long as the matrix exists on
@@ -114,32 +123,36 @@ risk-matrix shape, that size mostly reveals the *kind* of edit (a
 keystroke vs. a paste vs. adding a risk vs. importing a baseline), not
 which specific text or category the user touched.
 
-## Matrix files (download and import)
+## Downloading and importing matrices
 
-A matrix can also leave the browser as a JSON file (`components/risk-matrix/matrixFile.ts`)
-and come back through Import. No server is involved in either direction.
+You can also take a matrix out of Risk Mapper as a file, and bring one back
+in with Import. Neither involves our servers.
 
-- **The file is plaintext.** It carries none of the share link's encryption.
-  Whoever holds the file, or the device it is on, can read it.
-- **The file never carries cloud metadata.** In particular not `keyB64`,
-  which would hand out edit access to a shared matrix, and no timestamps.
-- **An imported file is untrusted input.** It may come from a stranger or an
-  adversary posing as an ally. Import therefore:
-  - bounds file size, element counts and string lengths (`MATRIX_FILE_LIMITS`),
-    so a file can slow the app down but cannot freeze or brick it;
-  - strips control characters, bidi overrides and lone surrogates from all text;
-  - regenerates every id, and reads only known fields, so it cannot collide
-    with or overwrite existing data;
-  - shows a confirmation with counts and a link warning before anything is
-    saved, and renames a title that matches an existing matrix;
-  - refuses, and changes nothing, if browser storage cannot hold the result.
-- **Imported text flows into exports, so exports treat all text as hostile.**
-  CSV cells that a spreadsheet would run as a formula are neutralized,
-  plain-text (Markdown) copies escape image and HTML syntax so a paste
-  cannot make a renderer fetch from a third party, and notes links are
-  only live for `http(s)`, `mailto` and `tel`.
-- **Not defended:** the content itself. A file can hold bad advice, starred
-  as actions, and nothing here can tell.
+**Downloads are not encrypted.** That goes for the RiskMapper.app export
+format, PDFs, spreadsheets, and anything you copy to the clipboard. Anyone
+who gets the file, or the device it's on, can read all of it. Send it over
+something end-to-end encrypted like Signal, and delete copies you no longer
+need.
+
+**A download never includes the key to a shared matrix.** Passing the file
+around doesn't hand out access to the cloud copy. It doesn't include any
+dates either.
+
+**An imported file is treated as hostile.** It could come from a stranger,
+or from someone posing as an ally. Risk Mapper caps how big a file can be,
+strips characters that can disguise text, and shows you what's in the file
+before saving anything. It can't overwrite one of your matrices or pass
+itself off as one, and if your browser doesn't have room for it, nothing
+changes.
+
+**Downloads assume the text could be hostile too.** Some of what's in a
+matrix may have been written by someone else. So a spreadsheet export can't
+run formulas, copied text can't make the app you paste it into load images
+from another site, and links in the notes only work if they're ordinary
+web, email, or phone links.
+
+**Nothing checks the advice.** A file can be full of bad suggestions, already
+starred as actions, and Risk Mapper has no way to tell.
 
 ## In plain words
 

@@ -14,7 +14,7 @@ import { DocPage } from "./DocPage";
  * in step.
  */
 
-const LAST_UPDATED = "August 24, 2026";
+const LAST_UPDATED = "October 9, 2026";
 
 const REPO_URL = "https://github.com/ActivistChecklist/riskmapper";
 const THREAT_MODEL_URL = `${REPO_URL}/blob/main/THREAT-MODEL.md`;
@@ -29,33 +29,39 @@ nothing you type into Risk Mapper leaves your device. If you decide to share a
 matrix by link with others, that data is always end-to-end encrypted and we
 do not have the ability to decrypt it.
 
-If we receive a legal order to hand that over, the only thing 
-hand over is the encrypted data, the random id from the link, and the calendar day
-each edit was made. We don't store the exact time the matrix was created or the edits
-were made. We have access to store the title, your IP address, or the key that would decrypt the data.
+If we receive a legal order to hand that over, the only things in our database
+we could hand over are the encrypted data, the random id from the link, and the
+calendar day each edit was made. We don't store the exact time the matrix was
+created or the edits were made. We never have the title, or the key that would
+decrypt the data.
 
 ## Your matrix stays in your browser by default
 
 Everything you type is saved in your browser's storage on this device. Nothing
 reaches our servers unless you enable sharing.
 
-Risk to be aware of: Clearing your browser data deletes your matrices, and we 
-have no copy to restore. If a matrix matters, export it.
-
+Risk to be aware of: Clearing your browser data deletes your matrices, and we
+have no copy to restore. If a matrix matters, back it up with **Export →
+RiskMapper.app export format**.
 
 Export: Exports are local too. Copying the worksheet and downloading a PDF,
-spreadsheet (CSV) or matrix file all happen entirely in your browser.
+spreadsheet (CSV) or RiskMapper.app export format file all happen entirely in
+your browser.
 
-**A matrix file lets you share without us.** Download it, send it however you
-choose, and the other person imports it. It never touches our servers. But
-unlike a share link, the file is **not encrypted**: anyone who gets the file,
-or the device it sits on, can read everything in it. Send it over a channel
-you trust, such as Signal, and delete copies you no longer need.
+Risk to be aware of: None of these are encrypted. Anyone who gets the file, or
+gets into the device it's saved on, can read everything in it. If you send
+one, use Signal, and delete copies you no longer need.
 
-**Importing someone else's file is safe to open, but read it before you trust
-it.** Risk Mapper checks the file, shows what's in it, and saves nothing until
-you confirm. It can't tell you whether the advice inside is good, or whether
-the person who sent it is who they say they are.
+**You can share a matrix without using our servers at all.** Download it in
+RiskMapper.app export format, send the file, and the other person imports it.
+
+**Only import files from people you trust.** Risk Mapper checks the file and
+shows you what's in it before saving anything. It can't tell you whether the
+advice inside is good, or whether the person who sent it is who they say they
+are.
+
+Opening someone's share link also saves a copy of their matrix in your
+browser, right away, alongside your own.
 
 ## Share by link is the only time we have data, and it's fully end-to-end encrypted
 
@@ -94,7 +100,7 @@ version, so anyone who has the full link can read, edit, or delete the shared
 copy. Anywhere the link goes, the matrix goes with it.
 
 - Your browser history is the most common leak. Anyone with access to your computer, or to your unlocked browser, can find the link there.
-- Chrome syncs history to your Google account, where it can be reached by a subpoena. Firefox, Brave, Edge, and Safari all sync too if you turn their sync features.
+- Chrome syncs history to your Google account, where it can be reached by a subpoena. Firefox, Brave, Edge, and Safari all sync too if you turn on their sync features.
 
 What we suggest:
 
@@ -103,9 +109,9 @@ What we suggest:
 - Avoid Google Chrome for anything sensitive, especially if you are signed into a Google account.
 - Use **Stop sharing** when you are done with a link.
 
-## The code you run is signed, to guarantee the server hasn't tamptered with it
+## The code you run is signed, to guarantee the server hasn't tampered with it
 
-Every tool that claims end-to-end ecnryption in your browser has the same weak point: 
+Every tool that claims end-to-end encryption in your browser has the same weak point: 
 you have to
 trust that the JavaScript you were served is the JavaScript we wrote. Whoever
 controls the hosting could be compelled to send a version of the JavaScript that quietly
@@ -132,6 +138,7 @@ The limitations of our approach include:
 
 - **A compromised device.** Malware, spyware, or a hostile browser extension on your computer can read what is on your screen and what is in your browser's storage. Encryption cannot help there.
 - **Anyone holding the link.** Reading, editing, and deleting are all the same capability, and we cannot tell them apart.
+- **Anyone who sees the first half of the link.** The id before the \`#\` does reach our servers. On its own it can't read your matrix, but it is enough to delete the shared copy, or to break it so it won't load.
 - **Metadata under subpoena.** Whoever hosts our database or carries our traffic can generally be compelled to produce coarse dates and access logs. None of that decrypts your matrix, but it is not nothing.
 - **Traffic patterns.** Someone with access to our server logs can see that a shared matrix is being edited, how often, and roughly how large each edit is.
 - **Losing the link.** There are no accounts, so there is no recovery flow. Lose the link, lose the cloud copy.

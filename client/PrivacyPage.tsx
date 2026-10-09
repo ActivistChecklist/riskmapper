@@ -9,7 +9,7 @@ import { DocPage } from "./DocPage";
  * strings `lib/analytics/events.ts` fires, so it stays a component.
  */
 
-const LAST_UPDATED = "August 24, 2026";
+const LAST_UPDATED = "October 9, 2026";
 
 const TRACKED_EVENTS: { name: string; description: string }[] = [
   { name: "pageview", description: "A visit to a page on this site." },
