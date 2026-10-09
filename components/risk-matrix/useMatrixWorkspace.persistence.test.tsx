@@ -63,6 +63,38 @@ const CLOUD: CloudMatrixMeta = {
 };
 
 describe("useMatrixWorkspace persistence", () => {
+  it("drops a pending debounced save on unmount instead of writing stale state (regression)", () => {
+    vi.useFakeTimers();
+    try {
+      const repo = makeFakeRepo();
+      const { result, unmount, rerender } = renderHook(() =>
+        useMatrixWorkspace(repo),
+      );
+      // Let the mount-time hydration settle: React only runs an update
+      // eagerly when the component has no other work pending, which is the
+      // situation a real page is in long after it loaded.
+      rerender();
+      rerender();
+      act(() => {
+        result.current.onSnapshotChange({
+          ...emptySnapshot(),
+          pool: [{ id: "p1", text: "typed just before unmount" }],
+        });
+      });
+      const writesBefore = repo.saved.length;
+      unmount();
+      // React 19 still evaluates a state updater eagerly after unmount, so
+      // without the cleanup this timer ran the updater and its repo.save,
+      // writing this instance's workspace over whatever was stored since.
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+      expect(repo.saved.length).toBe(writesBefore);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("applyRemoteSnapshot persists the new snapshot to localStorage (regression)", () => {
     const repo = makeFakeRepo();
     const { result } = renderHook(() => useMatrixWorkspace(repo));

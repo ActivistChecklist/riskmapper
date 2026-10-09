@@ -268,6 +268,12 @@ export function useMatrixWorkspace(
     }
   }, []);
 
+  // A debounced save must not outlive this hook. React 19 still evaluates a
+  // state updater eagerly after unmount, and ours call repo.save, so a timer
+  // left running would write this instance's stale workspace over whatever
+  // has been stored since.
+  useEffect(() => cancelPendingPersist, [cancelPendingPersist]);
+
   const flushSave = useCallback(() => {
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
