@@ -66,6 +66,7 @@ function makeFakeRepo(initial: MatrixWorkspaceV1): MatrixRepository & {
     load: () => JSON.parse(JSON.stringify(initial)) as MatrixWorkspaceV1,
     save: (w) => {
       saved.push(JSON.parse(JSON.stringify(w)));
+      return true;
     },
   };
 }

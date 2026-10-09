@@ -61,6 +61,9 @@ export type AnalyticsEvent =
   | "share_matrix"
   | "copy_worksheet"
   | "download_pdf"
+  | "download_csv"
+  | "download_matrix_file"
+  | "import_matrix_file"
   | FirstTimeEvent;
 
 /**

@@ -1,0 +1,43 @@
+name: CI
+
+# Lint, typecheck, build and test every pull request, including Dependabot's,
+# so dependency updates can be merged on a green check instead of checked
+# out by hand.
+#
+# Not in the trust path, like webcat-verify.yml: no secrets, a read-only
+# token, and nothing it produces is deployed or signed. Signing stays local
+# (MIGRATION.md D1). That also contains a malicious dependency in a PR: its
+# install scripts run here with nothing to steal and nothing to write to.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: yarn
+
+      - run: yarn install --frozen-lockfile
+      - run: yarn lint
+      - run: yarn typecheck
+      # Before tests: server/securityHeaders.test.ts runs the built server.
+      - run: yarn build
+      - run: yarn test

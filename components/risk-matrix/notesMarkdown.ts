@@ -23,8 +23,31 @@ export type NotesBlock =
   | { kind: "h1" | "h2" | "h3" | "p"; inlines: NotesInline[] }
   | { kind: "ul" | "ol"; items: NotesInline[][] };
 
+/**
+ * Every repeat is bounded. Notes can come from a matrix file or share link
+ * written by someone else, and with unbounded `+` an input like `[a](` x 50k
+ * makes each `[` scan to the end of the line: quadratic, minutes of frozen
+ * tab on Copy rich text or Download PDF. The bounds are far above any real
+ * bold run, link label or URL.
+ */
 const INLINE_TOKEN_RE =
-  /(\*\*[^*]+\*\*|__[^_]+__|\*[^*\n]+\*|_[^_\n]+_|`[^`\n]+`|\[[^\]\n]+\]\([^)\s]+\)|https?:\/\/[^\s)]+)/g;
+  /(\*\*[^*]{1,2000}\*\*|__[^_]{1,2000}__|\*[^*\n]{1,2000}\*|_[^_\n]{1,2000}_|`[^`\n]{1,2000}`|\[[^\]\n]{1,500}\]\([^)\s]{1,2000}\)|https?:\/\/[^\s)]{1,2000})/g;
+
+/**
+ * Links become real links only for these schemes, or a same-site path
+ * (`/privacy/`, `#section`). Anything else, such as `javascript:`, `file:`
+ * or `ms-msdt:`, renders as its plain text. The notes editor already refuses
+ * those, but the raw Markdown survives in the snapshot, and the PDF and
+ * rich-text exports read it with this parser.
+ */
+const SAFE_LINK_SCHEME = /^(https?:|mailto:|tel:)/i;
+
+export function isSafeHref(href: string): boolean {
+  const h = href.trim();
+  if (/^[a-z][a-z0-9+.-]*:/i.test(h)) return SAFE_LINK_SCHEME.test(h);
+  // Scheme-less: allow same-site paths, but not `//host` (another origin).
+  return (h.startsWith("/") && !h.startsWith("//")) || h.startsWith("#");
+}
 
 function parseInlines(line: string): NotesInline[] {
   const out: NotesInline[] = [];
@@ -41,11 +64,11 @@ function parseInlines(line: string): NotesInline[] {
       out.push({ kind: "text", text: tok.slice(1, -1), code: true });
     } else if (tok.startsWith("[")) {
       const close = tok.indexOf("]");
-      out.push({
-        kind: "link",
-        text: tok.slice(1, close),
-        href: tok.slice(close + 2, -1),
-      });
+      const text = tok.slice(1, close);
+      const href = tok.slice(close + 2, -1);
+      out.push(
+        isSafeHref(href) ? { kind: "link", text, href } : { kind: "text", text },
+      );
     } else if (/^https?:\/\//.test(tok)) {
       out.push({ kind: "link", text: tok, href: tok });
     } else if (tok.startsWith("*") || tok.startsWith("_")) {

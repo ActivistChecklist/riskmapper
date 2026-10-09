@@ -95,7 +95,9 @@ export default defineConfig({
   },
 
   server: {
-    port: 3000,
+    // PORT lets a launcher (e.g. Claude Code's preview) pick a free port when
+    // something else holds 3000. `yarn dev` leaves it unset and gets 3000.
+    port: Number(process.env.PORT) || 3000,
     // The API runs as its own process in development (`yarn dev:api`).
     // In production one process serves both — see server/index.ts.
     proxy: {

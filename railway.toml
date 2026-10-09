@@ -1,5 +1,8 @@
 [build]
-builder = "NIXPACKS"
+# Railpack, not Nixpacks: Railway pins Nixpacks at a release that predates
+# Node 24 and no longer updates it. Railpack picks the Node major from
+# `engines` in package.json.
+builder = "RAILPACK"
 # Builds the static client into dist/ and the Node server into dist-server/.
 buildCommand = "yarn build"
 

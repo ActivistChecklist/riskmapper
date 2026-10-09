@@ -73,5 +73,6 @@ export type MatrixWorkspaceV1 = {
 /** Abstract persistence for swapping localStorage with an API later. */
 export type MatrixRepository = {
   load(): MatrixWorkspaceV1;
-  save(workspace: MatrixWorkspaceV1): void;
+  /** Returns false when the write did not persist (e.g. storage quota full). */
+  save(workspace: MatrixWorkspaceV1): boolean;
 };

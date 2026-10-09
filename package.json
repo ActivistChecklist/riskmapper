@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "engines": {
-    "node": "22"
+    "node": "24"
   },
   "scripts": {
     "prepare": "node scripts/install-git-hooks.mjs",
@@ -45,13 +45,13 @@
     "@tiptap/starter-kit": "^3.22.5",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "fractional-indexing": "^3.2.0",
+    "fractional-indexing": "^4.0.0",
     "libsodium-wrappers": "^0.8.4",
     "lucide-react": "^1.8.0",
     "mongodb": "^7.2.0",
     "rate-limiter-flexible": "^11.0.1",
-    "react": "19.2.8",
-    "react-dom": "19.2.8",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.5.0",
     "tiptap-markdown": "^0.9.0",
@@ -63,18 +63,18 @@
     "@testing-library/dom": "^10.4.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
-    "@types/node": "^22",
+    "@types/node": "^24",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^6.0.1",
     "concurrently": "^10.0.4",
     "eslint": "^9",
-    "eslint-config-next": "16.3.1",
-    "jsdom": "^29.0.2",
-    "next": "16.3.1",
+    "eslint-config-next": "16.4.0",
+    "jsdom": "^30.1.2",
+    "next": "16.4.0",
     "tailwindcss": "^4",
-    "typescript": "^5",
+    "typescript": "~6.0.0",
     "vite": "^8.0.8",
-    "vitest": "^4.1.4"
+    "vitest": "^5.0.3"
   }
 }

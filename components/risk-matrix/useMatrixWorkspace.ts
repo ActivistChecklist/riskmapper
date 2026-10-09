@@ -72,7 +72,7 @@ function mergeSnapshotIntoWorkspace(
 }
 
 // Notes round-trip an empty paragraph as an NBSP (see NotesEditor.tsx).
-const BLANK = /[\s ]/g;
+const BLANK = /[\s\u00A0]/g;
 
 function snapshotHasContent(snap: RiskMatrixSnapshot): boolean {
   const filled = (t: string) => t.replace(BLANK, "").length > 0;
@@ -196,6 +196,17 @@ export type MatrixWorkspaceApi = {
     cloud: CloudMatrixMeta;
   }) => string;
   /**
+   * Save the current matrix, then add an imported one as a new saved row
+   * and switch to it. Used by matrix-file import. Resolves once the write
+   * has been attempted: `saved: false` means browser storage refused it and
+   * nothing changed. `keptDraft` is true when a non-empty draft was moved
+   * into the library to make way.
+   */
+  importMatrix: (args: {
+    title: string;
+    snapshot: RiskMatrixSnapshot;
+  }) => Promise<{ saved: boolean; keptDraft: boolean }>;
+  /**
    * Promote the current draft (default surface) to a saved row using `name`,
    * keep its current snapshot, and switch active to the new row. Used when
    * the user clicks Share on an unsaved draft. Returns the new id, or
@@ -256,6 +267,12 @@ export function useMatrixWorkspace(
       debounceTimerRef.current = null;
     }
   }, []);
+
+  // A debounced save must not outlive this hook. React 19 still evaluates a
+  // state updater eagerly after unmount, and ours call repo.save, so a timer
+  // left running would write this instance's stale workspace over whatever
+  // has been stored since.
+  useEffect(() => cancelPendingPersist, [cancelPendingPersist]);
 
   const flushSave = useCallback(() => {
     if (debounceTimerRef.current) {
@@ -505,6 +522,49 @@ export function useMatrixWorkspace(
     [flushSave, repo],
   );
 
+  const importMatrix = useCallback(
+    (args: { title: string; snapshot: RiskMatrixSnapshot }) => {
+      // Persist the live canvas (and push it to the cloud if it is shared)
+      // before switching away from it.
+      flushSave();
+      const id = crypto.randomUUID();
+      const draftId = crypto.randomUUID();
+      const now = new Date().toISOString();
+      const title = args.title.trim() || DEFAULT_DRAFT_MATRIX_TITLE;
+      let settle: (r: { saved: boolean; keptDraft: boolean }) => void = () => {};
+      const result = new Promise<{ saved: boolean; keptDraft: boolean }>(
+        (resolve) => {
+          settle = resolve;
+        },
+      );
+      setWorkspace((w) => {
+        let next = keepDraftAsSaved(w, draftId, now);
+        const keptDraft = next !== w;
+        next = {
+          ...next,
+          activeKind: "saved",
+          activeSavedId: id,
+          saved: [
+            ...next.saved,
+            { id, title, updatedAt: now, snapshot: args.snapshot },
+          ],
+        };
+        // A file that does not fit in storage must not become the active
+        // matrix: it would vanish on reload, and every later save of the
+        // now-larger workspace would fail silently too.
+        if (!repo.save(next)) {
+          settle({ saved: false, keptDraft: false });
+          return w;
+        }
+        settle({ saved: true, keptDraft });
+        return next;
+      });
+      setSurfaceId(crypto.randomUUID());
+      return result;
+    },
+    [flushSave, repo],
+  );
+
   const promoteDraftToSaved = useCallback(
     (name: string): string | null => {
       // Only valid from the default/draft surface — saved rows have nothing
@@ -697,6 +757,7 @@ export function useMatrixWorkspace(
     findSaved,
     activeSavedMatrix,
     adoptSharedMatrix,
+    importMatrix,
     promoteDraftToSaved,
   };
 }

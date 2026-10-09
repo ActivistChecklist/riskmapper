@@ -9,7 +9,7 @@ import { DocPage } from "./DocPage";
  * strings `lib/analytics/events.ts` fires, so it stays a component.
  */
 
-const LAST_UPDATED = "August 24, 2026";
+const LAST_UPDATED = "October 9, 2026";
 
 const TRACKED_EVENTS: { name: string; description: string }[] = [
   { name: "pageview", description: "A visit to a page on this site." },
@@ -25,6 +25,19 @@ const TRACKED_EVENTS: { name: string; description: string }[] = [
   {
     name: "download_pdf",
     description: "You downloaded the matrix as a PDF.",
+  },
+  {
+    name: "download_csv",
+    description:
+      "You downloaded the matrix as a CSV spreadsheet. Includes a `layout` of `worksheet` (laid out like the page) or `table` (one row per item).",
+  },
+  {
+    name: "download_matrix_file",
+    description: "You downloaded the matrix as a file you can import later.",
+  },
+  {
+    name: "import_matrix_file",
+    description: "You opened a matrix from a downloaded file.",
   },
   {
     name: "first_pool_item",

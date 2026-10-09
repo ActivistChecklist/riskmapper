@@ -19,8 +19,7 @@ import DeleteRiskDialog from "./DeleteRiskDialog";
 import DragPreviewLayer from "./DragPreviewLayer";
 import KeyboardShortcutsDialog from "./KeyboardShortcutsDialog";
 import LikelihoodImpactMatrix from "./LikelihoodImpactMatrix";
-import MatrixCopyDropdown from "./MatrixCopyDropdown";
-import MatrixDownloadPdfButton from "./pdf/MatrixDownloadPdfButton";
+import MatrixExportMenu from "./MatrixExportMenu";
 import MatrixHelpSection from "./MatrixHelpSection";
 import MatrixTopBar from "./MatrixTopBar";
 import NotesEditor from "./NotesEditor";
@@ -311,18 +310,13 @@ function RiskMatrixCanvas({ workspace: ws, cloud, remoteApplyRef }: CanvasProps)
     >
       <MatrixTopBar
         workspace={ws}
-        copyMenu={() => (
-          <MatrixCopyDropdown
-            hasContent={hasAnyCopyableContent}
-            onCopyAll={handleCopyAll}
-            onCopyRich={handleCopyRich}
-          />
-        )}
-        pdfButton={
-          <MatrixDownloadPdfButton
+        exportMenu={
+          <MatrixExportMenu
             title={ws.activeTitle}
-            snapshot={m.getSnapshot()}
-            disabled={!canMx && !canPool && !canAct}
+            getSnapshot={m.getSnapshot}
+            hasContent={hasAnyCopyableContent}
+            onCopyPlain={handleCopyAll}
+            onCopyRich={handleCopyRich}
           />
         }
         statusIndicator={

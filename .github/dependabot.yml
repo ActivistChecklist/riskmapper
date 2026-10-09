@@ -1,0 +1,56 @@
+# Dependency update PRs. Each one is tested by .github/workflows/ci.yml.
+#
+# Every update that reaches dist/ means a new WEBCAT signature (YubiKey), so
+# minor and patch bumps are grouped into a couple of PRs a week rather than
+# one per package. Security fixes are not batched or delayed: Dependabot
+# security updates open their own PRs as soon as an advisory lands
+# (enable them under Settings > Code security).
+#
+# `cooldown` waits a few days after a version is published before proposing
+# it. Most hijacked npm releases are caught and pulled within hours to days,
+# and this audience is the reason that matters. Cooldown does not apply to
+# security updates.
+
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 3
+      semver-major-days: 7
+    open-pull-requests-limit: 10
+    groups:
+      # Packages that must move in lockstep, whatever the update type.
+      # Groups are matched in order, so these come before the catch-alls.
+      tiptap:
+        patterns: ["@tiptap/*", "tiptap-*"]
+      react:
+        patterns: ["react", "react-dom", "@types/react", "@types/react-dom"]
+      next:
+        # `next` is a devDependency only because eslint-config-next needs it.
+        patterns: ["next", "eslint-config-next"]
+      production:
+        dependency-type: production
+        update-types: [minor, patch]
+      development:
+        dependency-type: development
+        update-types: [minor, patch]
+    ignore:
+      # Tracks the Node major in `engines` and .nvmrc. Bump all three together
+      # by hand (see AGENTS.md), not one at a time.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 3
+    groups:
+      actions:
+        patterns: ["*"]

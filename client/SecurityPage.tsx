@@ -29,22 +29,39 @@ nothing you type into Risk Mapper leaves your device. If you decide to share a
 matrix by link with others, that data is always end-to-end encrypted and we
 do not have the ability to decrypt it.
 
-If we receive a legal order to hand that over, the only thing 
-hand over is the encrypted data, the random id from the link, and the calendar day
-each edit was made. We don't store the exact time the matrix was created or the edits
-were made. We have access to store the title, your IP address, or the key that would decrypt the data.
+If we receive a legal order to hand that over, the only things in our database
+we could hand over are the encrypted data, the random id from the link, and the
+calendar day each edit was made. We don't store the exact time the matrix was
+created or the edits were made. We never have the title, or the key that would
+decrypt the data.
 
 ## Your matrix stays in your browser by default
 
 Everything you type is saved in your browser's storage on this device. Nothing
 reaches our servers unless you enable sharing.
 
-Risk to be aware of: Clearing your browser data deletes your matrices, and we 
-have no copy to restore. If a matrix matters, export it.
+Risk to be aware of: Clearing your browser data deletes your matrices, and we
+have no copy to restore. If a matrix matters, back it up with **Export →
+RiskMapper.app export format**.
 
+Export: Exports are local too. Copying the worksheet and downloading a PDF,
+spreadsheet (CSV) or RiskMapper.app export format file all happen entirely in
+your browser.
 
-Export: Exports are local too. Copying the worksheet and downloading the PDF both 
-happen entirely in your browser.
+Risk to be aware of: None of these are encrypted. Anyone who gets the file, or
+gets into the device it's saved on, can read everything in it. If you send
+one, use Signal, and delete copies you no longer need.
+
+**You can share a matrix without using our servers at all.** Download it in
+RiskMapper.app export format, send the file, and the other person imports it.
+
+**Only import files from people you trust.** Risk Mapper checks the file and
+shows you what's in it before saving anything. It can't tell you whether the
+advice inside is good, or whether the person who sent it is who they say they
+are.
+
+Opening someone's share link also saves a copy of their matrix in your
+browser, right away, alongside your own.
 
 ## Share by link is the only time we have data, and it's fully end-to-end encrypted
 
@@ -83,7 +100,7 @@ version, so anyone who has the full link can read, edit, or delete the shared
 copy. Anywhere the link goes, the matrix goes with it.
 
 - Your browser history is the most common leak. Anyone with access to your computer, or to your unlocked browser, can find the link there.
-- Chrome syncs history to your Google account, where it can be reached by a subpoena. Firefox, Brave, Edge, and Safari all sync too if you turn their sync features.
+- Chrome syncs history to your Google account, where it can be reached by a subpoena. Firefox, Brave, Edge, and Safari all sync too if you turn on their sync features.
 
 What we suggest:
 
@@ -92,9 +109,9 @@ What we suggest:
 - Avoid Google Chrome for anything sensitive, especially if you are signed into a Google account.
 - Use **Stop sharing** when you are done with a link.
 
-## The code you run is signed, to guarantee the server hasn't tamptered with it
+## The code you run is signed, to guarantee the server hasn't tampered with it
 
-Every tool that claims end-to-end ecnryption in your browser has the same weak point: 
+Every tool that claims end-to-end encryption in your browser has the same weak point: 
 you have to
 trust that the JavaScript you were served is the JavaScript we wrote. Whoever
 controls the hosting could be compelled to send a version of the JavaScript that quietly

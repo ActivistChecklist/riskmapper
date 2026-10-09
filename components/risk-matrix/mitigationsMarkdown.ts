@@ -1,10 +1,11 @@
 import { COL_LABELS, ROW_LABELS } from "./constants";
+import { escapeMarkdownFetches } from "./markdownEscape";
 import { cellKeyToTone, prependToneCircle } from "./riskTone";
 import type { CellKey, GridLine, SubLine } from "./types";
 
 /** One line of text safe to use after `- ` (and optional ⭐) in a Markdown bullet. */
 function bulletLine(text: string): string {
-  const oneLine = text.replace(/\n/g, " ").trim();
+  const oneLine = escapeMarkdownFetches(text.replace(/\n/g, " ").trim());
   return oneLine.replace(/^([-*+]|\d+\.)\s/, "\\$&");
 }
 
@@ -19,7 +20,7 @@ function bulletFromSubLine(s: SubLine): string | null {
 /** Risk title safe for a `###` heading (strip leading `#` tokens). */
 function riskHeadingTitle(line: GridLine): string {
   const raw = line.text.replace(/\s+/g, " ").trim() || "Untitled risk";
-  return raw.replace(/^#{1,6}\s+/, "");
+  return escapeMarkdownFetches(raw.replace(/^#{1,6}\s+/, ""));
 }
 
 /** Markdown for one risk line’s mitigations, or null if none to export. */

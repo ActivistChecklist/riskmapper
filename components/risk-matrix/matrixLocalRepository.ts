@@ -138,12 +138,16 @@ export function createLocalMatrixRepository(): MatrixRepository {
         return normalizeWorkspace(null);
       }
     },
-    save(workspace: MatrixWorkspaceV1): void {
-      if (typeof window === "undefined") return;
+    save(workspace: MatrixWorkspaceV1): boolean {
+      if (typeof window === "undefined") return false;
       try {
         window.localStorage.setItem(STORAGE_KEY, JSON.stringify(workspace));
+        return true;
       } catch {
-        // Quota or private mode — ignore; UI still works in-memory.
+        // Quota or private mode. Most callers carry on in memory; import
+        // checks the result so it never claims a file was saved when it
+        // was not.
+        return false;
       }
     },
   };
