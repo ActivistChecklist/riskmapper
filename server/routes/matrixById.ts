@@ -7,6 +7,12 @@ import {
   jsonError,
 } from "@/lib/cloud/helpers";
 import { rateLimit } from "@/lib/cloud/rateLimit";
+import {
+  authorizeWrite,
+  claimLegacyRecord,
+  hashWriteToken,
+  readWriteToken,
+} from "@/lib/cloud/writeAuth";
 import { todayUtc, todayUtcDate } from "@/lib/cloud/types";
 
 /**
@@ -14,8 +20,12 @@ import { todayUtc, todayUtcDate } from "@/lib/cloud/types";
  *                                     Optional `?since=N` to skip baseline
  *                                     and return only updates with seq > N.
  *                                     Bumps `lastReadDate` to today.
+ *                                     Reading needs no token, but a token
+ *                                     sent here claims a legacy record
+ *                                     that has no `writeHash` yet.
  * DELETE /api/matrix/:id            — idempotent removal of the record AND
- *                                     all of its updates.
+ *                                     all of its updates. Requires the
+ *                                     write token (lib/cloud/writeAuth.ts).
  *
  * Append-new-updates flows through `server/routes/matrixUpdates.ts`.
  * The live update stream is `server/routes/matrixEvents.ts` (SSE).
@@ -48,6 +58,21 @@ export async function GET(req: Request, ctx: RouteParams) {
       { returnDocument: "after" },
     );
     if (!doc) return jsonError(404, "not found");
+
+    // Close the legacy trust-on-first-use window as soon as someone with
+    // the link opens the matrix, rather than waiting for their first edit.
+    // Best effort: a failed claim must not fail the read.
+    const token = readWriteToken(req);
+    if (doc.writeHash === undefined && token !== null) {
+      try {
+        await claimLegacyRecord(coll, id, hashWriteToken(token));
+      } catch (err) {
+        console.error(
+          "[risk-matrix-api] legacy write-auth claim failed:",
+          err instanceof Error ? err.message : "unknown",
+        );
+      }
+    }
 
     const updatesColl = await getUpdatesCollection();
     // If the caller has already seen up through `since` AND `since` covers
@@ -85,6 +110,12 @@ export async function DELETE(req: Request, ctx: RouteParams) {
   if (!isPlausibleId(id)) return new Response(null, { status: 204 });
   try {
     const coll = await getCollection();
+    const denied = await authorizeWrite(coll, id, req);
+    // Already gone: still idempotent. Any orphaned update rows are swept by
+    // scripts/cleanup-orphan-updates.ts; without the record there is no
+    // hash to check a token against, so we don't touch them here.
+    if (denied?.status === 404) return new Response(null, { status: 204 });
+    if (denied) return denied;
     const updatesColl = await getUpdatesCollection();
     await Promise.all([
       coll.deleteOne({ _id: id }),

@@ -65,6 +65,16 @@ describe("SecurityPage", () => {
     ).toBeTruthy();
   });
 
+  it("says the id before the # can't edit or delete a matrix on its own", () => {
+    // Every write route checks a token derived from the key before touching
+    // the record (lib/cloud/writeAuth.ts). If a route stops checking, this
+    // claim becomes false.
+    render(<SecurityPage />);
+    expect(
+      screen.getByText(/can't read, edit, or delete your matrix/i),
+    ).toBeTruthy();
+  });
+
   it("quotes the retention window from the shared constant", () => {
     // The share dialog quotes the same number; drift between them would be
     // a promise the server does not keep.

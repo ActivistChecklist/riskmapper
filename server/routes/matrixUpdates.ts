@@ -10,6 +10,7 @@ import {
 } from "@/lib/cloud/helpers";
 import { rateLimit } from "@/lib/cloud/rateLimit";
 import { publish } from "@/lib/cloud/pubsub";
+import { authorizeWrite } from "@/lib/cloud/writeAuth";
 import { todayUtc, todayUtcDate, updateRowId } from "@/lib/cloud/types";
 
 /**
@@ -22,6 +23,9 @@ import { todayUtc, todayUtcDate, updateRowId } from "@/lib/cloud/types";
  * No `expectedVersion` and no 409 — concurrent appends from two devices
  * both succeed and end up at adjacent seqs. Convergence happens client-
  * side via Yjs merge.
+ *
+ * Requires the write token (`lib/cloud/writeAuth.ts`), so knowing the id
+ * alone is not enough to append.
  *
  * Rate-limited per source IP. Server stores opaque ciphertext only.
  */
@@ -51,6 +55,8 @@ export async function POST(req: Request, ctx: RouteParams) {
 
   try {
     const coll = await getCollection();
+    const denied = await authorizeWrite(coll, id, req);
+    if (denied) return denied;
     const today = todayUtc();
     // Atomic seq assignment: bump headSeq on the matrix doc and read back
     // the new value. If the record doesn't exist, we get null — surface as

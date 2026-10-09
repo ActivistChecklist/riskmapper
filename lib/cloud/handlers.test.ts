@@ -8,6 +8,7 @@ import {
 import { __resetRateLimiterForTests } from "./rateLimit";
 import { __resetPubSubForTests, subscribe, type UpdateEvent } from "./pubsub";
 import { updateRowId } from "./types";
+import { hashWriteToken } from "./writeAuth";
 
 /**
  * Route-handler tests for `server/routes/**`. We mock the Mongo accessors
@@ -18,6 +19,11 @@ import { updateRowId } from "./types";
 
 const VALID_ID = "abcd1234efgh5678ijkl";
 const VALID_CT = "v1." + "A".repeat(80);
+// Shape of a real token (base64url of 32 bytes). The server never derives
+// it, so any well-formed value stands in for one minted from a key.
+const WRITE_TOKEN = "T".repeat(43);
+const OTHER_TOKEN = "X".repeat(43);
+const AUTH = { Authorization: `Bearer ${WRITE_TOKEN}` };
 
 const collHolder = vi.hoisted(() => ({
   matrices: null as FakeCollection | null,
@@ -57,13 +63,21 @@ function jsonRequest(url: string, init: RequestInit & { json?: unknown }): Reque
   const { json, ...rest } = init;
   return new Request(url, {
     ...rest,
-    headers: { "Content-Type": "application/json", ...(rest.headers ?? {}) },
+    // Authorized by default; the write-authorization tests build requests
+    // without it, or with the wrong token, by hand.
+    headers: { "Content-Type": "application/json", ...AUTH, ...(rest.headers ?? {}) },
     body: json !== undefined ? JSON.stringify(json) : (rest.body as BodyInit | null | undefined),
   });
 }
 
-function seedMatrix(opts?: { headSeq?: number; baselineSeq?: number }): void {
+function seedMatrix(opts?: {
+  headSeq?: number;
+  baselineSeq?: number;
+  /** Seed a record from before write authorization: no `writeHash`. */
+  legacy?: boolean;
+}): void {
   collHolder.matrices!.__seed({
+    ...(opts?.legacy ? {} : { writeHash: hashWriteToken(WRITE_TOKEN) }),
     _id: VALID_ID,
     baseline: VALID_CT,
     baselineSeq: opts?.baselineSeq ?? 0,
@@ -631,9 +645,13 @@ describe("PUT /api/matrix/[id]/baseline", () => {
 describe("DELETE /api/matrix/[id]", () => {
   async function del(id: string) {
     const { DELETE } = await import("@/server/routes/matrixById");
-    return DELETE(new Request(`http://localhost/api/matrix/${id}`, { method: "DELETE" }), {
-      params: Promise.resolve({ id }),
-    });
+    return DELETE(
+      new Request(`http://localhost/api/matrix/${id}`, {
+        method: "DELETE",
+        headers: AUTH,
+      }),
+      { params: Promise.resolve({ id }) },
+    );
   }
 
   it("removes the record AND its updates and returns 204", async () => {
@@ -828,5 +846,204 @@ describe("rate limiting", () => {
       });
       expect(res.status).toBe(200);
     }
+  });
+});
+
+describe("write authorization", () => {
+  // The record id reaches the server in the path, so it shows up in access
+  // logs. Before write authorization, the id alone was enough to delete a
+  // shared matrix or append junk that stopped it from loading. Every write
+  // now has to carry the token derived from the key.
+
+  type Auth = "none" | "wrong" | "malformed";
+
+  function headersFor(auth: Auth): Record<string, string> {
+    if (auth === "none") return {};
+    if (auth === "wrong") return { Authorization: `Bearer ${OTHER_TOKEN}` };
+    return { Authorization: "Bearer not-a-real-token" };
+  }
+
+  async function append(auth: Auth | "ok") {
+    const { POST } = await import("@/server/routes/matrixUpdates");
+    return POST(
+      new Request(`http://localhost/api/matrix/${VALID_ID}/updates`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(auth === "ok" ? AUTH : headersFor(auth)),
+        },
+        body: JSON.stringify({ ciphertext: VALID_CT, clientId: "attacker" }),
+      }),
+      { params: Promise.resolve({ id: VALID_ID }) },
+    );
+  }
+
+  async function del(auth: Auth) {
+    const { DELETE } = await import("@/server/routes/matrixById");
+    return DELETE(
+      new Request(`http://localhost/api/matrix/${VALID_ID}`, {
+        method: "DELETE",
+        headers: headersFor(auth),
+      }),
+      { params: Promise.resolve({ id: VALID_ID }) },
+    );
+  }
+
+  async function compact(auth: Auth) {
+    const { PUT } = await import("@/server/routes/matrixBaseline");
+    return PUT(
+      new Request(`http://localhost/api/matrix/${VALID_ID}/baseline`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...headersFor(auth) },
+        body: JSON.stringify({
+          baseline: "v1.JUNK",
+          baselineSeq: 2,
+          clientId: "attacker",
+        }),
+      }),
+      { params: Promise.resolve({ id: VALID_ID }) },
+    );
+  }
+
+  async function read(headers: Record<string, string> = {}) {
+    const { GET } = await import("@/server/routes/matrixById");
+    return GET(new Request(`http://localhost/api/matrix/${VALID_ID}`, { headers }), {
+      params: Promise.resolve({ id: VALID_ID }),
+    });
+  }
+
+  function seedTwoUpdates(): void {
+    for (const seq of [1, 2]) {
+      collHolder.updates!.__seed({
+        recordId: VALID_ID,
+        seq,
+        ciphertext: `v1.U${seq}`,
+        clientId: "c",
+        createdAt: "2026-01-01",
+      });
+    }
+  }
+
+  it("refuses to create a record without a token", async () => {
+    const { POST } = await import("@/server/routes/matrix");
+    const res = await POST(
+      new Request("http://localhost/api/matrix", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: VALID_ID, baseline: VALID_CT }),
+      }),
+    );
+    expect(res.status).toBe(401);
+    expect(collHolder.matrices!.__dump()).toEqual([]);
+  });
+
+  it("stores a hash of the token on create, never the token itself", async () => {
+    const { POST } = await import("@/server/routes/matrix");
+    const res = await POST(
+      jsonRequest("http://localhost/api/matrix", {
+        method: "POST",
+        json: { id: VALID_ID, baseline: VALID_CT },
+      }),
+    );
+    expect(res.status).toBe(201);
+    const [doc] = collHolder.matrices!.__dump();
+    expect(doc.writeHash).toBe(hashWriteToken(WRITE_TOKEN));
+    expect(JSON.stringify(doc)).not.toContain(WRITE_TOKEN);
+  });
+
+  it.each([
+    ["none", 401],
+    ["malformed", 401],
+    ["wrong", 403],
+  ] as const)("refuses to append with %s token (%i)", async (auth, status) => {
+    seedMatrix();
+    const received: UpdateEvent[] = [];
+    subscribe(VALID_ID, (e) => received.push(e));
+
+    const res = await append(auth);
+
+    expect(res.status).toBe(status);
+    expect(collHolder.updates!.__dump()).toEqual([]);
+    expect(collHolder.matrices!.__dump()[0].headSeq).toBe(0);
+    expect(received).toEqual([]);
+  });
+
+  it.each([
+    ["none", 401],
+    ["malformed", 401],
+    ["wrong", 403],
+  ] as const)("refuses to delete with %s token (%i)", async (auth, status) => {
+    seedMatrix({ headSeq: 2 });
+    seedTwoUpdates();
+
+    const res = await del(auth);
+
+    expect(res.status).toBe(status);
+    expect(collHolder.matrices!.__dump()).toHaveLength(1);
+    expect(collHolder.updates!.__dump()).toHaveLength(2);
+  });
+
+  it.each([
+    ["none", 401],
+    ["malformed", 401],
+    ["wrong", 403],
+  ] as const)(
+    "refuses to replace the baseline with %s token (%i), so it can't prune the log",
+    async (auth, status) => {
+      seedMatrix({ headSeq: 2 });
+      seedTwoUpdates();
+
+      const res = await compact(auth);
+
+      expect(res.status).toBe(status);
+      const [doc] = collHolder.matrices!.__dump();
+      expect(doc.baseline).toBe(VALID_CT);
+      expect(doc.baselineSeq).toBe(0);
+      expect(collHolder.updates!.__dump()).toHaveLength(2);
+    },
+  );
+
+  it("still lets anyone with the id read, with or without a token", async () => {
+    seedMatrix();
+    expect((await read()).status).toBe(200);
+    expect((await read({ Authorization: `Bearer ${OTHER_TOKEN}` })).status).toBe(200);
+    // A wrong token on a read never overwrites the stored hash.
+    expect(collHolder.matrices!.__dump()[0].writeHash).toBe(
+      hashWriteToken(WRITE_TOKEN),
+    );
+  });
+
+  describe("records created before write authorization", () => {
+    it("are claimed by the first authenticated write, then refuse other tokens", async () => {
+      seedMatrix({ legacy: true });
+
+      expect((await append("ok")).status).toBe(201);
+      expect(collHolder.matrices!.__dump()[0].writeHash).toBe(
+        hashWriteToken(WRITE_TOKEN),
+      );
+      expect((await append("wrong")).status).toBe(403);
+      expect((await del("wrong")).status).toBe(403);
+      expect(collHolder.matrices!.__dump()).toHaveLength(1);
+    });
+
+    it("still refuse writes with no token at all", async () => {
+      seedMatrix({ legacy: true });
+      expect((await append("none")).status).toBe(401);
+      expect((await del("none")).status).toBe(401);
+      expect(collHolder.matrices!.__dump()[0].writeHash).toBeUndefined();
+    });
+
+    it("are claimed by a read that carries a token, so the window closes on open", async () => {
+      seedMatrix({ legacy: true });
+
+      expect((await read()).status).toBe(200);
+      expect(collHolder.matrices!.__dump()[0].writeHash).toBeUndefined();
+
+      expect((await read(AUTH)).status).toBe(200);
+      expect(collHolder.matrices!.__dump()[0].writeHash).toBe(
+        hashWriteToken(WRITE_TOKEN),
+      );
+      expect((await append("wrong")).status).toBe(403);
+    });
   });
 });

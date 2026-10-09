@@ -59,6 +59,9 @@ export function createFakeCollection(): FakeCollection {
       if (filter.headSeq !== undefined) {
         if (!(doc.headSeq >= filter.headSeq.$gte)) return null;
       }
+      if (filter.writeHash !== undefined) {
+        if (doc.writeHash !== undefined) return null;
+      }
       const next: MatrixDoc = { ...doc };
       if ("$set" in update && update.$set) {
         Object.assign(next, update.$set);

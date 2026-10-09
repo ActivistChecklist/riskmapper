@@ -138,7 +138,7 @@ The limitations of our approach include:
 
 - **A compromised device.** Malware, spyware, or a hostile browser extension on your computer can read what is on your screen and what is in your browser's storage. Encryption cannot help there.
 - **Anyone holding the link.** Reading, editing, and deleting are all the same capability, and we cannot tell them apart.
-- **Anyone who sees the first half of the link.** The id before the \`#\` does reach our servers. On its own it can't read your matrix, but it is enough to delete the shared copy, or to break it so it won't load.
+- **Anyone who sees the first half of the link.** The id before the \`#\` does reach our servers. On its own it can download the encrypted copy, but it can't read, edit, or delete your matrix: every change has to carry proof that it came from someone with the full link. The one gap is a matrix shared before we added that proof and not opened since. Whoever opens it first, with or without the full link, decides who can change it from then on.
 - **Metadata under subpoena.** Whoever hosts our database or carries our traffic can generally be compelled to produce coarse dates and access logs. None of that decrypts your matrix, but it is not nothing.
 - **Traffic patterns.** Someone with access to our server logs can see that a shared matrix is being edited, how often, and roughly how large each edit is.
 - **Losing the link.** There are no accounts, so there is no recovery flow. Lose the link, lose the cloud copy.

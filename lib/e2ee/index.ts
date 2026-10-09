@@ -13,5 +13,10 @@ export {
   keyToB64,
 } from "./envelope";
 export type { AadParams, EncryptedPayload, SchemaVersion } from "./envelope";
+export {
+  WRITE_AUTH_CONTEXT,
+  WRITE_TOKEN_BYTES,
+  deriveWriteToken,
+} from "./writeAuth";
 export { base64urlDecode, base64urlEncode } from "./base64url";
 export { __resetSodiumForTests, getSodium } from "./sodium";
