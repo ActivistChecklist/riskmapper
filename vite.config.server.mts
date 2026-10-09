@@ -19,7 +19,7 @@ export default defineConfig({
     ssr: "server/index.ts",
     outDir: "dist-server",
     emptyOutDir: true,
-    target: "node22",
+    target: "node24",
     rollupOptions: {
       // `.mjs`, not `.js`: the bundle is ESM and package.json has no
       // "type": "module". Without the extension Node reparses the file and

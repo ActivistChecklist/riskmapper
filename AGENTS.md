@@ -92,9 +92,14 @@ policy.
 | `yarn start:local`  | Same, but also loads `.env.local`                            |
 | `yarn hooks:install`| Point git at `.githooks/` (also runs on `yarn install`)      |
 
-`start` deliberately carries no `--env-file` flag: that option is only in Node
-22.9+, and `engines` allows any 22.x, so relying on it can break a deploy at
-boot. Local runs use `start:local`.
+`start` deliberately carries no `--env-file` flag: production gets its
+environment from the platform, and a stray `.env.local` on the host must never
+override it. Local runs use `start:local`.
+
+Node is pinned to major 24 in three places that must move together:
+`engines` in `package.json`, `.nvmrc` (CI reads it), and `target` in
+`vite.config.server.mts`. Railway builds with Railpack, which reads `engines`;
+its older Nixpacks builder stops at Node 23.
 
 `yarn build` is safe to run now: it writes `dist/` and `dist-server/` and does
 not disturb the dev server.
