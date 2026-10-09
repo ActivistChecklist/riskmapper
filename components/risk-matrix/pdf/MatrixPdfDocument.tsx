@@ -20,7 +20,6 @@ import type { CellKey, GridLine, OtherAction, StarredAction } from "../types";
 import type { RiskMatrixSnapshot } from "../matrixTypes";
 import {
   parseNotesMarkdown,
-  type NotesBlock,
   type NotesInline,
 } from "../notesMarkdown";
 import { ensurePdfFontsRegistered } from "./fonts";
