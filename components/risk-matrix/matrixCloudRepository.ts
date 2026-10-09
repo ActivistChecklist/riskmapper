@@ -1,11 +1,16 @@
 import {
+  DecryptError,
   SCHEMA_VERSION,
   base64urlEncode,
   decryptBytes,
+  deriveWriteToken,
   encryptBytes,
   generateKey,
 } from "@/lib/e2ee";
+import { createLogger } from "@/lib/log";
 import { MAX_CIPHERTEXT_BYTES, cloudUrl } from "./cloudConfig";
+
+const log = createLogger("rmsync");
 
 /**
  * Per-matrix, end-to-end encrypted cloud repository.
@@ -17,6 +22,17 @@ import { MAX_CIPHERTEXT_BYTES, cloudUrl } from "./cloudConfig";
  *
  * No conflict path: every append succeeds at a server-assigned monotonic
  * `seq`. Convergence is the caller's responsibility (Yjs merges).
+ *
+ * Every write carries a token derived from the key (`lib/e2ee/writeAuth.ts`)
+ * so the server can refuse writes from someone who only knows the record
+ * id. Reads send it too, which claims a record created before write
+ * authorization existed (see `lib/cloud/writeAuth.ts`).
+ *
+ * An update that fails to decrypt is skipped and logged, not thrown. The
+ * AEAD still rejects it, so nothing tampered with ever reaches the doc, but
+ * one junk row in the log can't stop the whole matrix from opening. The
+ * baseline is different: without it there is no matrix, so a baseline that
+ * fails to decrypt still fails the read.
  */
 
 export type CloudMatrixHandle = {
@@ -207,6 +223,14 @@ function asNonEmptyString(value: unknown, field: string): string {
   return value;
 }
 
+function writeAuthHeaders(token: string): Record<string, string> {
+  return { Authorization: `Bearer ${token}` };
+}
+
+function writeTokenFor(handle: CloudMatrixHandle): Promise<string> {
+  return deriveWriteToken({ key: handle.key, recordId: handle.recordId });
+}
+
 function checkSize(envelope: string): void {
   if (envelope.length > MAX_CIPHERTEXT_BYTES) {
     throw new CloudPayloadTooLargeError(envelope.length);
@@ -223,6 +247,24 @@ function mintRecordId(): string {
   const bytes = new Uint8Array(12);
   crypto.getRandomValues(bytes);
   return base64urlEncode(bytes);
+}
+
+/**
+ * Never log the ciphertext: it's useless for debugging and the console may
+ * be captured. The seq and the error class say what happened.
+ */
+function logSkippedUpdate(
+  recordId: string,
+  seq: number,
+  err: DecryptError,
+  via: "read" | "sse",
+): void {
+  log.warn("skipped update that failed to decrypt", {
+    recordId,
+    seq,
+    via,
+    error: err.name,
+  });
 }
 
 async function readBodyJson(res: Response): Promise<unknown> {
@@ -266,10 +308,11 @@ export function createMatrixCloudRepository(args?: {
   async function postCreate(
     id: string,
     baseline: string,
+    token: string,
   ): Promise<ServerCreateResponse> {
     const res = await fetchFn(cloudUrl("/api/matrix"), {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...writeAuthHeaders(token) },
       body: JSON.stringify({ id, baseline }),
     });
     if (res.status === 413) throw new CloudPayloadTooLargeError(baseline.length);
@@ -282,11 +325,12 @@ export function createMatrixCloudRepository(args?: {
   async function getRecord(
     recordId: string,
     sinceSeq: number | undefined,
+    token: string,
   ): Promise<ServerReadResponse> {
     const qs = sinceSeq !== undefined ? `?since=${sinceSeq}` : "";
     const res = await fetchFn(
       cloudUrl(`/api/matrix/${encodeURIComponent(recordId)}${qs}`),
-      { method: "GET" },
+      { method: "GET", headers: writeAuthHeaders(token) },
     );
     if (res.status === 404) throw new CloudNotFoundError();
     if (!res.ok) {
@@ -298,12 +342,13 @@ export function createMatrixCloudRepository(args?: {
   async function postAppend(
     recordId: string,
     body: { ciphertext: string; clientId: string },
+    token: string,
   ): Promise<ServerAppendResponse> {
     const res = await fetchFn(
       cloudUrl(`/api/matrix/${encodeURIComponent(recordId)}/updates`),
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...writeAuthHeaders(token) },
         body: JSON.stringify(body),
       },
     );
@@ -318,12 +363,13 @@ export function createMatrixCloudRepository(args?: {
   async function putBaseline(
     recordId: string,
     body: { baseline: string; baselineSeq: number; clientId: string },
+    token: string,
   ): Promise<{ status: number; data: ServerCompactResponse }> {
     const res = await fetchFn(
       cloudUrl(`/api/matrix/${encodeURIComponent(recordId)}/baseline`),
       {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...writeAuthHeaders(token) },
         body: JSON.stringify(body),
       },
     );
@@ -339,10 +385,10 @@ export function createMatrixCloudRepository(args?: {
     return { status: res.status, data };
   }
 
-  async function deleteRecord(recordId: string): Promise<void> {
+  async function deleteRecord(recordId: string, token: string): Promise<void> {
     const res = await fetchFn(
       cloudUrl(`/api/matrix/${encodeURIComponent(recordId)}`),
-      { method: "DELETE" },
+      { method: "DELETE", headers: writeAuthHeaders(token) },
     );
     if (res.status === 404 || res.status === 204 || res.ok) return;
     throw new CloudNetworkError(`Delete failed (HTTP ${res.status})`, res.status);
@@ -358,7 +404,8 @@ export function createMatrixCloudRepository(args?: {
         aad: { recordId, schemaVersion: SCHEMA_VERSION },
       });
       checkSize(envelope);
-      const created = await postCreate(recordId, envelope);
+      const token = await deriveWriteToken({ key, recordId });
+      const created = await postCreate(recordId, envelope, token);
       const returnedId = asNonEmptyString(created.id, "id");
       if (returnedId !== recordId) {
         throw new CloudNetworkError(
@@ -373,7 +420,11 @@ export function createMatrixCloudRepository(args?: {
     },
 
     async read(handle, opts) {
-      const data = await getRecord(handle.recordId, opts?.sinceSeq);
+      const data = await getRecord(
+        handle.recordId,
+        opts?.sinceSeq,
+        await writeTokenFor(handle),
+      );
       const baselineSeq = asInt(data.baselineSeq, "baselineSeq");
       const headSeq = asInt(data.headSeq, "headSeq");
       let baselineBytes: Uint8Array | null = null;
@@ -391,11 +442,18 @@ export function createMatrixCloudRepository(args?: {
         const seq = asInt(u.seq, "updates[].seq");
         const ct = asNonEmptyString(u.ciphertext, "updates[].ciphertext");
         const clientId = asNonEmptyString(u.clientId, "updates[].clientId");
-        const bytes = await decryptBytes({
-          envelope: ct,
-          key: handle.key,
-          aad: { recordId: handle.recordId, schemaVersion: SCHEMA_VERSION },
-        });
+        let bytes: Uint8Array;
+        try {
+          bytes = await decryptBytes({
+            envelope: ct,
+            key: handle.key,
+            aad: { recordId: handle.recordId, schemaVersion: SCHEMA_VERSION },
+          });
+        } catch (err) {
+          if (!(err instanceof DecryptError)) throw err;
+          logSkippedUpdate(handle.recordId, seq, err, "read");
+          continue;
+        }
         updates.push({ seq, bytes, clientId });
       }
       return {
@@ -416,10 +474,11 @@ export function createMatrixCloudRepository(args?: {
         aad: { recordId: handle.recordId, schemaVersion: SCHEMA_VERSION },
       });
       checkSize(envelope);
-      const data = await postAppend(handle.recordId, {
-        ciphertext: envelope,
-        clientId,
-      });
+      const data = await postAppend(
+        handle.recordId,
+        { ciphertext: envelope, clientId },
+        await writeTokenFor(handle),
+      );
       return { seq: asInt(data.seq, "seq") };
     },
 
@@ -430,11 +489,11 @@ export function createMatrixCloudRepository(args?: {
         aad: { recordId: handle.recordId, schemaVersion: SCHEMA_VERSION },
       });
       checkSize(envelope);
-      const { status, data } = await putBaseline(handle.recordId, {
-        baseline: envelope,
-        baselineSeq,
-        clientId,
-      });
+      const { status, data } = await putBaseline(
+        handle.recordId,
+        { baseline: envelope, baselineSeq, clientId },
+        await writeTokenFor(handle),
+      );
       const responseBaselineSeq = asInt(data.baselineSeq, "baselineSeq");
       const responseHeadSeq = asInt(data.headSeq, "headSeq");
       return {
@@ -470,6 +529,13 @@ export function createMatrixCloudRepository(args?: {
               handlers.onUpdate({ seq, bytes, clientId });
             })
             .catch((err) => {
+              // Same rule as `read()`: an update that fails to decrypt is
+              // dropped, not surfaced as a connection error. The stream
+              // itself is fine, so there's nothing to reconnect.
+              if (err instanceof DecryptError) {
+                logSkippedUpdate(handle.recordId, seq, err, "sse");
+                return;
+              }
               handlers.onError?.(err instanceof Error ? err : new Error(String(err)));
             });
         } catch (err) {
@@ -519,7 +585,7 @@ export function createMatrixCloudRepository(args?: {
     },
 
     async delete(handle) {
-      await deleteRecord(handle.recordId);
+      await deleteRecord(handle.recordId, await writeTokenFor(handle));
     },
   };
 }

@@ -10,6 +10,7 @@ import {
   validCiphertext,
 } from "@/lib/cloud/helpers";
 import { rateLimit } from "@/lib/cloud/rateLimit";
+import { hashWriteToken, readWriteToken } from "@/lib/cloud/writeAuth";
 import type { MatrixDoc } from "@/lib/cloud/types";
 import { todayUtc, todayUtcDate } from "@/lib/cloud/types";
 
@@ -26,6 +27,10 @@ import { todayUtc, todayUtcDate } from "@/lib/cloud/types";
  * creation. The matrix's update log starts empty (`headSeq = baselineSeq
  * = 0`). All subsequent edits flow through POST /api/matrix/:id/updates.
  *
+ * `Authorization: Bearer <token>` is required. The server stores only a
+ * hash of it, and every later write to this record must present the same
+ * token. See `lib/cloud/writeAuth.ts`.
+ *
  * Rate-limited per source IP. Server stores opaque ciphertext only — see
  * THREAT-MODEL.md.
  */
@@ -34,6 +39,9 @@ import { todayUtc, todayUtcDate } from "@/lib/cloud/types";
 export async function POST(req: Request) {
   const limited = await rateLimit(req, getWriteRateLimitPerMin());
   if (limited) return limited;
+
+  const token = readWriteToken(req);
+  if (token === null) return jsonError(401, "write token required");
 
   const body = (await readJsonBody(req)) as
     | { id?: unknown; baseline?: unknown }
@@ -58,6 +66,7 @@ export async function POST(req: Request) {
     lastWriteDate: today,
     lastReadDate: null,
     lastActivityDate: todayUtcDate(),
+    writeHash: hashWriteToken(token),
   };
   try {
     const coll = await getCollection();

@@ -9,6 +9,7 @@ import {
   validCiphertext,
 } from "@/lib/cloud/helpers";
 import { rateLimit } from "@/lib/cloud/rateLimit";
+import { authorizeWrite } from "@/lib/cloud/writeAuth";
 import { todayUtc, todayUtcDate } from "@/lib/cloud/types";
 
 /**
@@ -35,6 +36,10 @@ import { todayUtc, todayUtcDate } from "@/lib/cloud/types";
  * path filters them anyway, this just reclaims storage. A prune failure is
  * logged but doesn't fail the request: the baseline is what callers care
  * about for correctness; pruning is opportunistic.
+ *
+ * Requires the write token (`lib/cloud/writeAuth.ts`). Without it, anyone
+ * with the id could replace the baseline with junk and prune every update
+ * behind it, which would destroy the matrix outright.
  *
  * Rate-limited per source IP. Server stores opaque ciphertext only — see
  * THREAT-MODEL.md.
@@ -78,6 +83,8 @@ export async function PUT(req: Request, ctx: RouteParams) {
 
   try {
     const coll = await getCollection();
+    const denied = await authorizeWrite(coll, id, req);
+    if (denied) return denied;
     const today = todayUtc();
     const updated = await coll.findOneAndUpdate(
       {

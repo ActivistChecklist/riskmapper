@@ -25,6 +25,14 @@ export type MatrixDoc = {
    * matches the "coarse calendar dates" promise in THREAT-MODEL.md.
    */
   lastActivityDate: Date;
+  /**
+   * SHA-256 of the write token, base64url. The token is derived from the
+   * matrix key in the browser and proves the writer holds the link; see
+   * `lib/cloud/writeAuth.ts`. Absent only on records created before write
+   * authorization existed, until the first authenticated request claims
+   * them.
+   */
+  writeHash?: string;
 };
 
 export type MatrixUpdate = {
@@ -65,11 +73,15 @@ export function updateRowId(recordId: string, seq: number): string {
  * apply when `baselineSeq < N` (forward progress) AND `headSeq >= N`
  * (the seq has actually been issued). If the filter doesn't match,
  * Mongo returns null and the caller backs off.
+ *
+ * `writeHash: { $exists: false }` is the legacy-record claim in
+ * `lib/cloud/writeAuth.ts`: it only matches a record with no hash yet.
  */
 export type CompactionFilter = {
   _id: string;
   baselineSeq?: { $lt: number };
   headSeq?: { $gte: number };
+  writeHash?: { $exists: false };
 };
 
 export type AppCollection = {
