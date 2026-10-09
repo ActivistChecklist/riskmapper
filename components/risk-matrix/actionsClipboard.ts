@@ -1,4 +1,5 @@
 import { prependToneCircle } from "./riskTone";
+import { escapeMarkdownFetches } from "./markdownEscape";
 import type { OtherAction, StarredAction } from "./types";
 
 /** Escape text for safe inclusion in `text/html` clipboard payloads. */
@@ -16,10 +17,10 @@ function formatStarredForClipboard(actions: StarredAction[]): string {
     .map((a, i) => {
       const kind = a.subType === "reduce" ? "Reduction for" : "Preparation for";
       const risk = prependToneCircle(
-        a.parentText.trim() || "Untitled risk",
+        escapeMarkdownFetches(a.parentText.trim()) || "Untitled risk",
         a.groupTone,
       );
-      const body = a.subLine.text.trim() || "(empty)";
+      const body = escapeMarkdownFetches(a.subLine.text.trim()) || "(empty)";
       return `${i + 1}. ${body}\n   ${kind} ${risk}`;
     })
     .join("\n\n");
@@ -31,7 +32,7 @@ export function formatAllForClipboard(
 ): string {
   const starPart = formatStarredForClipboard(starred);
   const otherNonEmpty = other
-    .map((o) => o.text.trim())
+    .map((o) => escapeMarkdownFetches(o.text.trim()))
     .filter((t) => t.length > 0);
   if (otherNonEmpty.length === 0) return starPart;
   const otherBlock = otherNonEmpty

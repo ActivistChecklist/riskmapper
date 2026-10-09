@@ -16,9 +16,9 @@ type Props = {
   /** Copy / export control. Rendered in the title row's far right
    *  cluster, immediately to the left of `cloudShareControl`. */
   copyMenu?: (opts: { iconOnly: boolean }) => React.ReactNode;
-  /** Download-as-PDF button. Sits between the copy menu and the share
-   *  control. */
-  pdfButton?: React.ReactNode;
+  /** Download menu (PDF, CSV, matrix file). Sits between the copy menu
+   *  and the share control. */
+  downloadMenu?: React.ReactNode;
   /** Cloud share control. Rendered in the title row's far right (Google
    *  Docs style), not in the toolbar. */
   cloudShareControl?: React.ReactNode;
@@ -46,6 +46,10 @@ function MatrixToolbarWidthProbe() {
         </span>
         <span className={chip}>
           <span className="inline-block w-[15px] shrink-0" />
+          Import
+        </span>
+        <span className={chip}>
+          <span className="inline-block w-[15px] shrink-0" />
           Delete
         </span>
       </div>
@@ -56,7 +60,7 @@ function MatrixToolbarWidthProbe() {
 export default function MatrixTopBar({
   workspace: ws,
   copyMenu,
-  pdfButton,
+  downloadMenu,
   cloudShareControl,
   statusIndicator,
 }: Props) {
@@ -202,7 +206,7 @@ export default function MatrixTopBar({
                 decision at every width. */}
             <ThemeToggle />
             {copyMenu ? copyMenu({ iconOnly: false }) : null}
-            {pdfButton}
+            {downloadMenu}
             {cloudShareControl}
           </div>
         </div>

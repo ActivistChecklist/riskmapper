@@ -38,6 +38,7 @@ function makeFakeRepo(): MatrixRepository & {
     load: () => normalizeWorkspace(null),
     save: (w) => {
       saved.push(JSON.parse(JSON.stringify(w)));
+      return true;
     },
   };
 }

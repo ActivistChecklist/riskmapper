@@ -27,6 +27,18 @@ const TRACKED_EVENTS: { name: string; description: string }[] = [
     description: "You downloaded the matrix as a PDF.",
   },
   {
+    name: "download_csv",
+    description: "You downloaded the matrix as a CSV spreadsheet.",
+  },
+  {
+    name: "download_matrix_file",
+    description: "You downloaded the matrix as a file you can import later.",
+  },
+  {
+    name: "import_matrix_file",
+    description: "You opened a matrix from a downloaded file.",
+  },
+  {
     name: "first_pool_item",
     description: "You typed your first risk in the brainstorm pool.",
   },

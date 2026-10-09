@@ -1,4 +1,5 @@
 import { formatAllForClipboard } from "./actionsClipboard";
+import { escapeMarkdownFetches } from "./markdownEscape";
 import { COL_LABELS, ROW_LABELS } from "./constants";
 import { formatAllMitigationsMarkdown } from "./mitigationsMarkdown";
 import { cellKeyToTone, prependToneCircle } from "./riskTone";
@@ -15,7 +16,9 @@ export function canCopyMatrix(grid: Record<CellKey, GridLine[]>): boolean {
 }
 
 export function formatRiskPoolPlain(pool: PoolLine[]): string {
-  const lines = pool.map((p) => p.text.trim()).filter((t) => t.length > 0);
+  const lines = pool
+    .map((p) => escapeMarkdownFetches(p.text.trim()))
+    .filter((t) => t.length > 0);
   if (lines.length === 0) return "(No risks in the pool.)";
   return lines.map((t, i) => `${i + 1}. ${t}`).join("\n");
 }
@@ -32,7 +35,10 @@ export function formatMatrixRisksPlain(
       const tone = cellKeyToTone(key);
       const header = prependToneCircle(`${ROW_LABELS[row]} · ${COL_LABELS[col]}`, tone);
       const body = lines
-        .map((l, i) => `${i + 1}. ${prependToneCircle(l.text.trim(), tone)}`)
+        .map(
+          (l, i) =>
+            `${i + 1}. ${prependToneCircle(escapeMarkdownFetches(l.text.trim()), tone)}`,
+        )
         .join("\n");
       parts.push(`### ${header}\n\n${body}`);
     }
@@ -63,7 +69,7 @@ function formatActionsMarkdownSection(
 ): string {
   const starredPart = formatAllForClipboard(allActions, []).trim();
   const otherNonEmpty = otherActions
-    .map((o) => o.text.trim())
+    .map((o) => escapeMarkdownFetches(o.text.trim()))
     .filter((t) => t.length > 0);
   if (!starredPart && otherNonEmpty.length === 0) {
     return "(No actions listed yet.)";
@@ -88,7 +94,7 @@ export function buildFullPlainReport(args: {
   otherActions: OtherAction[];
 }): string {
   const { title, pool, grid, allActions, otherActions } = args;
-  const head = title.trim() || "Untitled";
+  const head = escapeMarkdownFetches(title.replace(/\s+/g, " ").trim()) || "Untitled";
   const mitBody = shiftMarkdownHeadingDepth(formatMitigationsMarkdownBody(grid), 1);
   const actionsBody = formatActionsMarkdownSection(allActions, otherActions);
   const chunks: string[] = [
@@ -120,7 +126,8 @@ export function buildSummaryPlain(args: {
   allActions: StarredAction[];
   otherActions: OtherAction[];
 }): string {
-  const titleLine = args.title.trim() || "Untitled";
+  const titleLine =
+    escapeMarkdownFetches(args.title.replace(/\s+/g, " ").trim()) || "Untitled";
   const actionsPlain = formatAllForClipboard(
     args.allActions,
     args.otherActions,

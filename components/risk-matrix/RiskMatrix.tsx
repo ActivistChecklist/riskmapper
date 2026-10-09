@@ -20,7 +20,7 @@ import DragPreviewLayer from "./DragPreviewLayer";
 import KeyboardShortcutsDialog from "./KeyboardShortcutsDialog";
 import LikelihoodImpactMatrix from "./LikelihoodImpactMatrix";
 import MatrixCopyDropdown from "./MatrixCopyDropdown";
-import MatrixDownloadPdfButton from "./pdf/MatrixDownloadPdfButton";
+import MatrixDownloadMenu from "./MatrixDownloadMenu";
 import MatrixHelpSection from "./MatrixHelpSection";
 import MatrixTopBar from "./MatrixTopBar";
 import NotesEditor from "./NotesEditor";
@@ -292,11 +292,11 @@ function RiskMatrixCanvas({ workspace: ws, cloud }: CanvasProps) {
             onCopyRich={handleCopyRich}
           />
         )}
-        pdfButton={
-          <MatrixDownloadPdfButton
+        downloadMenu={
+          <MatrixDownloadMenu
             title={ws.activeTitle}
-            snapshot={m.getSnapshot()}
-            disabled={!canMx && !canPool && !canAct}
+            getSnapshot={m.getSnapshot}
+            hasContent={hasAnyCopyableContent}
           />
         }
         statusIndicator={

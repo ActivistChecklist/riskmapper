@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
-import { FilePlus, History, Trash2, UsersRound } from "lucide-react";
+import React, { useRef, useState } from "react";
+import { FilePlus, FileUp, History, Trash2, UsersRound } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -15,10 +16,21 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { trackEvent } from "@/lib/analytics/events";
 import { cn } from "@/lib/utils";
 import DeleteMatrixDialog from "./DeleteMatrixDialog";
+import ImportMatrixDialog from "./ImportMatrixDialog";
 import type { MatrixWorkspaceApi } from "./useMatrixWorkspace";
 import { DEFAULT_DRAFT_MATRIX_TITLE } from "./matrixTypes";
+import {
+  importedTitle,
+  MATRIX_FILE_LIMITS,
+  MatrixFileError,
+  parseMatrixFile,
+  summarizeImport,
+  type MatrixImportSummary,
+} from "./matrixFile";
+import type { RiskMatrixSnapshot } from "./matrixTypes";
 
 type PendingMatrixDelete =
   | null
@@ -39,7 +51,45 @@ function needsMatrixNamePrompt(title: string): boolean {
   return t.toLowerCase() === DEFAULT_DRAFT_MATRIX_TITLE.toLowerCase();
 }
 
-/** New + Open recent — after the site title and matrix title in the top bar. */
+type PendingImport = {
+  title: string;
+  renamed: boolean;
+  snapshot: RiskMatrixSnapshot;
+  summary: MatrixImportSummary;
+};
+
+/**
+ * Read and validate a matrix file the user picked. The file is read in this
+ * tab; nothing is uploaded, and nothing is saved until the user confirms.
+ */
+async function readMatrixFile(
+  file: File,
+  existingTitles: string[],
+): Promise<PendingImport | null> {
+  if (file.size > MATRIX_FILE_LIMITS.bytes) {
+    toast.error("That file is too large to be a Risk Mapper matrix file.");
+    return null;
+  }
+  try {
+    const { title, snapshot } = parseMatrixFile(await file.text());
+    const saveAs = importedTitle(title, existingTitles);
+    return {
+      title: saveAs,
+      renamed: saveAs !== title,
+      snapshot,
+      summary: summarizeImport(snapshot),
+    };
+  } catch (err) {
+    toast.error(
+      err instanceof MatrixFileError
+        ? err.message
+        : "Could not read that file.",
+    );
+    return null;
+  }
+}
+
+/** New + Open recent + Import + Delete, in the toolbar under the title row. */
 export function MatrixDocumentActions({
   workspace: ws,
   iconOnly = false,
@@ -49,6 +99,30 @@ export function MatrixDocumentActions({
   const [recentOpen, setRecentOpen] = useState(false);
   const [nameInput, setNameInput] = useState("");
   const [pendingDelete, setPendingDelete] = useState<PendingMatrixDelete>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [pendingImport, setPendingImport] = useState<PendingImport | null>(
+    null,
+  );
+
+  const confirmImport = async () => {
+    if (!pendingImport) return;
+    const { title, snapshot } = pendingImport;
+    setPendingImport(null);
+    const { saved, keptDraft } = await ws.importMatrix({ title, snapshot });
+    if (!saved) {
+      toast.error("Not enough space in this browser to import this matrix.", {
+        description:
+          "Nothing was changed. Delete matrices you no longer need from Open recent, then try again.",
+      });
+      return;
+    }
+    trackEvent("import_matrix_file");
+    toast.success(`Imported "${title}"`, {
+      description: keptDraft
+        ? "Your previous unsaved matrix was saved too. Both are in Open recent."
+        : "Saved in this browser. Find it again under Open recent.",
+    });
+  };
   const hasRecent = ws.recentSorted.length > 0;
 
   const confirmPendingDelete = () => {
@@ -136,6 +210,20 @@ export function MatrixDocumentActions({
     </Tooltip>
   );
 
+  const importBtn = (
+    <Button
+      variant={surface}
+      size="sm"
+      type="button"
+      onClick={() => fileInputRef.current?.click()}
+      className={iconBtn}
+      aria-label={iconOnly ? "Import matrix file" : undefined}
+    >
+      <FileUp size={15} strokeWidth={2} aria-hidden />
+      {!iconOnly ? "Import" : null}
+    </Button>
+  );
+
   const deleteBtn = (
     <Button
       variant={toolbar ? "ghost" : "destructiveOutline"}
@@ -176,6 +264,10 @@ export function MatrixDocumentActions({
         recentBtn
       )}
       <Tooltip>
+        <TooltipTrigger asChild>{importBtn}</TooltipTrigger>
+        <TooltipContent side="bottom">Import matrix file</TooltipContent>
+      </Tooltip>
+      <Tooltip>
         <TooltipTrigger asChild>{deleteBtn}</TooltipTrigger>
         <TooltipContent side="bottom">Delete this matrix</TooltipContent>
       </Tooltip>
@@ -184,6 +276,12 @@ export function MatrixDocumentActions({
     <>
       {newBtn}
       {recentBtn}
+      <Tooltip>
+        <TooltipTrigger asChild>{importBtn}</TooltipTrigger>
+        <TooltipContent side="bottom" className="max-w-xs">
+          Open a matrix file someone sent you, or one you downloaded
+        </TooltipContent>
+      </Tooltip>
       {deleteBtn}
     </>
   );
@@ -198,6 +296,30 @@ export function MatrixDocumentActions({
       >
         {leftCluster}
       </div>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".json,application/json"
+        className="hidden"
+        aria-hidden
+        tabIndex={-1}
+        data-testid="matrix-file-input"
+        onChange={(e) => {
+          const input = e.currentTarget;
+          const file = input.files?.[0];
+          // Clear so picking the same file again still fires `change`.
+          input.value = "";
+          if (!file) return;
+          void readMatrixFile(
+            file,
+            // The active title too: an unsaved draft joins the library
+            // under its own name when the import goes ahead.
+            [ws.activeTitle, ...ws.workspace.saved.map((m) => m.title)],
+          ).then((pending) => {
+            if (pending) setPendingImport(pending);
+          });
+        }}
+      />
 
       <Dialog open={recentOpen} onOpenChange={setRecentOpen}>
         <DialogContent>
@@ -272,6 +394,18 @@ export function MatrixDocumentActions({
         </DialogContent>
       </Dialog>
 
+      <ImportMatrixDialog
+        open={pendingImport != null}
+        onOpenChange={(open) => {
+          if (!open) setPendingImport(null);
+        }}
+        title={pendingImport?.title ?? ""}
+        renamed={pendingImport?.renamed ?? false}
+        summary={pendingImport?.summary ?? null}
+        onConfirm={() => {
+          void confirmImport();
+        }}
+      />
       <DeleteMatrixDialog
         open={pendingDelete != null}
         onOpenChange={(open) => {

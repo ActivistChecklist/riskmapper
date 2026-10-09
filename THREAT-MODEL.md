@@ -114,6 +114,33 @@ risk-matrix shape, that size mostly reveals the *kind* of edit (a
 keystroke vs. a paste vs. adding a risk vs. importing a baseline), not
 which specific text or category the user touched.
 
+## Matrix files (download and import)
+
+A matrix can also leave the browser as a JSON file (`components/risk-matrix/matrixFile.ts`)
+and come back through Import. No server is involved in either direction.
+
+- **The file is plaintext.** It carries none of the share link's encryption.
+  Whoever holds the file, or the device it is on, can read it.
+- **The file never carries cloud metadata.** In particular not `keyB64`,
+  which would hand out edit access to a shared matrix, and no timestamps.
+- **An imported file is untrusted input.** It may come from a stranger or an
+  adversary posing as an ally. Import therefore:
+  - bounds file size, element counts and string lengths (`MATRIX_FILE_LIMITS`),
+    so a file can slow the app down but cannot freeze or brick it;
+  - strips control characters, bidi overrides and lone surrogates from all text;
+  - regenerates every id, and reads only known fields, so it cannot collide
+    with or overwrite existing data;
+  - shows a confirmation with counts and a link warning before anything is
+    saved, and renames a title that matches an existing matrix;
+  - refuses, and changes nothing, if browser storage cannot hold the result.
+- **Imported text flows into exports, so exports treat all text as hostile.**
+  CSV cells that a spreadsheet would run as a formula are neutralized,
+  plain-text (Markdown) copies escape image and HTML syntax so a paste
+  cannot make a renderer fetch from a third party, and notes links are
+  only live for `http(s)`, `mailto` and `tel`.
+- **Not defended:** the content itself. A file can hold bad advice, starred
+  as actions, and nothing here can tell.
+
 ## In plain words
 
 This is "encrypted Pastebin / Cryptpad-style sharing." The server can't

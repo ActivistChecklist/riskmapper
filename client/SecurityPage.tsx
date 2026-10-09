@@ -43,8 +43,19 @@ Risk to be aware of: Clearing your browser data deletes your matrices, and we
 have no copy to restore. If a matrix matters, export it.
 
 
-Export: Exports are local too. Copying the worksheet and downloading the PDF both 
-happen entirely in your browser.
+Export: Exports are local too. Copying the worksheet and downloading a PDF,
+spreadsheet (CSV) or matrix file all happen entirely in your browser.
+
+**A matrix file lets you share without us.** Download it, send it however you
+choose, and the other person imports it. It never touches our servers. But
+unlike a share link, the file is **not encrypted**: anyone who gets the file,
+or the device it sits on, can read everything in it. Send it over a channel
+you trust, such as Signal, and delete copies you no longer need.
+
+**Importing someone else's file is safe to open, but read it before you trust
+it.** Risk Mapper checks the file, shows what's in it, and saves nothing until
+you confirm. It can't tell you whether the advice inside is good, or whether
+the person who sent it is who they say they are.
 
 ## Share by link is the only time we have data, and it's fully end-to-end encrypted
 
