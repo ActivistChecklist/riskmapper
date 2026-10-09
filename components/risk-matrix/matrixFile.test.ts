@@ -121,9 +121,9 @@ describe("parseMatrixFile", () => {
   });
 
   it.each([
-    ["not JSON", "{nope", /isn't a Risk Mapper matrix file/],
-    ["some other JSON", JSON.stringify({ hello: 1 }), /isn't a Risk Mapper matrix file/],
-    ["a JSON array", "[]", /isn't a Risk Mapper matrix file/],
+    ["not JSON", "{nope", /isn't in RiskMapper.app export format/],
+    ["some other JSON", JSON.stringify({ hello: 1 }), /isn't in RiskMapper.app export format/],
+    ["a JSON array", "[]", /isn't in RiskMapper.app export format/],
     [
       "a newer version",
       JSON.stringify({ format: MATRIX_FILE_FORMAT, version: 2 }),

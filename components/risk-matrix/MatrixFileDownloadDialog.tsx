@@ -48,7 +48,7 @@ export default function MatrixFileDownloadDialog({
         }}
       >
         <DialogHeader>
-          <DialogTitle>Download matrix file</DialogTitle>
+          <DialogTitle>Download in RiskMapper.app export format</DialogTitle>
           <DialogDescription>
             Export the current Risk Matrix data so you can re-import it or send
             it to someone else to import to RiskMapper.app. This has a similar

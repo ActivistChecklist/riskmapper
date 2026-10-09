@@ -189,7 +189,7 @@ export default function MatrixExportMenu({
           onSelect={() => setMatrixFileOpen(true)}
         >
           <ItemText
-            label="Matrix file (JSON)"
+            label="RiskMapper.app export format (JSON)"
             hint="To re-import, or send to someone to import. Not encrypted."
           />
         </DropdownMenuItem>

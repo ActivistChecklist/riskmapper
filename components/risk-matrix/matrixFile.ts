@@ -170,13 +170,13 @@ function isRecord(x: unknown): x is Record<string, unknown> {
 
 function invalid(path: string, expected: string): never {
   throw new MatrixFileError(
-    `This matrix file is damaged: ${path} should be ${expected}.`,
+    `This file is damaged: ${path} should be ${expected}.`,
   );
 }
 
 function tooLarge(what: string, limit: number): never {
   throw new MatrixFileError(
-    `This matrix file is too large to open: ${what} is over the limit of ${limit.toLocaleString("en-US")}.`,
+    `This file is too large to open: ${what} is over the limit of ${limit.toLocaleString("en-US")}.`,
   );
 }
 
@@ -245,15 +245,15 @@ export function parseMatrixFile(text: string): {
     // JSON.parse rejects. Deep nesting throws a RangeError, caught here too.
     raw = JSON.parse(text.replace(/^\uFEFF/, ""));
   } catch {
-    throw new MatrixFileError("This file isn't a Risk Mapper matrix file.");
+    throw new MatrixFileError("This file isn't in RiskMapper.app export format.");
   }
   if (!isRecord(raw) || raw.format !== MATRIX_FILE_FORMAT) {
-    throw new MatrixFileError("This file isn't a Risk Mapper matrix file.");
+    throw new MatrixFileError("This file isn't in RiskMapper.app export format.");
   }
   if (typeof raw.version !== "number") invalid("version", "a number");
   if (raw.version > MATRIX_FILE_VERSION) {
     throw new MatrixFileError(
-      "This matrix file was made by a newer version of Risk Mapper. Reload the page and try again.",
+      "This file was made by a newer version of RiskMapper.app. Reload the page and try again.",
     );
   }
   if (raw.version !== MATRIX_FILE_VERSION) invalid("version", "1");

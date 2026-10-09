@@ -105,9 +105,9 @@ describe("MatrixExportMenu", () => {
     const { blobs, names } = captureDownloads();
     renderMenu();
     await user.click(screen.getByRole("button", { name: "Export" }));
-    await user.click(screen.getByRole("menuitem", { name: /matrix file/i }));
+    await user.click(screen.getByRole("menuitem", { name: /export format/i }));
     // Nothing is saved until the person has read the handling advice.
-    const dialog = await screen.findByRole("dialog", { name: /download matrix file/i });
+    const dialog = await screen.findByRole("dialog", { name: /download in riskmapper\.app export format/i });
     expect(names).toEqual([]);
     expect(within(dialog).getByText(/not encrypted/i)).toBeTruthy();
     expect(within(dialog).getByText(/Signal/)).toBeTruthy();
@@ -123,8 +123,8 @@ describe("MatrixExportMenu", () => {
     const { names } = captureDownloads();
     renderMenu();
     await user.click(screen.getByRole("button", { name: "Export" }));
-    await user.click(screen.getByRole("menuitem", { name: /matrix file/i }));
-    const dialog = await screen.findByRole("dialog", { name: /download matrix file/i });
+    await user.click(screen.getByRole("menuitem", { name: /export format/i }));
+    const dialog = await screen.findByRole("dialog", { name: /download in riskmapper\.app export format/i });
     await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
     expect(names).toEqual([]);
     expect(document.activeElement).toBe(

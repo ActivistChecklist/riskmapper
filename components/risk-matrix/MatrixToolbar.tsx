@@ -72,7 +72,7 @@ async function readMatrixFile(
   existingTitles: string[],
 ): Promise<PendingImport | null> {
   if (file.size > MATRIX_FILE_LIMITS.bytes) {
-    toast.error("That file is too large to be a Risk Mapper matrix file.");
+    toast.error("That file is too large to be in RiskMapper.app export format.");
     return null;
   }
   try {
@@ -224,7 +224,7 @@ export function MatrixDocumentActions({
       type="button"
       onClick={() => fileInputRef.current?.click()}
       className={iconBtn}
-      aria-label={iconOnly ? "Import matrix file" : undefined}
+      aria-label={iconOnly ? "Import a file in RiskMapper.app export format" : undefined}
     >
       <FileUp size={iconSize} strokeWidth={2} aria-hidden />
       {!iconOnly ? "Import" : null}
@@ -272,7 +272,7 @@ export function MatrixDocumentActions({
       )}
       <Tooltip>
         <TooltipTrigger asChild>{importBtn}</TooltipTrigger>
-        <TooltipContent side="bottom">Import matrix file</TooltipContent>
+        <TooltipContent side="bottom">Import a file in RiskMapper.app export format</TooltipContent>
       </Tooltip>
       <Tooltip>
         <TooltipTrigger asChild>{deleteBtn}</TooltipTrigger>
@@ -286,7 +286,7 @@ export function MatrixDocumentActions({
       <Tooltip>
         <TooltipTrigger asChild>{importBtn}</TooltipTrigger>
         <TooltipContent side="bottom" className="max-w-xs">
-          Open a matrix file someone sent you, or one you downloaded
+          Open a file in RiskMapper.app export format that someone sent you, or one you downloaded
         </TooltipContent>
       </Tooltip>
       {deleteBtn}
