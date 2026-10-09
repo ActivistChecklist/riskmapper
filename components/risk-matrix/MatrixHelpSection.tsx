@@ -31,18 +31,18 @@ export default function MatrixHelpSection() {
             </h2>
             <p className="mb-3 opacity-95">
               Good organizing means taking strategic risks. A risk assessment
-              isn't about eliminating risk, it helps your group take bolder
-              action with clearer eyes by naming what you're actually facing,
-              deciding what matters most, and choosing what's worth preparing
+              isn’t about eliminating risk, it helps your group take bolder
+              action with clearer eyes by naming what you’re actually facing,
+              deciding what matters most, and choosing what’s worth preparing
               for. It works best done with a few people on your team.
             </p>
             <p className="mb-3">
               <span className="font-medium text-rm-ink">Name the risks.</span> Be
-              concrete: <em>who</em> could do <em>what</em>. ("A
-              counter-protester could try to provoke a fight." "Police
-              could arrest participants for trespassing." "A leader
-              could be doxxed because their name is on the sign-up page.")
-              Don't try to list every possibility. Focus on what feels
+              concrete: <em>who</em> could do <em>what</em>. (“A
+              counter-protester could try to provoke a fight.” “Police
+              could arrest participants for trespassing.” “A leader
+              could be doxxed because their name is on the sign-up page.”)
+              Don’t try to list every possibility. Focus on what feels
               concerning for this group, this action, this place, this moment.
             </p>
             <p className="mb-3">
@@ -50,7 +50,7 @@ export default function MatrixHelpSection() {
                 Place each risk by impact and likelihood.
               </span>{" "}
               Impact is how bad it would be if it happened. Likelihood is how
-              likely it is to actually happen for a group like yours. If you're
+              likely it is to actually happen for a group like yours. If you’re
               unsure how likely something is, ask people doing similar work in
               your area. Grounding the estimate in real experience pulls you
               out of reactive fear.
