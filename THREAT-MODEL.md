@@ -47,6 +47,22 @@ detectable rather than invisible. This narrows, but does not close, the
 "compromised version of Risk Mapper" risk below: see that entry for what
 remains.
 
+**Knowing the id isn't enough to change or delete a matrix.** The id is
+the part of the link before the `#`. Unlike the key, it does reach our
+servers, so it can turn up in access logs. Every edit and every delete also
+has to carry a token that your browser works out from the key. The server
+keeps only a fingerprint of that token and checks it, and it can't work
+back from either one to the key. Someone with only the id can still
+download the encrypted matrix, but they can't read it, edit it, or delete
+it.
+
+**One bad edit can't stop a matrix from opening.** If an edit on the
+server fails to decrypt, your app skips that one edit and loads the rest,
+instead of refusing to open the whole matrix. The bad edit is still
+rejected, so it never changes what you see. The one exception is the saved
+starting point every matrix is built from: if that fails to decrypt, there
+is nothing to load, and the matrix won't open.
+
 **Network observers can't read your matrices.** Anyone watching the
 connection sees only encrypted blobs. The encryption key in the URL
 fragment never travels over the wire.
@@ -62,6 +78,15 @@ is a full capability: same read/write as you, and anyone who has it can
 remove the matrix from the server (or use Stop sharing from their session).
 There is **no view-only** share link. Treat the URL like a password and
 share it through a private channel only.
+
+**Older shared matrices are protected from the first time they're
+opened.** Matrices shared before the id stopped being enough had no token
+on file. The first time anyone with the link opens or edits one, the
+server records their token and from then on accepts only that one. Until
+that happens, someone with only the id could get there first and lock
+everyone else out of editing or deleting it, which is no worse than before.
+A matrix that nobody opens for 90 days is deleted anyway, so this gap
+closes on its own.
 
 **Subpoenas and lawful requests can still obtain metadata.** Whoever hosts
 the database or HTTP infrastructure can usually be compelled to produce
