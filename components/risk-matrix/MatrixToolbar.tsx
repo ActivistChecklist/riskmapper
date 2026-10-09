@@ -43,6 +43,11 @@ type Props = {
   iconOnly?: boolean;
   /** Document actions on the top strip — ghost-style buttons on a panel background. */
   toolbar?: boolean;
+  /**
+   * Larger icon buttons, sized to sit beside the 36px Export and Share
+   * buttons when the toolbar shares their row on small screens.
+   */
+  large?: boolean;
 };
 
 function needsMatrixNamePrompt(title: string): boolean {
@@ -94,6 +99,7 @@ export function MatrixDocumentActions({
   workspace: ws,
   iconOnly = false,
   toolbar = false,
+  large = false,
 }: Props) {
   const [createOpen, setCreateOpen] = useState(false);
   const [recentOpen, setRecentOpen] = useState(false);
@@ -157,7 +163,8 @@ export function MatrixDocumentActions({
     setNameInput("");
   };
 
-  const iconBtn = iconOnly ? "gap-0 px-2" : "";
+  const iconBtn = large ? "h-8 w-8 gap-0 px-0" : iconOnly ? "gap-0 px-2" : "";
+  const iconSize = large ? 18 : 15;
   const surface = toolbar ? "ghost" : "outline";
 
   const newBtn = (
@@ -169,7 +176,7 @@ export function MatrixDocumentActions({
       className={iconBtn}
       aria-label={iconOnly ? "New matrix" : undefined}
     >
-      <FilePlus size={15} strokeWidth={2} aria-hidden />
+      <FilePlus size={iconSize} strokeWidth={2} aria-hidden />
       {!iconOnly ? "New" : null}
     </Button>
   );
@@ -183,7 +190,7 @@ export function MatrixDocumentActions({
       className={iconBtn}
       aria-label={iconOnly ? "Open recent" : undefined}
     >
-      <History size={15} strokeWidth={2} aria-hidden />
+      <History size={iconSize} strokeWidth={2} aria-hidden />
       {!iconOnly ? "Open recent" : null}
     </Button>
   ) : (
@@ -198,7 +205,7 @@ export function MatrixDocumentActions({
             className={iconBtn}
             aria-label={iconOnly ? "Open recent" : undefined}
           >
-            <History size={15} strokeWidth={2} aria-hidden />
+            <History size={iconSize} strokeWidth={2} aria-hidden />
             {!iconOnly ? "Open recent" : null}
           </Button>
         </span>
@@ -219,7 +226,7 @@ export function MatrixDocumentActions({
       className={iconBtn}
       aria-label={iconOnly ? "Import matrix file" : undefined}
     >
-      <FileUp size={15} strokeWidth={2} aria-hidden />
+      <FileUp size={iconSize} strokeWidth={2} aria-hidden />
       {!iconOnly ? "Import" : null}
     </Button>
   );
@@ -240,7 +247,7 @@ export function MatrixDocumentActions({
       aria-label="Delete this matrix from this browser"
     >
       <Trash2
-        size={15}
+        size={iconSize}
         strokeWidth={2}
         aria-hidden
         className="text-rm-muted transition-colors group-hover:text-red-600"
