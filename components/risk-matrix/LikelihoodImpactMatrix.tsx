@@ -6,15 +6,24 @@ import PointerAddLineButton from "./PointerAddLineButton";
 import {
   CELL_BG_CLASSES,
   COL_LABELS,
+  DROP_TARGET_OUTLINE_CLASSES,
   POINTER_ADD_ROW_HOVER_CLASSES,
   ROW_LABELS,
 } from "./constants";
-import type { CellKey, DragState, GridLine, LineLocation, PoolLine } from "./types";
+import type {
+  CellKey,
+  DragState,
+  DropIndicator,
+  GridLine,
+  LineLocation,
+  PoolLine,
+} from "./types";
 
 export type LikelihoodImpactMatrixProps = {
   grid: Record<CellKey, GridLine[]>;
   dragState: DragState | null;
   dragOverTarget: string | null;
+  dropIndicator: DropIndicator | null;
   onAddCellLine: (cellKey: CellKey) => void;
   onCellClick: (e: React.MouseEvent, key: CellKey) => void;
   onChange: (loc: LineLocation, id: string, text: string) => void;
@@ -37,6 +46,7 @@ export default function LikelihoodImpactMatrix({
   grid,
   dragState,
   dragOverTarget,
+  dropIndicator,
   onAddCellLine,
   onCellClick,
   onChange,
@@ -88,6 +98,8 @@ export default function LikelihoodImpactMatrix({
             const key = `${row}-${col}` as CellKey;
             const cellLines = grid[key] || [];
             const isDragOver = dragOverTarget === key;
+            const cellIndicator =
+              dropIndicator?.loc === key ? dropIndicator : null;
             return (
               <div
                 key={col}
@@ -96,18 +108,28 @@ export default function LikelihoodImpactMatrix({
                 className={[
                   CELL_BG_CLASSES[row][col],
                   "group relative flex min-h-0 cursor-text flex-col px-1 py-1 transition-shadow duration-100 sm:px-1.5",
-                  isDragOver
-                    ? "shadow-[inset_0_0_0_2px_rgba(0,0,0,0.5)] dark:shadow-[inset_0_0_0_2px_rgba(255,255,255,0.5)]"
-                    : "",
+                  isDragOver ? DROP_TARGET_OUTLINE_CLASSES : "",
                 ].join(" ")}
               >
                 <div className="flex min-h-0 flex-1 flex-col">
+                  {cellIndicator && cellIndicator.rowId === null ? (
+                    <div
+                      data-testid="drop-indicator-empty"
+                      aria-hidden
+                      className="mx-px mt-0.5 h-0.5 shrink-0 rounded-full bg-rm-ink"
+                    />
+                  ) : null}
                   {cellLines.map((line) => (
                     <LineRow
                       key={line.id}
                       line={line}
                       loc={key}
                       isDragging={!!dragState && dragState.id === line.id}
+                      dropEdge={
+                        cellIndicator?.rowId === line.id
+                          ? cellIndicator.edge
+                          : null
+                      }
                       onChange={onChange}
                       onKeyDown={onKeyDown}
                       onBlur={onBlur}

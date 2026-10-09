@@ -116,3 +116,10 @@ export const INITIAL_CATEGORIZED_REVEAL_HIDDEN: CategorizedRevealHiddenState = {
 /** Add row: always visible below `md`; from `md` up, hidden until `group-hover` (see parent `group`). */
 export const POINTER_ADD_ROW_HOVER_CLASSES =
   "opacity-100 transition-opacity duration-200 md:opacity-0 md:pointer-events-none md:group-hover:pointer-events-auto md:group-hover:opacity-100";
+
+/**
+ * Outline on the pool or matrix cell a dragged risk will land in. Uses the
+ * ink token, like the insertion line drawn between rows, so the two read as
+ * one indicator in both themes.
+ */
+export const DROP_TARGET_OUTLINE_CLASSES = "inset-ring-2 inset-ring-rm-ink/60";

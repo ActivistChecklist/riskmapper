@@ -10,6 +10,8 @@ export type LineRowProps = {
   line: PoolLine | GridLine;
   loc: LineLocation;
   isDragging: boolean;
+  /** Draws the drop insertion line on this edge of the row. */
+  dropEdge?: "before" | "after" | null;
   placeholder?: string;
   onBlur?: (
     e: React.FocusEvent<HTMLTextAreaElement>,
@@ -30,6 +32,7 @@ const LineRow = React.memo(function LineRow({
   line,
   loc,
   isDragging,
+  dropEdge = null,
   placeholder,
   onBlur,
   onChange,
@@ -44,6 +47,12 @@ const LineRow = React.memo(function LineRow({
       className={cn(
         loc === "pool" ? "my-1" : "my-0.5",
         isDragging ? "opacity-35" : "opacity-100",
+        // Centered in the 4px gap between rows: 1px border + 2px offset
+        // + half the 2px line.
+        dropEdge &&
+          "relative before:pointer-events-none before:absolute before:-inset-x-px before:h-0.5 before:rounded-full before:bg-rm-ink",
+        dropEdge === "before" && "before:-top-1",
+        dropEdge === "after" && "before:-bottom-1",
         isEmpty
           ? "border-transparent bg-transparent"
           : inCell
