@@ -84,6 +84,42 @@ function snapshotHasContent(snap: RiskMatrixSnapshot): boolean {
   );
 }
 
+/**
+ * Call before switching the active surface to a saved row. Nothing in the
+ * UI switches back to the draft surface, so leaving a draft behind would
+ * strand it until the next New or Delete wipes it. A draft with content
+ * becomes its own saved row under `draftId`; an empty one is left alone.
+ * `draftId` and `now` come from the caller so a StrictMode double-run of
+ * the updater produces the same row.
+ */
+function keepDraftAsSaved(
+  w: MatrixWorkspaceV1,
+  draftId: string,
+  now: string,
+): MatrixWorkspaceV1 {
+  if (
+    w.activeKind !== "default" ||
+    !w.defaultSnapshot ||
+    !snapshotHasContent(w.defaultSnapshot)
+  ) {
+    return w;
+  }
+  return {
+    ...w,
+    defaultSnapshot: null,
+    draftTitle: DEFAULT_DRAFT_MATRIX_TITLE,
+    saved: [
+      ...w.saved,
+      {
+        id: draftId,
+        title: w.draftTitle,
+        updatedAt: now,
+        snapshot: w.defaultSnapshot,
+      },
+    ],
+  };
+}
+
 function normalizeLoadedWorkspace(w: MatrixWorkspaceV1): MatrixWorkspaceV1 {
   if (w.activeKind === "saved" && w.activeSavedId) {
     const ok = w.saved.some((s) => s.id === w.activeSavedId);
@@ -118,6 +154,7 @@ export type MatrixWorkspaceApi = {
   recentSorted: StoredMatrix[];
   flushSave: () => void;
   createNewNamed: (name: string) => void;
+  /** Switch to a saved row. A draft with content is kept as its own saved row first. */
   openSaved: (id: string) => void;
   /** Remove a saved matrix from the library (no-op if id is missing). */
   removeSavedMatrix: (id: string) => void;
@@ -150,7 +187,8 @@ export type MatrixWorkspaceApi = {
   activeSavedMatrix: StoredMatrix | null;
   /**
    * Adopt an inbound shared matrix as a new saved row and switch to it.
-   * Returns the new id. Used by the share-link import flow.
+   * A draft with content is kept as its own saved row first. Returns the
+   * new id. Used by the share-link import flow.
    */
   adoptSharedMatrix: (args: {
     title: string;
@@ -445,16 +483,21 @@ export function useMatrixWorkspace(
 
   const adoptSharedMatrix = useCallback(
     (args: { title: string; snapshot: RiskMatrixSnapshot; cloud: CloudMatrixMeta }) => {
+      // Write the canvas's latest edits into the workspace before
+      // keepDraftAsSaved reads them; this updater is queued after flushSave's.
+      flushSave();
       const id = crypto.randomUUID();
+      const draftId = crypto.randomUUID();
       const now = new Date().toISOString();
       const trimmed = args.title.trim() || DEFAULT_DRAFT_MATRIX_TITLE;
       setWorkspace((w) => {
+        const kept = keepDraftAsSaved(w, draftId, now);
         const next: MatrixWorkspaceV1 = {
-          ...w,
+          ...kept,
           activeKind: "saved",
           activeSavedId: id,
           saved: [
-            ...w.saved,
+            ...kept.saved,
             {
               id,
               title: trimmed,
@@ -470,7 +513,7 @@ export function useMatrixWorkspace(
       setSurfaceId(crypto.randomUUID());
       return id;
     },
-    [repo],
+    [flushSave, repo],
   );
 
   const importMatrix = useCallback(
@@ -489,31 +532,8 @@ export function useMatrixWorkspace(
         },
       );
       setWorkspace((w) => {
-        let next = w;
-        let keptDraft = false;
-        // Nothing in the UI switches back to the draft surface, so leaving
-        // a draft behind would strand it. Keep it as a saved matrix.
-        if (
-          next.activeKind === "default" &&
-          next.defaultSnapshot &&
-          snapshotHasContent(next.defaultSnapshot)
-        ) {
-          keptDraft = true;
-          next = {
-            ...next,
-            defaultSnapshot: null,
-            draftTitle: DEFAULT_DRAFT_MATRIX_TITLE,
-            saved: [
-              ...next.saved,
-              {
-                id: draftId,
-                title: next.draftTitle,
-                updatedAt: now,
-                snapshot: next.defaultSnapshot,
-              },
-            ],
-          };
-        }
+        let next = keepDraftAsSaved(w, draftId, now);
+        const keptDraft = next !== w;
         next = {
           ...next,
           activeKind: "saved",
@@ -632,11 +652,13 @@ export function useMatrixWorkspace(
   const openSaved = useCallback(
     (id: string) => {
       flushSave();
+      const draftId = crypto.randomUUID();
+      const now = new Date().toISOString();
       setWorkspace((w) => {
         const exists = w.saved.some((s) => s.id === id);
         if (!exists) return w;
         const next: MatrixWorkspaceV1 = {
-          ...w,
+          ...keepDraftAsSaved(w, draftId, now),
           activeKind: "saved",
           activeSavedId: id,
         };

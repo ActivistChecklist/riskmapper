@@ -66,9 +66,16 @@ const log = createLogger("rmsync");
 type CanvasProps = {
   workspace: MatrixWorkspaceApi;
   cloud: ReturnType<typeof useCloudMatrix>;
+  /**
+   * The canvas puts its remote-apply function here so the parent can
+   * call it straight from the sync callback.
+   */
+  remoteApplyRef: React.MutableRefObject<RemoteApply | null>;
 };
 
-function RiskMatrixCanvas({ workspace: ws, cloud }: CanvasProps) {
+type RemoteApply = (doc: import("yjs").Doc) => void;
+
+function RiskMatrixCanvas({ workspace: ws, cloud, remoteApplyRef }: CanvasProps) {
   // Snapshot bridge: when there's an active Y.Doc, every local snapshot
   // change diffs into the doc. The doc's `update` event then routes the
   // diff through the cloud append outbox (see useCloudMatrix).
@@ -119,6 +126,25 @@ function RiskMatrixCanvas({ workspace: ws, cloud }: CanvasProps) {
     onSnapshotChange,
   });
   const { matrixGetterRef } = ws;
+
+  // Pull remote edits into the live canvas state in place. This used to
+  // remount the whole canvas, which destroyed the textarea the local user
+  // was typing in on every keystroke from the other device. The doc
+  // already holds every bridged local edit merged with the remote ones,
+  // so its view is the state to show; the bridge then sees a snapshot
+  // equal to the doc and emits no ops. Registered through a ref so the
+  // state update lands in the same batch as the sync callback, leaving no
+  // render in between where the canvas shows (and could bridge) stale
+  // state.
+  const { applyRemoteSnapshot } = m;
+  useLayoutEffect(() => {
+    remoteApplyRef.current = (doc) =>
+      applyRemoteSnapshot(snapshotFromDoc(doc).snapshot);
+    return () => {
+      remoteApplyRef.current = null;
+    };
+  }, [remoteApplyRef, applyRemoteSnapshot]);
+
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
 
   // Per-canvas first-time-event tracker. Recreated when the canvas
@@ -333,6 +359,7 @@ function RiskMatrixCanvas({ workspace: ws, cloud }: CanvasProps) {
         pool={m.pool}
         dragState={m.dragState}
         dragOverTarget={m.dragOverTarget}
+        dropIndicator={m.dropIndicator}
         onPoolClick={m.onPoolClick}
         onAddPoolLine={m.requestAddPoolLine}
         onChange={m.updateText}
@@ -354,6 +381,7 @@ function RiskMatrixCanvas({ workspace: ws, cloud }: CanvasProps) {
             grid={m.grid}
             dragState={m.dragState}
             dragOverTarget={m.dragOverTarget}
+            dropIndicator={m.dropIndicator}
             onAddCellLine={m.requestAddMatrixCellLine}
             onCellClick={m.onCellClick}
             onChange={m.updateText}
@@ -462,12 +490,10 @@ export default function RiskMatrix() {
   const repo = useMemo(() => createLocalMatrixRepository(), []);
   const ws = useMatrixWorkspace(repo);
   const activeCloudMeta = ws.activeSavedMatrix?.cloud ?? null;
-  // Bumped each time a remote-driven snapshot is pushed back into
-  // localStorage; appended to the canvas `key` so useRiskMatrix re-mounts
-  // and re-reads its initial snapshot from the freshly-merged doc state.
-  // Drag state during a remote update is sacrificed; in practice this is
-  // rare (drags are sub-second) and far less bad than a stale view.
-  const [remoteRev, setRemoteRev] = useState(0);
+  // Set by the canvas. Remote changes are applied to its state in place;
+  // they must NOT remount it (e.g. through its `key`), because remounting
+  // on every remote keystroke steals focus from whoever is typing here.
+  const remoteApplyRef = useRef<RemoteApply | null>(null);
 
   const cloudCallbacks = useMemo(
     () => ({
@@ -502,9 +528,8 @@ export default function RiskMatrix() {
       onChange: (doc: import("yjs").Doc) => {
         // Fired on remote-driven updates (non-self SSE events and
         // catch-up that advanced the doc state). onMetaUpdate already
-        // wrote row.snapshot atomically; here we only need to bump
-        // remoteRev so the canvas re-mounts and useRiskMatrix re-reads
-        // its initialSnapshot from the freshly-written ws state.
+        // wrote row.snapshot atomically; here we only need the canvas
+        // to pull the doc's view into its state.
         const recordId = ws.activeSavedMatrix?.cloud?.recordId;
         if (!recordId) return;
         const row = ws.workspace.saved.find((s) => s.cloud?.recordId === recordId);
@@ -516,13 +541,13 @@ export default function RiskMatrix() {
           log.info("onChange skip (no-op)", { recordId });
           return;
         }
-        log.info("onChange remount", {
+        log.info("onChange apply remote", {
           recordId,
           rowPoolCount: row.snapshot.pool.length,
           docPoolCount: view.snapshot.pool.length,
           titleChanged: !sameTitle,
         });
-        setRemoteRev((r) => r + 1);
+        remoteApplyRef.current?.(doc);
       },
     }),
     [ws],
@@ -625,9 +650,10 @@ export default function RiskMatrix() {
   }
   return (
     <RiskMatrixCanvas
-      key={`${ws.surfaceId}-${remoteRev}`}
+      key={ws.surfaceId}
       workspace={ws}
       cloud={cloud}
+      remoteApplyRef={remoteApplyRef}
     />
   );
 }

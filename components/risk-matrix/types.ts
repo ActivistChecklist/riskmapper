@@ -42,6 +42,25 @@ export type DragState = {
   cellBgClass: string | null;
 };
 
+/**
+ * Where a dragged line would land: in `loc`, ahead of the row `beforeId`,
+ * or at the end of the list when `beforeId` is null.
+ */
+export type DropTarget = {
+  loc: LineLocation;
+  beforeId: string | null;
+};
+
+/**
+ * Where to draw the insertion line: on the `edge` of row `rowId`, or at
+ * the top of an empty list when `rowId` is null.
+ */
+export type DropIndicator = {
+  loc: LineLocation;
+  rowId: string | null;
+  edge: "before" | "after";
+};
+
 export type StarredAction = {
   subLine: SubLine;
   cellKey: CellKey;

@@ -21,6 +21,8 @@ import type {
   CollapsedState,
   ColorGroupKey,
   DragState,
+  DropIndicator,
+  DropTarget,
   GridLine,
   LineLocation,
   OtherAction,
@@ -40,9 +42,22 @@ import {
   mergeHydratedGrid,
   normalizePoolLines,
 } from "./riskMatrixUtils";
+import {
+  beforeIdAtY,
+  dropIndicatorFor,
+  insertAtDrop,
+  isNoopReorder,
+  reorderAtDrop,
+} from "./dropPosition";
 
 /** Stable across SSR and client — not derived from `useId()`. */
 const DEFAULT_EMPTY_POOL_LINE_ID = "rm-ln-i-0";
+
+/** The snapshot fields that sync between devices through the Y.Doc. */
+export type SyncedSnapshotFields = Pick<
+  RiskMatrixSnapshot,
+  "pool" | "grid" | "otherActions" | "hiddenCategorizedRiskKeys" | "notes"
+>;
 
 export type UseRiskMatrixOptions = {
   initialSnapshot?: RiskMatrixSnapshot | null;
@@ -90,7 +105,7 @@ export function useRiskMatrix(options: UseRiskMatrixOptions = {}) {
   );
 
   const [dragState, setDragState] = useState<DragState | null>(null);
-  const [dragOverTarget, setDragOverTarget] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
   const [collapsed, setCollapsed] = useState<CollapsedState>(
     () => initialSnapshot?.collapsed ?? INITIAL_COLLAPSED,
   );
@@ -116,13 +131,13 @@ export function useRiskMatrix(options: UseRiskMatrixOptions = {}) {
     newSubLineIdRef.current = newSubLineId;
   }, [newSubLineId]);
 
-  const hydratedSnapshotRef = useRef(initialSnapshot ?? null);
-  useLayoutEffect(() => {
-    const snap = hydratedSnapshotRef.current;
-    if (!snap) return;
-    let maxI = 0;
-    let maxS = 0;
-    let maxO = 0;
+  // Advance the id counters past every id in `snap` so a locally minted
+  // id never collides with one already in the matrix. Only ever moves the
+  // counters forward, so it is safe to call again for remote snapshots.
+  const advanceIdSeqsPast = useCallback((snap: SyncedSnapshotFields) => {
+    let maxI = lineSeq.current;
+    let maxS = subSeq.current;
+    let maxO = otherSeq.current;
     const scanIds = (ids: string[]) => {
       for (const id of ids) {
         const mi = /-i-(\d+)$/.exec(id);
@@ -147,6 +162,38 @@ export function useRiskMatrix(options: UseRiskMatrixOptions = {}) {
     subSeq.current = maxS;
     otherSeq.current = maxO;
   }, []);
+
+  const hydratedSnapshotRef = useRef(initialSnapshot ?? null);
+  useLayoutEffect(() => {
+    const snap = hydratedSnapshotRef.current;
+    if (!snap) return;
+    advanceIdSeqsPast(snap);
+  }, [advanceIdSeqsPast]);
+
+  /**
+   * Replace the synced fields with a snapshot that came from another
+   * device. Updates state in place rather than remounting, so the DOM
+   * survives and whoever is typing keeps focus and caret. Per-viewer
+   * fields (`collapsed`, `categorizedRevealHidden`) are left alone.
+   */
+  const applyRemoteSnapshot = useCallback(
+    (snap: SyncedSnapshotFields) => {
+      advanceIdSeqsPast(snap);
+      const nextPool = snap.pool.length
+        ? snap.pool
+        : [{ id: DEFAULT_EMPTY_POOL_LINE_ID, text: "" }];
+      // Pool edits compute from poolRef rather than an updater, so move
+      // the ref now: a keystroke landing before the re-render must build
+      // on the remote pool, not overwrite it.
+      poolRef.current = nextPool;
+      setPool(nextPool);
+      setGrid(mergeHydratedGrid(snap.grid));
+      setOtherActions(snap.otherActions);
+      setHiddenCategorizedRiskKeys(snap.hiddenCategorizedRiskKeys);
+      setNotes(snap.notes);
+    },
+    [advanceIdSeqsPast],
+  );
 
   // Seed one empty unstarred reduce/prepare row when a risk has none yet
   // (so there is a box to type in). Extra rows are added only via Enter
@@ -878,15 +925,27 @@ export function useRiskMatrix(options: UseRiskMatrixOptions = {}) {
   );
 
   const moveLineTo = useCallback(
-    (id: string, destLoc: LineLocation) => {
+    (id: string, destLoc: LineLocation, beforeId: string | null = null) => {
       const found = findLine(id);
       if (!found) return;
       const { loc: srcLoc } = found;
-      if (srcLoc === destLoc) return;
 
       const srcLines = srcLoc === "pool" ? pool : grid[srcLoc] || [];
       const line = srcLines.find((l) => l.id === id);
       if (!line || !line.text) return;
+
+      if (srcLoc === destLoc) {
+        if (isNoopReorder(srcLines, id, beforeId)) return;
+        if (srcLoc === "pool") {
+          setPool((prev) => reorderAtDrop(prev, id, beforeId));
+        } else {
+          setGrid((prev) => ({
+            ...prev,
+            [srcLoc]: reorderAtDrop(prev[srcLoc] || [], id, beforeId),
+          }));
+        }
+        return;
+      }
 
       if (srcLoc === "pool") {
         setPool((prev) => {
@@ -904,29 +963,38 @@ export function useRiskMatrix(options: UseRiskMatrixOptions = {}) {
       }
 
       if (destLoc === "pool") {
-        setPool((prev) => {
-          const next = [...prev];
-          let insertAt = next.length;
-          if (next.length > 0 && next[next.length - 1].text === "")
-            insertAt = next.length - 1;
-          next.splice(insertAt, 0, line as PoolLine);
-          return next;
-        });
+        setPool((prev) => insertAtDrop(prev, line as PoolLine, beforeId));
       } else {
         setGrid((prev) => ({
           ...prev,
-          [destLoc]: [...(prev[destLoc as CellKey] || []), line as GridLine],
+          [destLoc]: insertAtDrop(
+            prev[destLoc as CellKey] || [],
+            line as GridLine,
+            beforeId,
+          ),
         }));
       }
     },
     [findLine, pool, grid, newLineId],
   );
 
-  const hitTestTarget = (x: number, y: number) => {
+  const hitTestTarget = (
+    x: number,
+    y: number,
+    draggedId: string,
+  ): DropTarget | null => {
     const el = document.elementFromPoint(x, y);
-    if (!el) return null;
-    const dropEl = el.closest("[data-drop-target]");
-    return dropEl ? dropEl.getAttribute("data-drop-target") : null;
+    const dropEl = el?.closest("[data-drop-target]");
+    const loc = dropEl?.getAttribute("data-drop-target");
+    if (!dropEl || !loc) return null;
+    const rows = Array.from(
+      dropEl.querySelectorAll<HTMLElement>("[data-row-id]"),
+      (row) => {
+        const rect = row.getBoundingClientRect();
+        return { id: row.dataset.rowId ?? "", top: rect.top, height: rect.height };
+      },
+    );
+    return { loc: loc as LineLocation, beforeId: beforeIdAtY(rows, y, draggedId) };
   };
 
   const onGripPointerDown = useCallback(
@@ -974,22 +1042,24 @@ export function useRiskMatrix(options: UseRiskMatrixOptions = {}) {
       const x = e.clientX;
       const y = e.clientY;
       setDragState((prev) => (prev ? { ...prev, x, y } : prev));
-      const target = hitTestTarget(x, y);
-      setDragOverTarget(target);
+      const target = hitTestTarget(x, y, dragState.id);
+      setDropTarget((prev) =>
+        prev?.loc === target?.loc && prev?.beforeId === target?.beforeId
+          ? prev
+          : target,
+      );
     };
     const onUp = (e: PointerEvent) => {
-      const x = e.clientX;
-      const y = e.clientY;
-      const target = hitTestTarget(x, y);
-      if (target && dragState) {
-        moveLineTo(dragState.id, target as LineLocation);
+      const target = hitTestTarget(e.clientX, e.clientY, dragState.id);
+      if (target) {
+        moveLineTo(dragState.id, target.loc, target.beforeId);
       }
       setDragState(null);
-      setDragOverTarget(null);
+      setDropTarget(null);
     };
     const onCancel = () => {
       setDragState(null);
-      setDragOverTarget(null);
+      setDropTarget(null);
     };
     window.addEventListener("pointermove", onMove, { passive: false });
     window.addEventListener("pointerup", onUp);
@@ -1000,6 +1070,16 @@ export function useRiskMatrix(options: UseRiskMatrixOptions = {}) {
       window.removeEventListener("pointercancel", onCancel);
     };
   }, [dragState, moveLineTo]);
+
+  const dragOverTarget = dropTarget?.loc ?? null;
+  const dropIndicator = useMemo((): DropIndicator | null => {
+    if (!dragState || !dropTarget) return null;
+    const source = findLine(dragState.id);
+    if (!source) return null;
+    const lines =
+      dropTarget.loc === "pool" ? pool : grid[dropTarget.loc as CellKey] || [];
+    return dropIndicatorFor(lines, dragState.id, dropTarget, source.loc);
+  }, [dragState, dropTarget, findLine, pool, grid]);
 
   /** Append a pool line or focus the trailing empty line (pointer “+ add”). */
   const requestAddPoolLine = useCallback(() => {
@@ -1299,6 +1379,7 @@ export function useRiskMatrix(options: UseRiskMatrixOptions = {}) {
     grid,
     dragState,
     dragOverTarget,
+    dropIndicator,
     collapsed,
     setCollapsed,
     isDeleteConfirmOpen,
@@ -1334,5 +1415,6 @@ export function useRiskMatrix(options: UseRiskMatrixOptions = {}) {
     notes,
     setNotes,
     getSnapshot,
+    applyRemoteSnapshot,
   };
 }
