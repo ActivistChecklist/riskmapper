@@ -41,6 +41,8 @@ import {
   isMatrixCellEmptyBackgroundClick,
   mergeHydratedGrid,
   normalizePoolLines,
+  partitionStarred,
+  splitInsertIndex,
 } from "./riskMatrixUtils";
 import {
   beforeIdAtY,
@@ -725,15 +727,15 @@ export function useRiskMatrix(options: UseRiskMatrixOptions = {}) {
           const idx = arr.findIndex((s) => s.id === subId);
           if (idx < 0) return l;
           const orig = arr[idx];
-          return {
-            ...l,
-            [subType]: [
-              ...arr.slice(0, idx),
-              { ...orig, text: orig.text.slice(0, caret) },
-              { id: nid, text: orig.text.slice(caret), starred: false },
-              ...arr.slice(idx + 1),
-            ],
-          };
+          const next = arr.map((s, i) =>
+            i === idx ? { ...orig, text: orig.text.slice(0, caret) } : s,
+          );
+          next.splice(splitInsertIndex(arr, idx), 0, {
+            id: nid,
+            text: orig.text.slice(caret),
+            starred: false,
+          });
+          return { ...l, [subType]: next };
         }),
       }));
       return nid;
@@ -778,8 +780,10 @@ export function useRiskMatrix(options: UseRiskMatrixOptions = {}) {
             ? l
             : {
                 ...l,
-                [subType]: (l[subType] || []).map((s) =>
-                  s.id === subId ? { ...s, starred: !s.starred } : s,
+                [subType]: partitionStarred(
+                  (l[subType] || []).map((s) =>
+                    s.id === subId ? { ...s, starred: !s.starred } : s,
+                  ),
                 ),
               },
         ),

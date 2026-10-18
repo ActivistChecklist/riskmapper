@@ -8,6 +8,8 @@ import {
   isMitigationColumnEmptyBackgroundClick,
   mergeHydratedGrid,
   normalizePoolLines,
+  partitionStarred,
+  splitInsertIndex,
 } from "./riskMatrixUtils";
 
 describe("categorizedRiskRowKey", () => {
@@ -128,5 +130,53 @@ describe("isMitigationColumnEmptyBackgroundClick", () => {
     expect(
       isMitigationColumnEmptyBackgroundClick(document.createElement("button")),
     ).toBe(false);
+  });
+});
+
+describe("partitionStarred", () => {
+  const sub = (id: string, starred: boolean) => ({ id, text: id, starred });
+
+  it("puts starred lines first and keeps relative order in each block", () => {
+    const out = partitionStarred([
+      sub("a", false),
+      sub("b", true),
+      sub("c", false),
+      sub("d", true),
+    ]);
+    expect(out.map((s) => s.id)).toEqual(["b", "d", "a", "c"]);
+  });
+
+  it("drops a newly starred line at the bottom of the starred block", () => {
+    // "c" was just starred; "a" and "b" were already at the top.
+    const out = partitionStarred([
+      sub("a", true),
+      sub("b", true),
+      sub("c", true),
+      sub("d", false),
+    ]);
+    expect(out.map((s) => s.id)).toEqual(["a", "b", "c", "d"]);
+  });
+
+  it("puts a newly unstarred line just below the starred block", () => {
+    // "a" was just unstarred.
+    const out = partitionStarred([
+      sub("a", false),
+      sub("b", true),
+      sub("c", false),
+    ]);
+    expect(out.map((s) => s.id)).toEqual(["b", "a", "c"]);
+  });
+});
+
+describe("splitInsertIndex", () => {
+  const sub = (id: string, starred: boolean) => ({ id, text: id, starred });
+  const list = [sub("a", true), sub("b", true), sub("c", false)];
+
+  it("inserts right below an unstarred line", () => {
+    expect(splitInsertIndex(list, 2)).toBe(3);
+  });
+
+  it("inserts after the starred block when splitting a starred line", () => {
+    expect(splitInsertIndex(list, 0)).toBe(2);
   });
 });

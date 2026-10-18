@@ -3,7 +3,6 @@ import {
   CELL_BG_CLASSES,
   COLOR_GROUPS,
   COL_LABELS,
-  GROUP_HEADER_CLASS,
   GROUP_LABEL_TEXT_CLASS,
   GROUP_STRIPE_CLASS,
   ROW_LABELS,
@@ -35,12 +34,6 @@ describe("risk-matrix constants", () => {
       for (let c = 0; c < 3; c++) {
         expect(keys.has(`${r}-${c}`)).toBe(true);
       }
-    }
-  });
-
-  it("maps each group tone to a header background class", () => {
-    for (const g of COLOR_GROUPS) {
-      expect(GROUP_HEADER_CLASS[g.key]).toMatch(/^bg-rm-/);
     }
   });
 

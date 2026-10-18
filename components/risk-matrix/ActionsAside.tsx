@@ -4,9 +4,16 @@ import React, { useMemo } from "react";
 import { Copy, Star } from "lucide-react";
 import ActionRow from "./ActionRow";
 import OtherActionRow from "./OtherActionRow";
-import { STEP_SECTION_ACTION_BUTTON_CLASS } from "./constants";
+import {
+  ACTION_GROUP_LABEL,
+  COLOR_GROUPS,
+  GROUP_LABEL_TEXT_CLASS,
+  GROUP_STRIPE_CLASS,
+  STEP_SECTION_ACTION_BUTTON_CLASS,
+} from "./constants";
 import { copyStarredActions } from "./matrixClipboard";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import type { CellKey, OtherAction, StarredAction } from "./types";
 
 export type ActionsAsideProps = {
@@ -57,6 +64,17 @@ export default function ActionsAside({
     return starredOk || otherOk;
   }, [allActions, otherActions]);
 
+  // Tier is the only context an action keeps: grouped under the tier's
+  // label, in a card carrying its stripe, the same way step 3 shows risks.
+  const actionsByTier = useMemo(
+    () =>
+      COLOR_GROUPS.flatMap((group) => {
+        const actions = allActions.filter((a) => a.groupTone === group.key);
+        return actions.length > 0 ? [{ group, actions }] : [];
+      }),
+    [allActions],
+  );
+
   const handleCopyActions = () => {
     void copyStarredActions(allActions, otherActions);
   };
@@ -77,24 +95,41 @@ export default function ActionsAside({
 
   const listBody =
     allActions.length > 0 || otherActions.length > 0 ? (
-      <div className="min-h-0 bg-rm-surface px-2 pb-1.5 pt-2">
-        {allActions.map((action) => (
-          <ActionRow
-            key={`${action.cellKey}-${action.parentLineId}-${action.subType}-${action.subLine.id}`}
-            action={action}
-            onChange={onChangeSub}
-            onToggleStar={onToggleStar}
-          />
+      <div className="min-h-0 space-y-3 bg-rm-well px-2 pb-2 pt-2.5 sm:px-3">
+        {actionsByTier.map(({ group, actions }) => (
+          <ActionGroup
+            key={group.key}
+            label={ACTION_GROUP_LABEL[group.key]}
+            labelClassName={GROUP_LABEL_TEXT_CLASS[group.key]}
+            stripeClassName={GROUP_STRIPE_CLASS[group.key]}
+          >
+            {actions.map((action) => (
+              <ActionRow
+                key={`${action.cellKey}-${action.parentLineId}-${action.subType}-${action.subLine.id}`}
+                action={action}
+                onChange={onChangeSub}
+                onToggleStar={onToggleStar}
+              />
+            ))}
+          </ActionGroup>
         ))}
-        {otherActions.map((action) => (
-          <OtherActionRow
-            key={action.id}
-            action={action}
-            onChange={onChangeOther}
-            onKeyDown={onOtherKeyDown}
-            onBlur={onOtherBlur}
-          />
-        ))}
+        {otherActions.length > 0 ? (
+          <ActionGroup
+            label="Other"
+            labelClassName="text-rm-muted-2"
+            stripeClassName="border-l-rm-border-strong"
+          >
+            {otherActions.map((action) => (
+              <OtherActionRow
+                key={action.id}
+                action={action}
+                onChange={onChangeOther}
+                onKeyDown={onOtherKeyDown}
+                onBlur={onOtherBlur}
+              />
+            ))}
+          </ActionGroup>
+        ) : null}
         {addOtherActionControl}
       </div>
     ) : (
@@ -147,5 +182,40 @@ export default function ActionsAside({
         {listBody}
       </div>
     </aside>
+  );
+}
+
+function ActionGroup({
+  label,
+  labelClassName,
+  stripeClassName,
+  children,
+}: {
+  label: string;
+  labelClassName: string;
+  stripeClassName: string;
+  children: React.ReactNode;
+}) {
+  const labelId = React.useId();
+  return (
+    <section aria-labelledby={labelId}>
+      <p
+        id={labelId}
+        className={cn(
+          "mb-1 px-1 text-xs font-semibold uppercase tracking-wide",
+          labelClassName,
+        )}
+      >
+        {label}
+      </p>
+      <div
+        className={cn(
+          "rounded-r-md border-l-4 bg-rm-surface px-1 py-1 shadow-[var(--rm-shadow-1)]",
+          stripeClassName,
+        )}
+      >
+        {children}
+      </div>
+    </section>
   );
 }

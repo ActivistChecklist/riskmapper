@@ -260,7 +260,10 @@ export default function CategorizedRiskGroups({
                         {/* Each risk carries its own copy of the two questions,
                             so the prompt is always beside the list it heads.
                             Side by side from sm up, stacked below that. */}
-                        <div className="mt-1.5 grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
+                        {/* From sm up the columns share two rows through
+                            subgrid, so when one question wraps to two lines
+                            both lists still start at the same height. */}
+                        <div className="mt-1.5 grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2 sm:grid-rows-[auto_auto] sm:gap-y-0">
                           {(["reduce", "prepare"] as const).map((subType) => (
                             <MitigationColumn
                               key={subType}
@@ -336,7 +339,7 @@ function MitigationColumn({
       role="group"
       aria-labelledby={promptId}
       data-testid={`mitigation-${subType}-${line.id}`}
-      className="flex min-w-0 flex-col"
+      className="flex min-w-0 flex-col sm:row-span-2 sm:grid sm:grid-rows-subgrid"
       onClick={(e) => {
         if (!isMitigationColumnEmptyBackgroundClick(e.target)) return;
         onPointerAddMitigationSubLine(cellKey, line.id, subType);
@@ -348,35 +351,37 @@ function MitigationColumn({
       >
         {MITIGATION_PROMPTS[subType]}
       </p>
-      {subLines.map((s) => (
-        <MitigationLineRow
-          key={s.id}
-          subLine={s}
-          cellKey={cellKey}
-          parentLineId={line.id}
-          subType={subType}
-          placeholder="Add an idea"
-          onChange={onChangeSub}
-          onKeyDown={onSubKeyDown}
-          onToggleStar={onToggleStar}
-        />
-      ))}
-      {showAddBox ? (
-        <PointerAddLineButton
-          ariaLabel={
-            subType === "reduce"
-              ? "Add a way to reduce the likelihood"
-              : "Add a way to limit the harm"
-          }
-          onTrigger={() =>
-            onPointerAddMitigationSubLine(cellKey, line.id, subType)
-          }
-          className="mt-0.5 self-start text-[13px] font-normal text-rm-muted-2"
-        >
-          <Plus size={13} strokeWidth={2.25} className="shrink-0" aria-hidden />
-          <span>Add an idea</span>
-        </PointerAddLineButton>
-      ) : null}
+      <div className="flex min-w-0 flex-col">
+        {subLines.map((s) => (
+          <MitigationLineRow
+            key={s.id}
+            subLine={s}
+            cellKey={cellKey}
+            parentLineId={line.id}
+            subType={subType}
+            placeholder="Add an idea"
+            onChange={onChangeSub}
+            onKeyDown={onSubKeyDown}
+            onToggleStar={onToggleStar}
+          />
+        ))}
+        {showAddBox ? (
+          <PointerAddLineButton
+            ariaLabel={
+              subType === "reduce"
+                ? "Add a way to reduce the likelihood"
+                : "Add a way to limit the harm"
+            }
+            onTrigger={() =>
+              onPointerAddMitigationSubLine(cellKey, line.id, subType)
+            }
+            className="mt-0.5 self-start text-[13px] font-normal text-rm-muted-2"
+          >
+            <Plus size={13} strokeWidth={2.25} className="shrink-0" aria-hidden />
+            <span>Add an idea</span>
+          </PointerAddLineButton>
+        ) : null}
+      </div>
     </div>
   );
 }

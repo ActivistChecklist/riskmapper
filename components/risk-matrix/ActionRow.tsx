@@ -3,8 +3,7 @@
 import React from "react";
 import { Star } from "lucide-react";
 import type { CellKey, StarredAction } from "./types";
-import { GROUP_HEADER_CLASS } from "./constants";
-import AutoTextarea from "./AutoTextarea";
+import LineShell from "./LineShell";
 
 export type ActionRowProps = {
   action: StarredAction;
@@ -23,54 +22,42 @@ export type ActionRowProps = {
   ) => void;
 };
 
+/**
+ * A starred mitigation in the Actions panel. Deliberately shows only the
+ * action, not the risk it came from: the context made every row two lines
+ * of chrome and was usually truncated past reading anyway. Styled like the
+ * step 3 lines, with no resting border; LineShell's hover and focus ring
+ * shows it's editable.
+ */
 const ActionRow = React.memo(function ActionRow({
   action,
   onChange,
   onToggleStar,
 }: ActionRowProps) {
-  const { subLine, cellKey, parentLineId, subType, parentText, groupTone } =
-    action;
-  const riskLabel = parentText.trim() || "Untitled risk";
-  const toneClass = GROUP_HEADER_CLASS[groupTone];
+  const { subLine, cellKey, parentLineId, subType } = action;
   return (
-    <div className="my-1.5">
-      <div
-        className={[
-          "flex items-start rounded-[5px] border border-rm-border bg-rm-surface py-1.5 pr-2.5 pl-2.5 transition-[background,border-color,box-shadow] duration-150 hover:border-rm-border-strong hover:bg-rm-surface hover:ring-1 hover:ring-rm-border focus-within:border-rm-primary focus-within:ring-2 focus-within:ring-rm-primary/20",
-        ].join(" ")}
-      >
+    <LineShell
+      className="my-0.5 border-transparent bg-transparent"
+      leftAffordance={
         <span
           onClick={(e) => {
             e.stopPropagation();
             onToggleStar(cellKey, parentLineId, subType, subLine.id);
           }}
-          title="unmark"
-          className="text-rm-star-strong mt-px flex size-[22px] shrink-0 cursor-pointer select-none items-center justify-center"
+          title="Remove from actions list"
+          className="flex w-[24px] shrink-0 cursor-pointer select-none items-center justify-center self-stretch text-rm-star-strong"
         >
-          <Star size={14} fill="currentColor" strokeWidth={1.5} />
+          <Star size={16} fill="currentColor" strokeWidth={1.5} />
         </span>
-        <div className="min-w-0 flex-1">
-          <AutoTextarea
-            subLineId={subLine.id}
-            value={subLine.text}
-            onChange={(e) =>
-              onChange(cellKey, parentLineId, subType, subLine.id, e.target.value)
-            }
-            className="px-1.5 py-0 text-[15px] font-semibold"
-          />
-        </div>
-      </div>
-      <div className="mt-1 flex min-w-0 pl-7">
-        <span
-          className={[
-            "flex min-w-0 max-w-full items-center rounded-[5px] border border-rm-border px-1 py-0.5 text-[10px] font-medium leading-snug text-rm-ink",
-            toneClass,
-          ].join(" ")}
-        >
-          <span className="block min-w-0 truncate">{riskLabel}</span>
-        </span>
-      </div>
-    </div>
+      }
+      textareaProps={{
+        subLineId: subLine.id,
+        value: subLine.text,
+        onChange: (e) =>
+          onChange(cellKey, parentLineId, subType, subLine.id, e.target.value),
+        className: "py-1 pl-1.5 pr-1.5",
+      }}
+    />
   );
 });
 

@@ -67,13 +67,6 @@ export type ColorGroup = {
   cells: string[];
 };
 
-export const GROUP_HEADER_CLASS: Record<ColorGroupKey, string> = {
-  red: "bg-rm-red",
-  orange: "bg-rm-orange",
-  yellow: "bg-rm-yellow",
-  green: "bg-rm-green",
-};
-
 /**
  * Step 3 list: the tier's color appears in exactly two places, its label
  * text and the stripe on each risk card. Everything else stays neutral so
@@ -84,6 +77,14 @@ export const GROUP_LABEL_TEXT_CLASS: Record<ColorGroupKey, string> = {
   orange: "text-rm-orange-text",
   yellow: "text-rm-yellow-text",
   green: "text-rm-green-text",
+};
+
+/** Actions panel heading for each tier's group of starred actions. */
+export const ACTION_GROUP_LABEL: Record<ColorGroupKey, string> = {
+  red: "For highest risks",
+  orange: "For high risks",
+  yellow: "For medium risks",
+  green: "For lower risks",
 };
 
 export const GROUP_STRIPE_CLASS: Record<ColorGroupKey, string> = {
