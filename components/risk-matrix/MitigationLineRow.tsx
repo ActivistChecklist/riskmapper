@@ -58,12 +58,13 @@ const MitigationLineRow = React.memo(function MitigationLineRow({
       // Same empty/filled card treatment as the risk LineRow so the two
       // line types feel like the same control. Filled mitigations adopt
       // the pool grey (bg-rm-line) — gives a once-typed line a stronger
-      // visual presence than the previous near-white wash. No drag-
-      // opacity here — mitigations don't drag.
+      // visual presence than the previous near-white wash. Empty lines
+      // get a dashed outline so an unanswered question visibly asks for
+      // input. No drag-opacity here — mitigations don't drag.
       className={cn(
         "my-0.5",
         isEmpty
-          ? "border-transparent bg-transparent"
+          ? "border-dashed border-rm-border-strong bg-transparent"
           : "border-rm-border bg-rm-line",
       )}
       leftAffordance={
@@ -107,7 +108,7 @@ const MitigationLineRow = React.memo(function MitigationLineRow({
           onChange(cellKey, parentLineId, subType, subLine.id, e.target.value),
         onKeyDown: (e) =>
           onKeyDown(e, cellKey, parentLineId, subType, subLine),
-        className: "max-sm:pl-0 max-sm:pr-1 sm:pl-1.5 sm:pr-1.5",
+        className: "py-1 max-sm:pl-0 max-sm:pr-1 sm:pl-1.5 sm:pr-1.5",
       }}
     />
   );

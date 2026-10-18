@@ -113,6 +113,12 @@ export const INITIAL_CATEGORIZED_REVEAL_HIDDEN: CategorizedRevealHiddenState = {
   green: false,
 };
 
+/** The two step 3 questions, shown above each risk's mitigation lists. */
+export const MITIGATION_PROMPTS = {
+  reduce: "How can we reduce the likelihood of this happening?",
+  prepare: "How can we limit the harm if it happens?",
+} as const;
+
 /** Add row: always visible below `md`; from `md` up, hidden until `group-hover` (see parent `group`). */
 export const POINTER_ADD_ROW_HOVER_CLASSES =
   "opacity-100 transition-opacity duration-200 md:opacity-0 md:pointer-events-none md:group-hover:pointer-events-auto md:group-hover:opacity-100";

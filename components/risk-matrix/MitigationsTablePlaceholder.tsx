@@ -1,8 +1,6 @@
 "use client";
 
 import React from "react";
-import MitigationsTableHeaderRow from "./MitigationsTableHeaderRow";
-
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -10,8 +8,8 @@ type Props = {
 };
 
 /**
- * Shown before any risk is placed on the matrix: same table header as the real
- * grid; dashed body explains what will appear here.
+ * Shown before any risk is placed on the matrix: a dashed body explains what
+ * will appear here.
  */
 export default function MitigationsTablePlaceholder({
   embeddedInStepSection = false,
@@ -25,7 +23,6 @@ export default function MitigationsTablePlaceholder({
           : "mb-3.5 rounded-md border border-rm-border",
       )}
     >
-      <MitigationsTableHeaderRow />
       <div className="flex min-h-[12.5rem] flex-col bg-rm-surface px-3 pb-3 pt-2.5 sm:min-h-[14rem]">
         <div
           className="flex min-h-[10.5rem] flex-1 flex-col items-center justify-center rounded-lg border border-dashed border-rm-border-strong bg-rm-surface-2 px-4 py-8 sm:min-h-[11.5rem]"
