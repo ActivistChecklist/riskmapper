@@ -368,10 +368,26 @@ export function summarizeImport(snapshot: RiskMatrixSnapshot): MatrixImportSumma
  * off as the user's own matrix in Open recent.
  */
 export function importedTitle(title: string, existingTitles: string[]): string {
+  return untakenTitle(title, existingTitles, "imported");
+}
+
+/**
+ * The title for a duplicate of a matrix. The original is always in the
+ * library, so this always appends " (copy)", numbering it if needed.
+ */
+export function copyTitle(title: string, existingTitles: string[]): string {
+  return untakenTitle(title, [title, ...existingTitles], "copy");
+}
+
+function untakenTitle(
+  title: string,
+  existingTitles: string[],
+  label: string,
+): string {
   const taken = new Set(existingTitles.map((t) => t.trim().toLowerCase()));
   if (!taken.has(title.trim().toLowerCase())) return title;
   for (let n = 1; ; n++) {
-    const candidate = n === 1 ? `${title} (imported)` : `${title} (imported ${n})`;
+    const candidate = n === 1 ? `${title} (${label})` : `${title} (${label} ${n})`;
     if (!taken.has(candidate.toLowerCase())) return candidate;
   }
 }

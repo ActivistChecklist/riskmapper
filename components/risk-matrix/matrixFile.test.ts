@@ -5,6 +5,7 @@ import {
 } from "./constants";
 import {
   buildMatrixFile,
+  copyTitle,
   importedTitle,
   MATRIX_FILE_FORMAT,
   MATRIX_FILE_LIMITS,
@@ -305,5 +306,12 @@ describe("importedTitle", () => {
     expect(importedTitle("Plan", ["Other"])).toBe("Plan");
     expect(importedTitle("Plan", ["plan "])).toBe("Plan (imported)");
     expect(importedTitle("Plan", ["Plan", "Plan (imported)"])).toBe("Plan (imported 2)");
+  });
+});
+
+describe("copyTitle", () => {
+  it("always marks a copy, numbering it past existing copies", () => {
+    expect(copyTitle("Plan", [])).toBe("Plan (copy)");
+    expect(copyTitle("Plan", ["Plan", "plan (copy) "])).toBe("Plan (copy 2)");
   });
 });

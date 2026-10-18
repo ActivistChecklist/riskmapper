@@ -66,6 +66,10 @@ function MatrixToolbarWidthProbe() {
         </span>
         <span className={chip}>
           <span className="inline-block w-[15px] shrink-0" />
+          Duplicate
+        </span>
+        <span className={chip}>
+          <span className="inline-block w-[15px] shrink-0" />
           Open recent
         </span>
         <span className={chip}>

@@ -564,12 +564,16 @@ export default function RiskMatrix() {
   // can't accidentally share an unshared matrix.
   const activeRecordId = ws.activeSavedMatrix?.cloud?.recordId;
   const activeKeyB64 = ws.activeSavedMatrix?.cloud?.keyB64;
+  // The last shared matrix this tab had open. A share link for it in the
+  // address bar is one we wrote, not an inbound link still being imported.
+  const lastActiveRecordIdRef = useRef<string | null>(null);
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (importer.state.kind === "loading" || importer.state.kind === "ready") {
       // The share-import flow owns the URL while it's resolving.
       return;
     }
+    if (activeRecordId) lastActiveRecordIdRef.current = activeRecordId;
     let cancelled = false;
     void (async () => {
       const inboundShare = await parseShareLocation({
@@ -577,9 +581,14 @@ export default function RiskMatrix() {
         hash: window.location.hash,
       });
       if (cancelled) return;
-      if (inboundShare) {
+      if (
+        inboundShare &&
+        inboundShare.recordId !== lastActiveRecordIdRef.current
+      ) {
         // Keep `/grid/<id>#<key>` stable during initial mount/adoption so
-        // we don't flash to `/` before the importer finishes.
+        // we don't flash to `/` before the importer finishes. Once that
+        // matrix has been open, its link is ours, and leaving it for an
+        // unshared one (Open recent, Duplicate) must clear it.
         return;
       }
       if (activeRecordId && activeKeyB64) {

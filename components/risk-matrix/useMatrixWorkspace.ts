@@ -22,6 +22,7 @@ import type {
   StoredMatrix,
 } from "./matrixTypes";
 import { DEFAULT_DRAFT_MATRIX_TITLE } from "./matrixTypes";
+import { copyTitle } from "./matrixFile";
 
 const log = createLogger("rmsync");
 
@@ -206,6 +207,16 @@ export type MatrixWorkspaceApi = {
     title: string;
     snapshot: RiskMatrixSnapshot;
   }) => Promise<{ saved: boolean; keptDraft: boolean }>;
+  /**
+   * Save the current matrix, then add a copy of it as a new saved row and
+   * switch to the copy. The copy never carries the original's cloud meta,
+   * so it is not shared even when the original is. Resolves to `null` when
+   * no canvas is mounted; otherwise as `importMatrix`, plus the copy's title.
+   */
+  duplicateActiveMatrix: () => Promise<{
+    saved: boolean;
+    title: string;
+  } | null>;
   /**
    * Promote the current draft (default surface) to a saved row using `name`,
    * keep its current snapshot, and switch active to the new row. Used when
@@ -565,6 +576,22 @@ export function useMatrixWorkspace(
     [flushSave, repo],
   );
 
+  const duplicateActiveMatrix = useCallback(async () => {
+    // The live canvas, not the stored row: a shared matrix's row lags its
+    // Y.Doc, and a local one may have a persist still pending.
+    const snap = matrixGetterRef.current?.();
+    if (!snap) return null;
+    const title = copyTitle(
+      activeTitle.trim() || DEFAULT_DRAFT_MATRIX_TITLE,
+      workspace.saved.map((s) => s.title),
+    );
+    const { saved } = await importMatrix({
+      title,
+      snapshot: structuredClone(snap),
+    });
+    return { saved, title };
+  }, [activeTitle, importMatrix, workspace.saved]);
+
   const promoteDraftToSaved = useCallback(
     (name: string): string | null => {
       // Only valid from the default/draft surface — saved rows have nothing
@@ -758,6 +785,7 @@ export function useMatrixWorkspace(
     activeSavedMatrix,
     adoptSharedMatrix,
     importMatrix,
+    duplicateActiveMatrix,
     promoteDraftToSaved,
   };
 }

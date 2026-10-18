@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useRef, useState } from "react";
-import { FilePlus, FileUp, History, Trash2, UsersRound } from "lucide-react";
+import { Copy, FilePlus, FileUp, History, Trash2, UsersRound } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -94,7 +94,7 @@ async function readMatrixFile(
   }
 }
 
-/** New + Open recent + Import + Delete, in the toolbar under the title row. */
+/** New + Duplicate + Open recent + Import + Delete, in the toolbar under the title row. */
 export function MatrixDocumentActions({
   workspace: ws,
   iconOnly = false,
@@ -130,6 +130,24 @@ export function MatrixDocumentActions({
     });
   };
   const hasRecent = ws.recentSorted.length > 0;
+
+  const duplicate = async () => {
+    const wasShared = ws.activeSavedMatrix?.cloud != null;
+    const result = await ws.duplicateActiveMatrix();
+    if (!result) return;
+    if (!result.saved) {
+      toast.error("Not enough space in this browser to duplicate this matrix.", {
+        description:
+          "Nothing was changed. Delete matrices you no longer need from Open recent, then try again.",
+      });
+      return;
+    }
+    toast.success(`Duplicated as "${result.title}"`, {
+      description: wasShared
+        ? "The copy is saved only in this browser and is not shared. The original stays shared."
+        : "The original is still under Open recent.",
+    });
+  };
 
   const confirmPendingDelete = () => {
     if (!pendingDelete) return;
@@ -180,6 +198,23 @@ export function MatrixDocumentActions({
       {!iconOnly ? "New" : null}
     </Button>
   );
+
+  const duplicateBtn = (
+    <Button
+      variant={surface}
+      size="sm"
+      type="button"
+      onClick={() => {
+        void duplicate();
+      }}
+      className={iconBtn}
+      aria-label={iconOnly ? "Duplicate this matrix" : undefined}
+    >
+      <Copy size={iconSize} strokeWidth={2} aria-hidden />
+      {!iconOnly ? "Duplicate" : null}
+    </Button>
+  );
+  const duplicateTip = "Make a copy of this matrix. The copy is not shared.";
 
   const recentBtn = hasRecent ? (
     <Button
@@ -262,6 +297,12 @@ export function MatrixDocumentActions({
         <TooltipTrigger asChild>{newBtn}</TooltipTrigger>
         <TooltipContent side="bottom">New matrix</TooltipContent>
       </Tooltip>
+      <Tooltip>
+        <TooltipTrigger asChild>{duplicateBtn}</TooltipTrigger>
+        <TooltipContent side="bottom" className="max-w-xs">
+          {duplicateTip}
+        </TooltipContent>
+      </Tooltip>
       {hasRecent ? (
         <Tooltip>
           <TooltipTrigger asChild>{recentBtn}</TooltipTrigger>
@@ -282,6 +323,12 @@ export function MatrixDocumentActions({
   ) : (
     <>
       {newBtn}
+      <Tooltip>
+        <TooltipTrigger asChild>{duplicateBtn}</TooltipTrigger>
+        <TooltipContent side="bottom" className="max-w-xs">
+          {duplicateTip}
+        </TooltipContent>
+      </Tooltip>
       {recentBtn}
       <Tooltip>
         <TooltipTrigger asChild>{importBtn}</TooltipTrigger>
