@@ -191,6 +191,46 @@ The app supports light + dark modes via class-based Tailwind v4 (`@custom-varian
 - **Test every change in both themes.** Toggle via the Theme button in the top bar (light / dark / system). Watch for: tinted hover backgrounds that don't cover the underlying cell color, focus rings that disappear on dark, shadows that vanish on dark canvas, and copy that drops below WCAG AA contrast.
 - **Avoid raw hardcoded colors.** `bg-white`, `border-black/X`, `text-zinc-X`, `bg-black/X`, `ring-black/X` are smells — they don't switch with the theme. Replace with semantic tokens.
 
+## Exports: keep every format in lockstep with the app
+
+People hand exports to others who never open the app, so an export that
+drifts from the web version teaches them a different tool. **Any change to
+what the app shows, how it labels it, or how it orders or groups it must
+update every export in the same change**, the same way dark mode must land
+with light. Do not ship an app-only change and leave the exports for later.
+
+The exports, and where each lives in `components/risk-matrix/`:
+
+| Export | File |
+| --- | --- |
+| Step and Actions "Copy" buttons | `matrixClipboard.ts`, `actionsClipboard.ts`, `mitigationsMarkdown.ts` |
+| Export menu: Plain text (Markdown) | `matrixExport.ts` |
+| Export menu: Rich text (for Docs and Word) | `richTextWorksheet.ts` |
+| Export menu: both spreadsheet CSVs (what people open in Excel) | `matrixCsv.ts` |
+| Export menu: PDF | `pdf/MatrixPdfDocument.tsx` |
+
+Read shared values from one place instead of retyping them, so a change
+reaches every format at once:
+
+- `actionGroups.ts`: which mitigations are actions (`starredActionsFromGrid`)
+  and how they group (`groupActionsByTier`). The Actions panel uses these too.
+- `constants.ts`: copy the app shows, such as `MITIGATION_PROMPTS`,
+  `ACTION_GROUP_LABEL` and `COLOR_GROUPS` labels.
+- `exportColors.ts`: light-theme hex values of the tier tokens, for the PDF
+  and clipboard HTML, which can't read CSS variables. Update it when the
+  `--rm-{tier}-text` or `--rm-{tier}-strong` tokens change.
+
+Match the app's meaning, not its pixels. A spreadsheet can't have cards, so
+it uses rows; Markdown can't have color, so it uses the tone emoji. The
+flat "one row per item" CSV stays a sortable table on purpose. When a
+format genuinely can't follow a change, say so in the commit message.
+
+Check the output, not just the code. Export tests pin the exact text, so
+update them with the format. For the PDF, render a real file and look at
+it: a throwaway vitest file with `// @vitest-environment node` can call
+`renderToFile` if it mocks `pdf/fonts.ts` to register the `@fontsource`
+`.woff` files by path.
+
 ## Testing
 
 - Write or update tests alongside every major change. If we're debugging something major, wait to add tests until the change is actually fixes the problem.

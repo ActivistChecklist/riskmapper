@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import AutoTextarea from "./AutoTextarea";
+import LineShell from "./LineShell";
 import type { OtherAction } from "./types";
 
 export type OtherActionRowProps = {
@@ -21,22 +21,20 @@ export default function OtherActionRow({
   onBlur,
 }: OtherActionRowProps) {
   return (
-    <div className="mb-1 mt-1.5 flex items-start gap-1 rounded-[5px] border border-rm-border bg-rm-surface-2 pb-1 pt-1.5 pr-2 pl-2">
-      <span
-        aria-hidden
-        className="mt-0.5 flex size-[22px] shrink-0 items-center justify-center"
-      />
-      <div className="min-w-0 flex-1">
-        <AutoTextarea
-          lineId={action.id}
-          value={action.text}
-          onChange={(e) => onChange(action.id, e.target.value)}
-          onKeyDown={(e) => onKeyDown(e, action)}
-          onBlur={(e) => onBlur(e, action)}
-          placeholder="Other action…"
-          className="px-1.5 pb-0 pt-0.5 text-[15px] font-semibold"
-        />
-      </div>
-    </div>
+    <LineShell
+      className="my-0.5 border-transparent bg-transparent"
+      // Empty spacer the width of ActionRow's star, so other actions'
+      // text lines up with starred ones.
+      leftAffordance={<span aria-hidden className="w-[24px] shrink-0" />}
+      textareaProps={{
+        lineId: action.id,
+        value: action.text,
+        onChange: (e) => onChange(action.id, e.target.value),
+        onKeyDown: (e) => onKeyDown(e, action),
+        onBlur: (e) => onBlur(e, action),
+        placeholder: "Other action…",
+        className: "py-1 pl-1.5 pr-1.5",
+      }}
+    />
   );
 }

@@ -27,13 +27,13 @@ import type {
   LineLocation,
   OtherAction,
   PoolLine,
-  StarredAction,
   SubLine,
 } from "./types";
 import {
   handleListVerticalArrows,
   isArrowWithSelectionOrOsShortcut,
 } from "./listTextareaNav";
+import { starredActionsFromGrid } from "./actionGroups";
 import {
   applyPoolTextUpdate,
   categorizedRiskRowKey,
@@ -41,6 +41,8 @@ import {
   isMatrixCellEmptyBackgroundClick,
   mergeHydratedGrid,
   normalizePoolLines,
+  partitionStarred,
+  splitInsertIndex,
 } from "./riskMatrixUtils";
 import { splitPastedLines, spliceLines } from "./pasteLines";
 import {
@@ -50,6 +52,11 @@ import {
   isNoopReorder,
   reorderAtDrop,
 } from "./dropPosition";
+import {
+  type MitigationDropTarget,
+  type MitigationListRef,
+  useMitigationDrag,
+} from "./useMitigationDrag";
 
 /** Stable across SSR and client — not derived from `useId()`. */
 const DEFAULT_EMPTY_POOL_LINE_ID = "rm-ln-i-0";
@@ -726,15 +733,15 @@ export function useRiskMatrix(options: UseRiskMatrixOptions = {}) {
           const idx = arr.findIndex((s) => s.id === subId);
           if (idx < 0) return l;
           const orig = arr[idx];
-          return {
-            ...l,
-            [subType]: [
-              ...arr.slice(0, idx),
-              { ...orig, text: orig.text.slice(0, caret) },
-              { id: nid, text: orig.text.slice(caret), starred: false },
-              ...arr.slice(idx + 1),
-            ],
-          };
+          const next = arr.map((s, i) =>
+            i === idx ? { ...orig, text: orig.text.slice(0, caret) } : s,
+          );
+          next.splice(splitInsertIndex(arr, idx), 0, {
+            id: nid,
+            text: orig.text.slice(caret),
+            starred: false,
+          });
+          return { ...l, [subType]: next };
         }),
       }));
       return nid;
@@ -779,8 +786,10 @@ export function useRiskMatrix(options: UseRiskMatrixOptions = {}) {
             ? l
             : {
                 ...l,
-                [subType]: (l[subType] || []).map((s) =>
-                  s.id === subId ? { ...s, starred: !s.starred } : s,
+                [subType]: partitionStarred(
+                  (l[subType] || []).map((s) =>
+                    s.id === subId ? { ...s, starred: !s.starred } : s,
+                  ),
                 ),
               },
         ),
@@ -788,6 +797,56 @@ export function useRiskMatrix(options: UseRiskMatrixOptions = {}) {
     },
     [],
   );
+
+  const moveSubLine = useCallback(
+    (from: MitigationListRef, subId: string, to: MitigationDropTarget) => {
+      setGrid((prev) => {
+        const sub = (prev[from.cellKey] || [])
+          .find((l) => l.id === from.parentLineId)
+          ?.[from.subType]?.find((s) => s.id === subId);
+        if (!sub) return prev;
+        const sameList =
+          from.cellKey === to.list.cellKey &&
+          from.parentLineId === to.list.parentLineId &&
+          from.subType === to.list.subType;
+        // Out of the source list (unless it's a reorder), then into the
+        // destination. The drag already clamps to the starred block;
+        // partitioning again keeps the invariant whatever the drop said.
+        const remove = (l: GridLine): GridLine =>
+          sameList || l.id !== from.parentLineId
+            ? l
+            : {
+                ...l,
+                [from.subType]: (l[from.subType] || []).filter(
+                  (s) => s.id !== subId,
+                ),
+              };
+        const insert = (l: GridLine): GridLine =>
+          l.id !== to.list.parentLineId
+            ? l
+            : {
+                ...l,
+                [to.list.subType]: partitionStarred(
+                  sameList
+                    ? reorderAtDrop(l[to.list.subType] || [], subId, to.beforeId)
+                    : insertAtDrop(l[to.list.subType] || [], sub, to.beforeId),
+                ),
+              };
+        const next = { ...prev };
+        next[from.cellKey] = (next[from.cellKey] || []).map(remove);
+        next[to.list.cellKey] = (next[to.list.cellKey] || []).map(insert);
+        return next;
+      });
+    },
+    [],
+  );
+
+  const {
+    mitigationDragState,
+    draggingSubId,
+    mitigationDropEdge,
+    onMitigationGripPointerDown,
+  } = useMitigationDrag({ grid, onMove: moveSubLine });
 
   const handleSubKeyDown = useCallback(
     (
@@ -1184,43 +1243,7 @@ export function useRiskMatrix(options: UseRiskMatrixOptions = {}) {
     return result;
   }, [grid]);
 
-  const allActions = useMemo(() => {
-    const actions: StarredAction[] = [];
-    for (const group of COLOR_GROUPS) {
-      for (const cellKey of group.cells) {
-        const lines = grid[cellKey] || [];
-        for (const line of lines) {
-          const reduce = line.reduce || [];
-          const prepare = line.prepare || [];
-          for (const s of reduce) {
-            if (s.starred) {
-              actions.push({
-                subLine: s,
-                cellKey,
-                parentLineId: line.id,
-                subType: "reduce",
-                parentText: line.text,
-                groupTone: group.key,
-              });
-            }
-          }
-          for (const s of prepare) {
-            if (s.starred) {
-              actions.push({
-                subLine: s,
-                cellKey,
-                parentLineId: line.id,
-                subType: "prepare",
-                parentText: line.text,
-                groupTone: group.key,
-              });
-            }
-          }
-        }
-      }
-    }
-    return actions;
-  }, [grid]);
+  const allActions = useMemo(() => starredActionsFromGrid(grid), [grid]);
 
   const addOtherAction = useCallback(() => {
     setOtherActions((prev) => [...prev, { id: newOtherId(), text: "" }]);
@@ -1523,6 +1546,11 @@ export function useRiskMatrix(options: UseRiskMatrixOptions = {}) {
     updateSubText,
     handleSubKeyDown,
     toggleStar,
+    moveSubLine,
+    mitigationDragState,
+    draggingSubId,
+    mitigationDropEdge,
+    onMitigationGripPointerDown,
     notes,
     setNotes,
     getSnapshot,

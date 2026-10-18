@@ -67,27 +67,31 @@ export type ColorGroup = {
   cells: string[];
 };
 
-export const GROUP_HEADER_CLASS: Record<ColorGroupKey, string> = {
-  red: "bg-rm-red",
-  orange: "bg-rm-orange",
-  yellow: "bg-rm-yellow",
-  green: "bg-rm-green",
+/**
+ * Step 3 list: the tier's color appears in exactly two places, its label
+ * text and the stripe on each risk card. Everything else stays neutral so
+ * the tier, risk, prompt and mitigation levels don't compete.
+ */
+export const GROUP_LABEL_TEXT_CLASS: Record<ColorGroupKey, string> = {
+  red: "text-rm-red-text",
+  orange: "text-rm-orange-text",
+  yellow: "text-rm-yellow-text",
+  green: "text-rm-green-text",
 };
 
-/**
- * Background + foreground for the COLLAPSIBLE SECTION HEADER row in
- * the mitigations table — the bar that introduces a group of risks
- * ("Highest risk · 3", etc). Same hue and saturation as the lighter
- * row backgrounds (`GROUP_HEADER_CLASS`) but a step darker so the
- * header reads as the "container" of the rows rather than blending
- * with them. Pairs with dark text — the colors aren't dark enough to
- * carry white type cleanly.
- */
-export const GROUP_HEADER_SATURATED_CLASS: Record<ColorGroupKey, string> = {
-  red: "bg-rm-red-saturated text-rm-ink",
-  orange: "bg-rm-orange-saturated text-rm-ink",
-  yellow: "bg-rm-yellow-saturated text-rm-ink",
-  green: "bg-rm-green-saturated text-rm-ink",
+/** Actions panel heading for each tier's group of starred actions. */
+export const ACTION_GROUP_LABEL: Record<ColorGroupKey, string> = {
+  red: "For highest risks",
+  orange: "For high risks",
+  yellow: "For medium risks",
+  green: "For lower risks",
+};
+
+export const GROUP_STRIPE_CLASS: Record<ColorGroupKey, string> = {
+  red: "border-l-rm-red-strong",
+  orange: "border-l-rm-orange-strong",
+  yellow: "border-l-rm-yellow-strong",
+  green: "border-l-rm-green-strong",
 };
 
 // Ordered from highest to lowest risk. Cells within a group are listed
@@ -112,6 +116,12 @@ export const INITIAL_CATEGORIZED_REVEAL_HIDDEN: CategorizedRevealHiddenState = {
   yellow: false,
   green: false,
 };
+
+/** The two step 3 questions, shown above each risk's mitigation lists. */
+export const MITIGATION_PROMPTS = {
+  reduce: "How can we reduce the likelihood of this happening?",
+  prepare: "How can we limit the harm if it happens?",
+} as const;
 
 /** Add row: always visible below `md`; from `md` up, hidden until `group-hover` (see parent `group`). */
 export const POINTER_ADD_ROW_HOVER_CLASSES =

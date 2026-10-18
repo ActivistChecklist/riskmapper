@@ -426,6 +426,9 @@ function RiskMatrixCanvas({ workspace: ws, cloud, remoteApplyRef }: CanvasProps)
                 onSubKeyDown={m.handleSubKeyDown}
                 onToggleStar={m.toggleStar}
                 onPointerAddMitigationSubLine={m.requestAddMitigationSubLine}
+                draggingSubId={m.draggingSubId}
+                mitigationDropEdge={m.mitigationDropEdge}
+                onMitigationGripPointerDown={m.onMitigationGripPointerDown}
                 embeddedInStepSection
               />
             ) : (
@@ -471,6 +474,7 @@ function RiskMatrixCanvas({ workspace: ws, cloud, remoteApplyRef }: CanvasProps)
       </div>
 
       <DragPreviewLayer dragState={m.dragState} />
+      <DragPreviewLayer dragState={m.mitigationDragState} />
 
       <DeleteRiskDialog
         open={m.isDeleteConfirmOpen}

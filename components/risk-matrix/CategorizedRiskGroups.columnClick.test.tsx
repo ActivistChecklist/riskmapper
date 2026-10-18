@@ -38,6 +38,9 @@ describe("CategorizedRiskGroups mitigation column background click", () => {
         onSubKeyDown={vi.fn()}
         onToggleStar={vi.fn()}
         onPointerAddMitigationSubLine={onPointerAddMitigationSubLine}
+        draggingSubId={null}
+        mitigationDropEdge={null}
+        onMitigationGripPointerDown={vi.fn()}
       />,
     );
 
@@ -77,6 +80,9 @@ describe("CategorizedRiskGroups mitigation column background click", () => {
         onSubKeyDown={vi.fn()}
         onToggleStar={vi.fn()}
         onPointerAddMitigationSubLine={onPointerAddMitigationSubLine}
+        draggingSubId={null}
+        mitigationDropEdge={null}
+        onMitigationGripPointerDown={vi.fn()}
       />,
     );
 

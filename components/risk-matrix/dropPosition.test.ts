@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   beforeIdAtY,
+  clampStarredBeforeId,
   dropIndicatorFor,
   dropInsertIndex,
   insertAtDrop,
@@ -140,5 +141,45 @@ describe("dropIndicatorFor", () => {
     expect(
       dropIndicatorFor(list, "b", { loc: "0-0", beforeId: "c" }, "pool"),
     ).toEqual({ loc: "0-0", rowId: "c", edge: "before" });
+  });
+});
+
+describe("clampStarredBeforeId", () => {
+  const sub = (id: string, starred: boolean, text = id) => ({ id, text, starred });
+  // Two starred lines, two unstarred, then the blank entry line.
+  const list = [
+    sub("s1", true),
+    sub("s2", true),
+    sub("u1", false),
+    sub("u2", false),
+    sub("blank", false, ""),
+  ];
+
+  it("leaves a drop alone when it stays on the dragged line's side", () => {
+    expect(clampStarredBeforeId(list, "s2", true, "s1")).toBe("s1");
+    expect(clampStarredBeforeId(list, "u1", false, null)).toBe("blank");
+    expect(clampStarredBeforeId(list, "u2", false, "u1")).toBe("u1");
+  });
+
+  it("keeps a starred line above the first unstarred one", () => {
+    expect(clampStarredBeforeId(list, "s1", true, "u2")).toBe("u1");
+    expect(clampStarredBeforeId(list, "s1", true, null)).toBe("u1");
+  });
+
+  it("keeps an unstarred line below the last starred one", () => {
+    expect(clampStarredBeforeId(list, "u2", false, "s1")).toBe("u1");
+    expect(clampStarredBeforeId(list, "u1", false, "s2")).toBe("u2");
+  });
+
+  it("applied with reorderAtDrop, never mixes the blocks", () => {
+    const moved = reorderAtDrop(list, "s1", clampStarredBeforeId(list, "s1", true, null));
+    expect(ids(moved)).toEqual(["s2", "s1", "u1", "u2", "blank"]);
+  });
+
+  it("clamps into another list using the dragged line's own star", () => {
+    // Dropping a starred line from elsewhere at the end of this list.
+    expect(clampStarredBeforeId(list, "x", true, null)).toBe("u1");
+    // Dropping an unstarred one at the very top.
+    expect(clampStarredBeforeId(list, "x", false, "s1")).toBe("u1");
   });
 });

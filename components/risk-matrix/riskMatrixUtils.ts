@@ -1,5 +1,5 @@
 import { COLOR_GROUPS } from "./constants";
-import type { CellKey, GridLine, PoolLine } from "./types";
+import type { CellKey, GridLine, PoolLine, SubLine } from "./types";
 
 /**
  * Non-empty risks in categorized table order (same as `risksByColor` / step 3 UI):
@@ -37,6 +37,27 @@ export function isMitigationColumnEmptyBackgroundClick(target: unknown): boolean
   if (target.closest("button")) return false;
   if (target.closest("[data-mitigation-row]")) return false;
   return true;
+}
+
+/**
+ * Starred mitigations first, then the rest, each keeping its relative
+ * order. Applied whenever a star is toggled, so the starred block stays at
+ * the top of its list: a newly starred line joins the bottom of the block
+ * and a newly unstarred one lands just below it. Done on the data, not at
+ * render time, so arrow keys and Enter still match what's on screen.
+ */
+export function partitionStarred(subs: SubLine[]): SubLine[] {
+  return [...subs.filter((s) => s.starred), ...subs.filter((s) => !s.starred)];
+}
+
+/**
+ * Index a new unstarred line should take when split off line `idx`: right
+ * below it, unless that would land it inside the starred block, in which
+ * case it goes just after the block.
+ */
+export function splitInsertIndex(subs: SubLine[], idx: number): number {
+  if (!subs[idx]?.starred) return idx + 1;
+  return subs.filter((s) => s.starred).length;
 }
 
 /** Stable id for a risk row in the categorized mitigations table. */

@@ -44,6 +44,13 @@
   --rm-orange-strong: #f2934a;
   --rm-red-strong: #ef6f6f;
 
+  /* Tier label text: the risk level name in the step 3 list. Each passes
+     WCAG AA on rm-surface and rm-well. */
+  --rm-green-text: #1f7a3a;
+  --rm-yellow-text: #7a5d00;
+  --rm-orange-text: #a8480a;
+  --rm-red-text: #b42318;
+
   /* Star always tracks ink */
   --rm-star: var(--rm-ink);
   --rm-star-strong: var(--rm-ink);
@@ -51,6 +58,9 @@
   /* Generic surfaces / borders / muted text — drives dark mode swap */
   --rm-surface: #ffffff;
   --rm-surface-2: #f4f4f1;
+  /* Recessed area that rm-surface cards sit on: darker than the card in
+     both modes, so the card reads as raised. */
+  --rm-well: #f4f4f1;
   --rm-surface-hover: rgba(0, 0, 0, 0.05);
   --rm-surface-hover-2: rgba(0, 0, 0, 0.08);
   --rm-surface-translucent: rgba(255, 255, 255, 0.85);
@@ -102,11 +112,17 @@
   --rm-orange-strong: #f2934a;
   --rm-red-strong: #ef6f6f;
 
+  --rm-green-text: #6fd394;
+  --rm-yellow-text: #e4c23d;
+  --rm-orange-text: #f5b07a;
+  --rm-red-text: #f29b9b;
+
   --rm-star: var(--rm-ink);
   --rm-star-strong: var(--rm-ink);
 
   --rm-surface: #181b21;
   --rm-surface-2: #21252d;
+  --rm-well: #0e1014;
   --rm-surface-hover: rgba(255, 255, 255, 0.06);
   --rm-surface-hover-2: rgba(255, 255, 255, 0.10);
   --rm-surface-translucent: rgba(24, 27, 33, 0.82);
@@ -149,6 +165,10 @@
   --color-rm-yellow-strong: var(--rm-yellow-strong);
   --color-rm-orange-strong: var(--rm-orange-strong);
   --color-rm-red-strong: var(--rm-red-strong);
+  --color-rm-green-text: var(--rm-green-text);
+  --color-rm-yellow-text: var(--rm-yellow-text);
+  --color-rm-orange-text: var(--rm-orange-text);
+  --color-rm-red-text: var(--rm-red-text);
 
   --color-rm-star: var(--rm-star);
   --color-rm-star-strong: var(--rm-star-strong);
@@ -156,6 +176,7 @@
   /* Semantic surfaces / borders / muted text */
   --color-rm-surface: var(--rm-surface);
   --color-rm-surface-2: var(--rm-surface-2);
+  --color-rm-well: var(--rm-well);
   --color-rm-surface-hover: var(--rm-surface-hover);
   --color-rm-surface-hover-2: var(--rm-surface-hover-2);
   --color-rm-surface-translucent: var(--rm-surface-translucent);

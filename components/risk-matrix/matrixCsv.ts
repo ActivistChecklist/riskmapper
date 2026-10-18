@@ -1,6 +1,22 @@
-import { COL_LABELS, COLOR_GROUPS, ROW_LABELS } from "./constants";
+import {
+  groupActionsByTier,
+  OTHER_ACTIONS_LABEL,
+  starredActionsFromGrid,
+} from "./actionGroups";
+import {
+  COL_LABELS,
+  COLOR_GROUPS,
+  MITIGATION_PROMPTS,
+  ROW_LABELS,
+} from "./constants";
 import { cellKeyToTone, toneToCircle } from "./riskTone";
-import type { CellKey, GridLine, OtherAction, PoolLine, SubLine } from "./types";
+import type {
+  CellKey,
+  GridLine,
+  OtherAction,
+  PoolLine,
+  SubLine,
+} from "./types";
 
 /**
  * Two spreadsheet exports share this file:
@@ -59,8 +75,8 @@ function placedRiskRows(line: GridLine, cellKey: CellKey, level: string): Row[] 
   const [row, col] = cellKey.split("-").map(Number);
   const base = [level, LIKELIHOOD_BY_ROW[row], IMPACT_BY_COL[col], line.text];
   const mitigations = [
-    ...nonEmpty(line.reduce).map((s) => ["Reduction", s] as const),
-    ...nonEmpty(line.prepare).map((s) => ["Preparation", s] as const),
+    ...nonEmpty(line.reduce).map((s) => ["Reduce likelihood", s] as const),
+    ...nonEmpty(line.prepare).map((s) => ["Limit harm", s] as const),
   ];
   if (mitigations.length === 0) return [[...base, "", "", ""]];
   return mitigations.map(([type, s]) => [
@@ -112,9 +128,10 @@ function toCsv(rows: Row[]): string {
 /**
  * Worksheet layout: the page as a spreadsheet, top to bottom. The risk pool,
  * then the 3x3 matrix with every risk in its cell (one per line, each with
- * the cell's colored circle), then mitigations in the page's three columns,
- * grouped by color with as many rows per risk as it has mitigations, then
- * actions and notes. Headers are ruled with ━ so they stand out without
+ * the cell's colored circle), then mitigations laid out like step 3: each
+ * tier, each risk as its own row, the two questions side by side under it,
+ * and the ideas beneath them. Then actions grouped by tier like the Actions
+ * panel, and notes. Headers are ruled with ━ so they stand out without
  * formatting, which CSV cannot carry.
  */
 const STAR = "⭐";
@@ -184,14 +201,7 @@ export function buildWorksheetCsv(args: {
   rows.push(
     sectionHeading(`STEP 3 · MITIGATIONS (${STAR} = an action you intend to take)`),
   );
-  rows.push([
-    "Risk",
-    "How can we reduce the likelihood of this happening?",
-    "How can we limit the harm if it happens?",
-  ]);
   let anyPlaced = false;
-  // Collected in the same order the Actions panel lists them.
-  const starred: Row[] = [];
   for (const group of COLOR_GROUPS) {
     const circle = toneToCircle(group.key);
     const risks = group.cells.flatMap((cellKey) => filled(grid[cellKey]));
@@ -201,35 +211,29 @@ export function buildWorksheetCsv(args: {
     for (const risk of risks) {
       const reduce = filled(risk.reduce);
       const prepare = filled(risk.prepare);
-      const height = Math.max(1, reduce.length, prepare.length);
+      rows.push([`${circle} ${risk.text}`]);
+      rows.push([MITIGATION_PROMPTS.reduce, MITIGATION_PROMPTS.prepare]);
+      const height = Math.max(reduce.length, prepare.length);
       for (let i = 0; i < height; i++) {
-        rows.push([
-          i === 0 ? `${circle} ${risk.text}` : "",
-          subLineCell(reduce[i]),
-          subLineCell(prepare[i]),
-        ]);
+        rows.push([subLineCell(reduce[i]), subLineCell(prepare[i])]);
       }
-      for (const [kind, subs] of [
-        ["Reduction", reduce],
-        ["Preparation", prepare],
-      ] as const) {
-        for (const s of subs.filter((x) => x.starred)) {
-          starred.push([`${STAR} ${s.text}`, `${kind} for ${circle} ${risk.text}`]);
-        }
-      }
+      rows.push([]);
     }
   }
-  if (!anyPlaced) rows.push(["(No risks on the matrix yet)"]);
-  rows.push([]);
+  if (!anyPlaced) rows.push(["(No risks on the matrix yet)"], []);
 
   rows.push(sectionHeading(`${STAR} ACTIONS`));
+  const tiers = groupActionsByTier(starredActionsFromGrid(grid));
   const others = filled(args.otherActions);
-  if (starred.length === 0 && others.length === 0) {
+  if (tiers.length === 0 && others.length === 0) {
     rows.push(["(No actions yet. Star a mitigation to add it here.)"]);
   }
-  rows.push(...starred);
+  for (const { tone, label, actions } of tiers) {
+    rows.push([`${toneToCircle(tone)} ${label}`]);
+    for (const a of actions) rows.push([`${STAR} ${a.subLine.text}`]);
+  }
   if (others.length > 0) {
-    if (starred.length > 0) rows.push(["Other actions"]);
+    if (tiers.length > 0) rows.push([OTHER_ACTIONS_LABEL]);
     for (const o of others) rows.push([`${BULLET} ${o.text}`]);
   }
 

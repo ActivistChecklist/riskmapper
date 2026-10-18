@@ -1,9 +1,8 @@
 "use client";
 
-import React, { useLayoutEffect, useMemo, useRef } from "react";
-import { ChevronDown, ChevronRight, Eye, EyeOff } from "lucide-react";
+import React, { useId, useMemo } from "react";
+import { ChevronDown, ChevronRight, Eye, EyeOff, Plus } from "lucide-react";
 import MitigationLineRow from "./MitigationLineRow";
-import MitigationsTableHeaderRow from "./MitigationsTableHeaderRow";
 import PointerAddLineButton from "./PointerAddLineButton";
 import RiskLineRow from "./RiskLineRow";
 import {
@@ -15,11 +14,16 @@ import {
 import {
   COLOR_GROUPS,
   type ColorGroup,
-  GROUP_HEADER_CLASS,
-  GROUP_HEADER_SATURATED_CLASS,
-  POINTER_ADD_ROW_HOVER_CLASSES,
+  GROUP_LABEL_TEXT_CLASS,
+  GROUP_STRIPE_CLASS,
+  MITIGATION_PROMPTS,
 } from "./constants";
 import { cn } from "@/lib/utils";
+import {
+  mitigationListKey,
+  type MitigationListRef,
+} from "./useMitigationDrag";
+import type { InsertionEdge } from "./dropPosition";
 import {
   categorizedRiskRowKey,
   isMitigationColumnEmptyBackgroundClick,
@@ -73,6 +77,15 @@ export type CategorizedRiskGroupsProps = {
     parentLineId: string,
     subType: "reduce" | "prepare",
   ) => void;
+  /** Sub-line being dragged, dimmed in place while its preview follows the pointer. */
+  draggingSubId: string | null;
+  /** Insertion line for the current mitigation drag, keyed by its list. */
+  mitigationDropEdge: (InsertionEdge & { listKey: string }) | null;
+  onMitigationGripPointerDown: (
+    e: React.PointerEvent,
+    list: MitigationListRef,
+    subLine: SubLine,
+  ) => void;
   /** Tucked under a {@link StepSection} primary header — no outer top radius. */
   embeddedInStepSection?: boolean;
 };
@@ -94,11 +107,11 @@ export default function CategorizedRiskGroups({
   onSubKeyDown,
   onToggleStar,
   onPointerAddMitigationSubLine,
+  draggingSubId,
+  mitigationDropEdge,
+  onMitigationGripPointerDown,
   embeddedInStepSection = false,
 }: CategorizedRiskGroupsProps) {
-  const rootRef = useRef<HTMLDivElement>(null);
-  const theadRef = useRef<HTMLDivElement>(null);
-
   const sections = useMemo((): Section[] => {
     return COLOR_GROUPS.flatMap((group) => {
       const risks = risksByColor[group.key] || [];
@@ -133,36 +146,17 @@ export default function CategorizedRiskGroups({
     });
   }, [sections, hiddenSet, categorizedRevealHidden]);
 
-  useLayoutEffect(() => {
-    const root = rootRef.current;
-    const thead = theadRef.current;
-    if (!root || !thead) return;
-    const sync = () => {
-      root.style.setProperty("--rm-mit-thead-h", `${thead.offsetHeight}px`);
-    };
-    sync();
-    const ro = new ResizeObserver(sync);
-    ro.observe(thead);
-    return () => {
-      ro.disconnect();
-      root.style.removeProperty("--rm-mit-thead-h");
-    };
-  }, [sectionsWithDisplay]);
-
   if (!anyRisks) return null;
 
   return (
     <div
-      ref={rootRef}
       className={cn(
-        "min-w-0 bg-rm-surface [--rm-mit-thead-h:3.25rem]",
+        "min-w-0 bg-rm-well",
         embeddedInStepSection
           ? "mb-0 rounded-t-none rounded-b-md border border-x-0 border-b border-rm-border border-t border-rm-border"
           : "mb-3.5 rounded-md border border-rm-border",
       )}
     >
-      <MitigationsTableHeaderRow ref={theadRef} />
-
       {sectionsWithDisplay.map(
         ({ group, risks, displayRisks, hiddenInGroupCount }, sectionIndex) => {
           const isCollapsed = collapsed[group.key];
@@ -170,7 +164,7 @@ export default function CategorizedRiskGroups({
           return (
             <section
               key={group.key}
-              className={sectionIndex > 0 ? "border-t border-rm-border" : undefined}
+              className={sectionIndex > 0 ? "border-t border-rm-divider" : undefined}
             >
               <div
                 role="button"
@@ -185,15 +179,13 @@ export default function CategorizedRiskGroups({
                     setCollapsed((c) => ({ ...c, [group.key]: !c[group.key] }));
                   }
                 }}
-                // Sticks below the (md+ only) sticky title bar +
-                // mitigations column-header row. `--rm-topbar-h`
-                // falls back to 0px below md.
-                style={{
-                  top: "calc(var(--rm-mit-thead-h) + var(--rm-topbar-h, 0px))",
-                }}
+                // Sticks below the (md+ only) sticky title bar.
+                // `--rm-topbar-h` falls back to 0px below md.
                 className={cn(
-                  "sticky z-20 flex w-full cursor-pointer select-none items-center justify-between gap-3 border-b border-rm-border px-3 py-2 shadow-[0_1px_0_rgba(0,0,0,0.03)]",
-                  GROUP_HEADER_SATURATED_CLASS[group.key],
+                  // Solid well background so cards scrolling under the
+                  // sticky label don't show through it.
+                  "sticky top-[var(--rm-topbar-h,0px)] z-20 flex w-full cursor-pointer select-none items-center justify-between gap-3 bg-rm-well px-3 pt-3 pb-2",
+                  GROUP_LABEL_TEXT_CLASS[group.key],
                 )}
               >
                 <div className="flex min-w-0 flex-1 items-center gap-1.5">
@@ -205,13 +197,13 @@ export default function CategorizedRiskGroups({
                   <span className="min-w-0 truncate text-xs font-semibold uppercase tracking-wide sm:text-sm">
                     {group.label}
                   </span>
-                  <span className="shrink-0 text-xs opacity-85 sm:text-sm">
+                  <span className="shrink-0 text-xs text-rm-muted-2 sm:text-sm">
                     ({risks.length})
                   </span>
                 </div>
                 <div className="flex max-w-[min(100%,20rem)] shrink-0 flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-2">
                   {group.key === "green" && isCollapsed ? (
-                    <span className="max-w-[min(100%,12rem)] text-right text-[11px] font-normal normal-case leading-snug tracking-normal text-rm-ink/70 sm:text-xs">
+                    <span className="max-w-[min(100%,12rem)] text-right text-[11px] font-normal normal-case leading-snug tracking-normal text-rm-muted-2 sm:text-xs">
                       Hidden by default. Click to show.
                     </span>
                   ) : null}
@@ -219,30 +211,25 @@ export default function CategorizedRiskGroups({
               </div>
 
               {!isCollapsed && (
-                <div className="bg-rm-surface px-0 pb-2">
-                  {displayRisks.map((r, i) => {
-                    const reduce = r.line.reduce || [];
-                    const prepare = r.line.prepare || [];
+                <div className="space-y-2 px-3 pb-3">
+                  {displayRisks.map((r) => {
                     const rowKey = categorizedRiskRowKey(r.cellKey, r.line.id);
                     const isMarkedHidden = hiddenSet.has(rowKey);
                     const dimHiddenButRevealed = isMarkedHidden && reveal;
                     return (
                       <div
                         key={r.line.id}
-                        className={[
-                          "group/riskrow grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] items-start gap-4 px-3 py-2",
-                          dimHiddenButRevealed ? "bg-rm-surface-2" : GROUP_HEADER_CLASS[group.key],
-                          i === 0 ? "" : "border-t border-rm-divider",
-                        ].join(" ")}
+                        // The card's left stripe is the only place the tier
+                        // color repeats, so it stays visible on every risk
+                        // after the section label has scrolled away.
+                        className={cn(
+                          "group/riskrow rounded-r-md border-l-4 bg-rm-surface px-3 pt-2 pb-3 shadow-[var(--rm-shadow-1)] sm:px-4",
+                          dimHiddenButRevealed
+                            ? "border-l-rm-border-strong"
+                            : GROUP_STRIPE_CLASS[group.key],
+                        )}
                       >
-                        <div
-                          className={[
-                            "min-w-0 rounded-[5px] px-1.5 py-1",
-                            dimHiddenButRevealed
-                              ? "border border-rm-border-strong bg-rm-surface-2"
-                              : "border border-rm-border bg-white/45 dark:bg-white/[0.04]",
-                          ].join(" ")}
-                        >
+                        <div className="min-w-0 rounded-[5px] px-1 transition-colors hover:bg-rm-surface-hover focus-within:bg-rm-surface-hover">
                           <div className="flex min-w-0 items-start gap-1">
                             <div className="min-w-0 flex-1">
                               <RiskLineRow
@@ -287,120 +274,49 @@ export default function CategorizedRiskGroups({
                             </TooltipProvider>
                           </div>
                         </div>
-                        <div
-                          role="presentation"
-                          data-testid={`mitigation-reduce-${r.line.id}`}
-                          className="group flex min-h-0 min-w-0 flex-col"
-                          onClick={(e) => {
-                            if (!isMitigationColumnEmptyBackgroundClick(e.target)) {
-                              return;
-                            }
-                            onPointerAddMitigationSubLine(
-                              r.cellKey,
-                              r.line.id,
-                              "reduce",
-                            );
-                          }}
-                        >
-                          <div className="min-w-0 flex-1">
-                            {reduce.map((s, j) => (
-                              <MitigationLineRow
-                                key={s.id}
-                                subLine={s}
-                                cellKey={r.cellKey}
-                                parentLineId={r.line.id}
-                                subType="reduce"
-                                placeholder={j === 0 ? "Start typing" : undefined}
-                                onChange={onChangeSub}
-                                onKeyDown={onSubKeyDown}
-                                onToggleStar={onToggleStar}
-                              />
-                            ))}
-                          </div>
-                          <div
-                            className={[
-                              "mt-0.5 flex shrink-0 justify-start",
-                              POINTER_ADD_ROW_HOVER_CLASSES,
-                            ].join(" ")}
-                          >
-                            <PointerAddLineButton
-                              ariaLabel="Add another reduce mitigation"
-                              onTrigger={() =>
-                                onPointerAddMitigationSubLine(
-                                  r.cellKey,
-                                  r.line.id,
-                                  "reduce",
-                                )
+                        {/* Each risk carries its own copy of the two questions,
+                            so the prompt is always beside the list it heads.
+                            Side by side from sm up, stacked below that. */}
+                        {/* From sm up the columns share two rows through
+                            subgrid, so when one question wraps to two lines
+                            both lists still start at the same height. */}
+                        <div className="mt-1.5 grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2 sm:grid-rows-[auto_auto] sm:gap-y-0">
+                          {(["reduce", "prepare"] as const).map((subType) => (
+                            <MitigationColumn
+                              key={subType}
+                              subType={subType}
+                              line={r.line}
+                              cellKey={r.cellKey}
+                              onChangeSub={onChangeSub}
+                              onSubKeyDown={onSubKeyDown}
+                              onToggleStar={onToggleStar}
+                              onPointerAddMitigationSubLine={
+                                onPointerAddMitigationSubLine
+                              }
+                              draggingSubId={draggingSubId}
+                              mitigationDropEdge={mitigationDropEdge}
+                              onMitigationGripPointerDown={
+                                onMitigationGripPointerDown
                               }
                             />
-                          </div>
-                        </div>
-                        <div
-                          role="presentation"
-                          data-testid={`mitigation-prepare-${r.line.id}`}
-                          className="group flex min-h-0 min-w-0 flex-col"
-                          onClick={(e) => {
-                            if (!isMitigationColumnEmptyBackgroundClick(e.target)) {
-                              return;
-                            }
-                            onPointerAddMitigationSubLine(
-                              r.cellKey,
-                              r.line.id,
-                              "prepare",
-                            );
-                          }}
-                        >
-                          <div className="min-w-0 flex-1">
-                            {prepare.map((s, j) => (
-                              <MitigationLineRow
-                                key={s.id}
-                                subLine={s}
-                                cellKey={r.cellKey}
-                                parentLineId={r.line.id}
-                                subType="prepare"
-                                placeholder={j === 0 ? "Start typing" : undefined}
-                                onChange={onChangeSub}
-                                onKeyDown={onSubKeyDown}
-                                onToggleStar={onToggleStar}
-                              />
-                            ))}
-                          </div>
-                          <div
-                            className={[
-                              "mt-0.5 flex shrink-0 justify-start",
-                              POINTER_ADD_ROW_HOVER_CLASSES,
-                            ].join(" ")}
-                          >
-                            <PointerAddLineButton
-                              ariaLabel="Add another prepare mitigation"
-                              onTrigger={() =>
-                                onPointerAddMitigationSubLine(
-                                  r.cellKey,
-                                  r.line.id,
-                                  "prepare",
-                                )
-                              }
-                            />
-                          </div>
+                          ))}
                         </div>
                       </div>
                     );
                   })}
                   {hiddenInGroupCount > 0 ? (
-                    <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] items-start gap-4 bg-rm-surface-2 px-3 pt-1 pb-2">
-                      <div className="min-w-0">
-                        <button
-                          type="button"
-                          className="rounded-sm px-1 py-0.5 text-left text-[11px] font-medium text-rm-ink underline decoration-rm-muted underline-offset-2 hover:bg-rm-surface-hover hover:text-rm-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rm-ring sm:text-xs"
-                          aria-pressed={reveal}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onToggleCategorizedRevealHidden(group.key);
-                          }}
-                        >
-                          {reveal ? "Hide hidden risks" : "Show hidden risks"}
-                        </button>
-                      </div>
+                    <div className="pt-1">
+                      <button
+                        type="button"
+                        className="rounded-sm px-1 py-0.5 text-left text-[11px] font-medium text-rm-ink underline decoration-rm-muted underline-offset-2 hover:bg-rm-surface-hover hover:text-rm-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rm-ring sm:text-xs"
+                        aria-pressed={reveal}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onToggleCategorizedRevealHidden(group.key);
+                        }}
+                      >
+                        {reveal ? "Hide hidden risks" : "Show hidden risks"}
+                      </button>
                     </div>
                   ) : null}
                 </div>
@@ -409,6 +325,100 @@ export default function CategorizedRiskGroups({
           );
         },
       )}
+    </div>
+  );
+}
+
+type MitigationColumnProps = Pick<
+  CategorizedRiskGroupsProps,
+  | "onChangeSub"
+  | "onSubKeyDown"
+  | "onToggleStar"
+  | "onPointerAddMitigationSubLine"
+  | "draggingSubId"
+  | "mitigationDropEdge"
+  | "onMitigationGripPointerDown"
+> & {
+  subType: "reduce" | "prepare";
+  line: GridLine;
+  cellKey: CellKey;
+};
+
+function MitigationColumn({
+  subType,
+  line,
+  cellKey,
+  onChangeSub,
+  onSubKeyDown,
+  onToggleStar,
+  onPointerAddMitigationSubLine,
+  draggingSubId,
+  mitigationDropEdge,
+  onMitigationGripPointerDown,
+}: MitigationColumnProps) {
+  const promptId = useId();
+  const list: MitigationListRef = { cellKey, parentLineId: line.id, subType };
+  const listKey = mitigationListKey(list);
+  const dropEdge =
+    mitigationDropEdge?.listKey === listKey ? mitigationDropEdge : null;
+  const subLines = line[subType] || [];
+  const last = subLines[subLines.length - 1];
+  // An empty trailing line already reads as the place to type (see
+  // MitigationLineRow), so the add box only shows once every line has text.
+  const showAddBox = !last || last.text !== "";
+  return (
+    <div
+      role="group"
+      aria-labelledby={promptId}
+      data-testid={`mitigation-${subType}-${line.id}`}
+      // The whole column, prompt included, is the drop zone for this list.
+      data-mitigation-list={listKey}
+      className="flex min-w-0 flex-col sm:row-span-2 sm:grid sm:grid-rows-subgrid"
+      onClick={(e) => {
+        if (!isMitigationColumnEmptyBackgroundClick(e.target)) return;
+        onPointerAddMitigationSubLine(cellKey, line.id, subType);
+      }}
+    >
+      <p
+        id={promptId}
+        className="mb-0.5 px-1 text-[13px] leading-snug text-rm-muted-2"
+      >
+        {MITIGATION_PROMPTS[subType]}
+      </p>
+      <div className="flex min-w-0 flex-col">
+        {subLines.map((s) => (
+          <MitigationLineRow
+            key={s.id}
+            subLine={s}
+            cellKey={cellKey}
+            parentLineId={line.id}
+            subType={subType}
+            placeholder="Add an idea"
+            onChange={onChangeSub}
+            onKeyDown={onSubKeyDown}
+            onToggleStar={onToggleStar}
+            isDragging={draggingSubId === s.id}
+            dropEdge={dropEdge?.rowId === s.id ? dropEdge.edge : null}
+            onGripPointerDown={onMitigationGripPointerDown}
+          />
+        ))}
+        {showAddBox ? (
+          <PointerAddLineButton
+            ariaLabel={
+              subType === "reduce"
+                ? "Add a way to reduce the likelihood"
+                : "Add a way to limit the harm"
+            }
+            onTrigger={() =>
+              onPointerAddMitigationSubLine(cellKey, line.id, subType)
+            }
+            className="mt-0.5 self-start text-[13px] font-normal text-rm-muted-2"
+          >
+            <Plus size={13} strokeWidth={2.25} className="shrink-0" aria-hidden />
+            <span>Add an idea</span>
+          </PointerAddLineButton>
+        ) : null}
+      </div>
     </div>
   );
 }
