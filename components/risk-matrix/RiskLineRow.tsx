@@ -28,9 +28,9 @@ const RiskLineRow = React.memo(function RiskLineRow({
         value={line.text}
         onChange={(e) => onChange(cellKey, line.id, e.target.value)}
         onKeyDown={(e) => onKeyDown(e, cellKey, line)}
-        // Medium weight: the risk is the heading its two mitigation
-        // lists sit under in the step 3 table.
-        className="py-0.5 pr-1.5 pl-0 text-[15px] font-medium"
+        // The risk is the heading its two mitigation lists sit under in
+        // the step 3 list, so it carries the weight, not a box.
+        className="px-0 py-1 text-base font-semibold"
       />
     </div>
   );

@@ -4,6 +4,8 @@ import {
   COLOR_GROUPS,
   COL_LABELS,
   GROUP_HEADER_CLASS,
+  GROUP_LABEL_TEXT_CLASS,
+  GROUP_STRIPE_CLASS,
   ROW_LABELS,
 } from "./constants";
 
@@ -39,6 +41,13 @@ describe("risk-matrix constants", () => {
   it("maps each group tone to a header background class", () => {
     for (const g of COLOR_GROUPS) {
       expect(GROUP_HEADER_CLASS[g.key]).toMatch(/^bg-rm-/);
+    }
+  });
+
+  it("gives each group tone a label text color and a card stripe", () => {
+    for (const g of COLOR_GROUPS) {
+      expect(GROUP_LABEL_TEXT_CLASS[g.key]).toBe(`text-rm-${g.key}-text`);
+      expect(GROUP_STRIPE_CLASS[g.key]).toBe(`border-l-rm-${g.key}-strong`);
     }
   });
 });

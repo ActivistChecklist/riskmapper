@@ -75,19 +75,22 @@ export const GROUP_HEADER_CLASS: Record<ColorGroupKey, string> = {
 };
 
 /**
- * Background + foreground for the COLLAPSIBLE SECTION HEADER row in
- * the mitigations table — the bar that introduces a group of risks
- * ("Highest risk · 3", etc). Same hue and saturation as the lighter
- * row backgrounds (`GROUP_HEADER_CLASS`) but a step darker so the
- * header reads as the "container" of the rows rather than blending
- * with them. Pairs with dark text — the colors aren't dark enough to
- * carry white type cleanly.
+ * Step 3 list: the tier's color appears in exactly two places, its label
+ * text and the stripe on each risk card. Everything else stays neutral so
+ * the tier, risk, prompt and mitigation levels don't compete.
  */
-export const GROUP_HEADER_SATURATED_CLASS: Record<ColorGroupKey, string> = {
-  red: "bg-rm-red-saturated text-rm-ink",
-  orange: "bg-rm-orange-saturated text-rm-ink",
-  yellow: "bg-rm-yellow-saturated text-rm-ink",
-  green: "bg-rm-green-saturated text-rm-ink",
+export const GROUP_LABEL_TEXT_CLASS: Record<ColorGroupKey, string> = {
+  red: "text-rm-red-text",
+  orange: "text-rm-orange-text",
+  yellow: "text-rm-yellow-text",
+  green: "text-rm-green-text",
+};
+
+export const GROUP_STRIPE_CLASS: Record<ColorGroupKey, string> = {
+  red: "border-l-rm-red-strong",
+  orange: "border-l-rm-orange-strong",
+  yellow: "border-l-rm-yellow-strong",
+  green: "border-l-rm-green-strong",
 };
 
 // Ordered from highest to lowest risk. Cells within a group are listed

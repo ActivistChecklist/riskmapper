@@ -51,22 +51,14 @@ const MitigationLineRow = React.memo(function MitigationLineRow({
   onToggleStar,
 }: MitigationLineRowProps) {
   const starred = subLine.starred;
-  const isEmpty = subLine.text.length === 0;
   return (
     <LineShell
       dataAttributes={{ "data-mitigation-row": "" }}
-      // Same empty/filled card treatment as the risk LineRow so the two
-      // line types feel like the same control. Filled mitigations adopt
-      // the pool grey (bg-rm-line) — gives a once-typed line a stronger
-      // visual presence than the previous near-white wash. Empty lines
-      // get a dashed outline so an unanswered question visibly asks for
-      // input. No drag-opacity here — mitigations don't drag.
-      className={cn(
-        "my-0.5",
-        isEmpty
-          ? "border-dashed border-rm-border-strong bg-transparent"
-          : "border-rm-border bg-rm-line",
-      )}
+      // No resting border or fill: mitigations are the lowest level of
+      // the step 3 hierarchy and read as plain text. LineShell's hover
+      // and focus treatment is what shows a line is editable. No drag-
+      // opacity here, mitigations don't drag.
+      className="my-0 border-transparent bg-transparent"
       leftAffordance={
         <TooltipProvider>
           <Tooltip>
