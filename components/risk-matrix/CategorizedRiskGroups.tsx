@@ -20,6 +20,11 @@ import {
 } from "./constants";
 import { cn } from "@/lib/utils";
 import {
+  mitigationListKey,
+  type MitigationListRef,
+} from "./useMitigationDrag";
+import type { InsertionEdge } from "./dropPosition";
+import {
   categorizedRiskRowKey,
   isMitigationColumnEmptyBackgroundClick,
 } from "./riskMatrixUtils";
@@ -72,6 +77,15 @@ export type CategorizedRiskGroupsProps = {
     parentLineId: string,
     subType: "reduce" | "prepare",
   ) => void;
+  /** Sub-line being dragged, dimmed in place while its preview follows the pointer. */
+  draggingSubId: string | null;
+  /** Insertion line for the current mitigation drag, keyed by its list. */
+  mitigationDropEdge: (InsertionEdge & { listKey: string }) | null;
+  onMitigationGripPointerDown: (
+    e: React.PointerEvent,
+    list: MitigationListRef,
+    subLine: SubLine,
+  ) => void;
   /** Tucked under a {@link StepSection} primary header — no outer top radius. */
   embeddedInStepSection?: boolean;
 };
@@ -93,6 +107,9 @@ export default function CategorizedRiskGroups({
   onSubKeyDown,
   onToggleStar,
   onPointerAddMitigationSubLine,
+  draggingSubId,
+  mitigationDropEdge,
+  onMitigationGripPointerDown,
   embeddedInStepSection = false,
 }: CategorizedRiskGroupsProps) {
   const sections = useMemo((): Section[] => {
@@ -276,6 +293,11 @@ export default function CategorizedRiskGroups({
                               onPointerAddMitigationSubLine={
                                 onPointerAddMitigationSubLine
                               }
+                              draggingSubId={draggingSubId}
+                              mitigationDropEdge={mitigationDropEdge}
+                              onMitigationGripPointerDown={
+                                onMitigationGripPointerDown
+                              }
                             />
                           ))}
                         </div>
@@ -313,6 +335,9 @@ type MitigationColumnProps = Pick<
   | "onSubKeyDown"
   | "onToggleStar"
   | "onPointerAddMitigationSubLine"
+  | "draggingSubId"
+  | "mitigationDropEdge"
+  | "onMitigationGripPointerDown"
 > & {
   subType: "reduce" | "prepare";
   line: GridLine;
@@ -327,8 +352,15 @@ function MitigationColumn({
   onSubKeyDown,
   onToggleStar,
   onPointerAddMitigationSubLine,
+  draggingSubId,
+  mitigationDropEdge,
+  onMitigationGripPointerDown,
 }: MitigationColumnProps) {
   const promptId = useId();
+  const list: MitigationListRef = { cellKey, parentLineId: line.id, subType };
+  const listKey = mitigationListKey(list);
+  const dropEdge =
+    mitigationDropEdge?.listKey === listKey ? mitigationDropEdge : null;
   const subLines = line[subType] || [];
   const last = subLines[subLines.length - 1];
   // An empty trailing line already reads as the place to type (see
@@ -339,6 +371,8 @@ function MitigationColumn({
       role="group"
       aria-labelledby={promptId}
       data-testid={`mitigation-${subType}-${line.id}`}
+      // The whole column, prompt included, is the drop zone for this list.
+      data-mitigation-list={listKey}
       className="flex min-w-0 flex-col sm:row-span-2 sm:grid sm:grid-rows-subgrid"
       onClick={(e) => {
         if (!isMitigationColumnEmptyBackgroundClick(e.target)) return;
@@ -363,6 +397,9 @@ function MitigationColumn({
             onChange={onChangeSub}
             onKeyDown={onSubKeyDown}
             onToggleStar={onToggleStar}
+            isDragging={draggingSubId === s.id}
+            dropEdge={dropEdge?.rowId === s.id ? dropEdge.edge : null}
+            onGripPointerDown={onMitigationGripPointerDown}
           />
         ))}
         {showAddBox ? (

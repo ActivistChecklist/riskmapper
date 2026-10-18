@@ -51,6 +51,11 @@ import {
   isNoopReorder,
   reorderAtDrop,
 } from "./dropPosition";
+import {
+  type MitigationDropTarget,
+  type MitigationListRef,
+  useMitigationDrag,
+} from "./useMitigationDrag";
 
 /** Stable across SSR and client — not derived from `useId()`. */
 const DEFAULT_EMPTY_POOL_LINE_ID = "rm-ln-i-0";
@@ -792,6 +797,56 @@ export function useRiskMatrix(options: UseRiskMatrixOptions = {}) {
     [],
   );
 
+  const moveSubLine = useCallback(
+    (from: MitigationListRef, subId: string, to: MitigationDropTarget) => {
+      setGrid((prev) => {
+        const sub = (prev[from.cellKey] || [])
+          .find((l) => l.id === from.parentLineId)
+          ?.[from.subType]?.find((s) => s.id === subId);
+        if (!sub) return prev;
+        const sameList =
+          from.cellKey === to.list.cellKey &&
+          from.parentLineId === to.list.parentLineId &&
+          from.subType === to.list.subType;
+        // Out of the source list (unless it's a reorder), then into the
+        // destination. The drag already clamps to the starred block;
+        // partitioning again keeps the invariant whatever the drop said.
+        const remove = (l: GridLine): GridLine =>
+          sameList || l.id !== from.parentLineId
+            ? l
+            : {
+                ...l,
+                [from.subType]: (l[from.subType] || []).filter(
+                  (s) => s.id !== subId,
+                ),
+              };
+        const insert = (l: GridLine): GridLine =>
+          l.id !== to.list.parentLineId
+            ? l
+            : {
+                ...l,
+                [to.list.subType]: partitionStarred(
+                  sameList
+                    ? reorderAtDrop(l[to.list.subType] || [], subId, to.beforeId)
+                    : insertAtDrop(l[to.list.subType] || [], sub, to.beforeId),
+                ),
+              };
+        const next = { ...prev };
+        next[from.cellKey] = (next[from.cellKey] || []).map(remove);
+        next[to.list.cellKey] = (next[to.list.cellKey] || []).map(insert);
+        return next;
+      });
+    },
+    [],
+  );
+
+  const {
+    mitigationDragState,
+    draggingSubId,
+    mitigationDropEdge,
+    onMitigationGripPointerDown,
+  } = useMitigationDrag({ grid, onMove: moveSubLine });
+
   const handleSubKeyDown = useCallback(
     (
       e: React.KeyboardEvent<HTMLTextAreaElement>,
@@ -1416,6 +1471,11 @@ export function useRiskMatrix(options: UseRiskMatrixOptions = {}) {
     updateSubText,
     handleSubKeyDown,
     toggleStar,
+    moveSubLine,
+    mitigationDragState,
+    draggingSubId,
+    mitigationDropEdge,
+    onMitigationGripPointerDown,
     notes,
     setNotes,
     getSnapshot,

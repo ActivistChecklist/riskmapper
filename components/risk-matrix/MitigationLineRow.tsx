@@ -1,8 +1,9 @@
 "use client";
 
 import React from "react";
-import { Star } from "lucide-react";
+import { GripVertical, Star } from "lucide-react";
 import type { CellKey, SubLine } from "./types";
+import type { MitigationListRef } from "./useMitigationDrag";
 import LineShell from "./LineShell";
 import {
   Tooltip,
@@ -38,6 +39,15 @@ export type MitigationLineRowProps = {
     subType: "reduce" | "prepare",
     subId: string,
   ) => void;
+  /** This line is being dragged; it dims in place under the preview. */
+  isDragging?: boolean;
+  /** Draws the drop insertion line on this edge of the row. */
+  dropEdge?: "before" | "after" | null;
+  onGripPointerDown?: (
+    e: React.PointerEvent,
+    list: MitigationListRef,
+    subLine: SubLine,
+  ) => void;
 };
 
 const MitigationLineRow = React.memo(function MitigationLineRow({
@@ -49,17 +59,48 @@ const MitigationLineRow = React.memo(function MitigationLineRow({
   onChange,
   onKeyDown,
   onToggleStar,
+  isDragging = false,
+  dropEdge = null,
+  onGripPointerDown,
 }: MitigationLineRowProps) {
   const starred = subLine.starred;
+  const draggable = subLine.text.length > 0 && Boolean(onGripPointerDown);
   return (
     <LineShell
-      dataAttributes={{ "data-mitigation-row": "" }}
+      dataAttributes={{ "data-mitigation-row": "", "data-sub-row-id": subLine.id }}
       // No resting border or fill: mitigations are the lowest level of
       // the step 3 hierarchy and read as plain text. LineShell's hover
       // and focus treatment is what shows a line is editable. No drag-
       // opacity here, mitigations don't drag.
-      className="my-0 border-transparent bg-transparent"
+      className={cn(
+        "group/mitrow my-0 border-transparent bg-transparent",
+        isDragging ? "opacity-35" : "opacity-100",
+        // Same insertion line as LineRow, centered in the gap between rows.
+        dropEdge &&
+          "relative before:pointer-events-none before:absolute before:-inset-x-px before:h-0.5 before:rounded-full before:bg-rm-ink",
+        dropEdge === "before" && "before:-top-0.5",
+        dropEdge === "after" && "before:-bottom-0.5",
+      )}
       leftAffordance={
+        <>
+        <span
+          aria-hidden
+          title={draggable ? "Drag to reorder" : undefined}
+          onPointerDown={(e) =>
+            draggable &&
+            onGripPointerDown?.(e, { cellKey, parentLineId, subType }, subLine)
+          }
+          className={cn(
+            // Hidden until the row is hovered on pointer devices so the
+            // list reads as plain text; always faintly visible on touch.
+            "flex w-[14px] shrink-0 items-center justify-center self-stretch select-none touch-none text-rm-ink",
+            draggable
+              ? "cursor-grab opacity-40 md:opacity-0 md:group-hover/mitrow:opacity-50"
+              : "pointer-events-none opacity-0",
+          )}
+        >
+          <GripVertical size={14} />
+        </span>
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -91,6 +132,7 @@ const MitigationLineRow = React.memo(function MitigationLineRow({
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
+        </>
       }
       textareaProps={{
         subLineId: subLine.id,

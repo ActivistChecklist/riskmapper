@@ -42,7 +42,11 @@ export default function DragPreviewLayer({ dragState }: DragPreviewLayerProps) {
       <div
         className={cn(
           "relative flex min-h-full items-start gap-0 p-0 sm:gap-0.5",
-          isCell ? "bg-white/55 dark:bg-white/[0.05]" : "bg-rm-line",
+          isCell
+            ? "bg-white/55 dark:bg-white/[0.05]"
+            : dragState.variant === "mitigation"
+              ? "bg-rm-surface"
+              : "bg-rm-line",
         )}
       >
         <span

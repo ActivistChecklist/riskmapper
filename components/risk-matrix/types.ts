@@ -36,8 +36,8 @@ export type DragState = {
   offsetY: number;
   width: number;
   height: number;
-  /** Matches `LineRow` pool vs matrix styling */
-  variant: "pool" | "cell";
+  /** Matches `LineRow` pool vs matrix styling, or a step 3 mitigation */
+  variant: "pool" | "cell" | "mitigation";
   /** Matrix cell background (only when `variant` is `"cell"`) */
   cellBgClass: string | null;
 };

@@ -78,6 +78,27 @@ export function isNoopReorder(
   return dropInsertIndex(rest, beforeId) === from;
 }
 
+/** The row edge an insertion line is drawn on; `rowId` null is an empty list. */
+export type InsertionEdge = { rowId: string | null; edge: "before" | "after" };
+
+/**
+ * Where to draw the insertion line for a drop into `lines` ahead of
+ * `beforeId`, ignoring whether the drop is a no-op. `lines` may still
+ * contain the dragged line.
+ */
+export function insertionEdge(
+  lines: readonly Line[],
+  draggedId: string,
+  beforeId: string | null,
+): InsertionEdge {
+  const rest = lines.filter((l) => l.id !== draggedId);
+  const at = dropInsertIndex(rest, beforeId);
+  if (at < rest.length) return { rowId: rest[at].id, edge: "before" };
+  const last = rest[rest.length - 1];
+  if (last) return { rowId: last.id, edge: "after" };
+  return { rowId: null, edge: "before" };
+}
+
 /**
  * Where to draw the insertion line for a drop into `lines`, or null when
  * the drop would not move anything. `lines` is the destination list as
@@ -95,12 +116,27 @@ export function dropIndicatorFor(
   ) {
     return null;
   }
+  return { loc: target.loc, ...insertionEdge(lines, draggedId, target.beforeId) };
+}
+
+/**
+ * `beforeId` adjusted so a dragged mitigation stays on its side of the
+ * destination list's starred block: a starred line can't drop below the
+ * first unstarred line, and an unstarred one can't drop above the last
+ * starred line. `lines` is the destination as rendered, and contains the
+ * dragged line only when it is a reorder within the same list.
+ */
+export function clampStarredBeforeId(
+  lines: readonly (Line & { starred: boolean })[],
+  draggedId: string,
+  draggedStarred: boolean,
+  beforeId: string | null,
+): string | null {
   const rest = lines.filter((l) => l.id !== draggedId);
-  const at = dropInsertIndex(rest, target.beforeId);
-  if (at < rest.length) {
-    return { loc: target.loc, rowId: rest[at].id, edge: "before" };
-  }
-  const last = rest[rest.length - 1];
-  if (last) return { loc: target.loc, rowId: last.id, edge: "after" };
-  return { loc: target.loc, rowId: null, edge: "before" };
+  const starredCount = rest.filter((l) => l.starred).length;
+  const at = dropInsertIndex(rest, beforeId);
+  const clamped = draggedStarred
+    ? Math.min(at, starredCount)
+    : Math.max(at, starredCount);
+  return clamped < rest.length ? rest[clamped].id : null;
 }

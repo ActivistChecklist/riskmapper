@@ -16,6 +16,7 @@ beforeAll(() => {
 function renderGroups(
   lines: GridLine[],
   onPointerAddMitigationSubLine = vi.fn(),
+  onMitigationGripPointerDown = vi.fn(),
 ) {
   render(
     <CategorizedRiskGroups
@@ -35,6 +36,9 @@ function renderGroups(
       onSubKeyDown={vi.fn()}
       onToggleStar={vi.fn()}
       onPointerAddMitigationSubLine={onPointerAddMitigationSubLine}
+      draggingSubId={null}
+      mitigationDropEdge={null}
+      onMitigationGripPointerDown={onMitigationGripPointerDown}
     />,
   );
   return onPointerAddMitigationSubLine;
@@ -81,5 +85,36 @@ describe("CategorizedRiskGroups per-risk prompts", () => {
     );
     expect(onAdd).toHaveBeenCalledTimes(1);
     expect(onAdd).toHaveBeenCalledWith("0-2", "r1", "reduce");
+  });
+
+  it("starts a drag from a filled line's grip but not an empty one's", () => {
+    const onGrip = vi.fn();
+    renderGroups(
+      [
+        {
+          id: "r1",
+          text: "Kettling",
+          reduce: [
+            { id: "m1", text: "Scout exits", starred: false },
+            { id: "m2", text: "", starred: false },
+          ],
+          prepare: [],
+        },
+      ],
+      vi.fn(),
+      onGrip,
+    );
+
+    const grip = (subId: string) =>
+      document.querySelector(`[data-sub-row-id="${subId}"] [title="Drag to reorder"]`);
+    expect(grip("m2")).toBeNull();
+    fireEvent.pointerDown(grip("m1")!);
+    expect(onGrip).toHaveBeenCalledTimes(1);
+    expect(onGrip.mock.calls[0][1]).toEqual({
+      cellKey: "0-2",
+      parentLineId: "r1",
+      subType: "reduce",
+    });
+    expect(onGrip.mock.calls[0][2]).toMatchObject({ id: "m1" });
   });
 });
