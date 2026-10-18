@@ -42,6 +42,7 @@ import {
   mergeHydratedGrid,
   normalizePoolLines,
 } from "./riskMatrixUtils";
+import { splitPastedLines, spliceLines } from "./pasteLines";
 import {
   beforeIdAtY,
   dropIndicatorFor,
@@ -1318,6 +1319,115 @@ export function useRiskMatrix(options: UseRiskMatrixOptions = {}) {
     [newOtherId],
   );
 
+  /**
+   * Pasting several lines into any entry box makes one entry per line.
+   * Attached once on the matrix root: paste bubbles, and the data-* id on
+   * the textarea says which list it belongs to.
+   */
+  const handlePaste = useCallback(
+    (e: React.ClipboardEvent<HTMLElement>) => {
+      const el = e.target;
+      if (!(el instanceof HTMLTextAreaElement)) return;
+      const split = splitPastedLines(
+        el.value,
+        el.selectionStart ?? 0,
+        el.selectionEnd ?? 0,
+        e.clipboardData.getData("text/plain"),
+      );
+      if (!split) return;
+      const { texts, caret } = split;
+
+      const lineId = el.dataset.lineId ?? el.dataset.riskLineId;
+      const subId = el.dataset.subLineId;
+      let attr: string;
+      let ids: string[];
+
+      if (lineId) {
+        const found = findLine(lineId);
+        if (found?.loc === "pool") {
+          ids = texts.slice(1).map(() => newLineId());
+          let next = normalizePoolLines(
+            spliceLines(poolRef.current, lineId, texts, (text, i) => ({
+              id: ids[i],
+              text,
+            })),
+          );
+          if (next[next.length - 1]?.text !== "") {
+            next = [...next, { id: newLineId(), text: "" }];
+          }
+          poolRef.current = next;
+          setPool(next);
+        } else if (found) {
+          const cellKey = found.loc;
+          ids = texts.slice(1).map(() => newLineId());
+          setGrid((prev) => ({
+            ...prev,
+            [cellKey]: spliceLines(prev[cellKey] || [], lineId, texts, (text, i) => ({
+              id: ids[i],
+              text,
+            })),
+          }));
+        } else if (otherActions.some((o) => o.id === lineId)) {
+          ids = texts.slice(1).map(() => newOtherId());
+          setOtherActions((prev) =>
+            spliceLines(prev, lineId, texts, (text, i) => ({ id: ids[i], text })),
+          );
+        } else {
+          return;
+        }
+        attr = el.dataset.lineId ? "data-line-id" : "data-risk-line-id";
+        ids = [lineId, ...ids];
+      } else if (subId) {
+        let parent: {
+          cellKey: CellKey;
+          parentId: string;
+          subType: "reduce" | "prepare";
+          starred: boolean;
+        } | null = null;
+        for (const [cellKey, lines] of Object.entries(grid)) {
+          for (const l of lines) {
+            for (const subType of ["reduce", "prepare"] as const) {
+              const orig = (l[subType] || []).find((s) => s.id === subId);
+              if (orig) {
+                parent = { cellKey, parentId: l.id, subType, starred: orig.starred };
+              }
+            }
+          }
+        }
+        if (!parent) return;
+        // New entries keep the star, so a list pasted into the actions
+        // panel stays in the actions panel.
+        const { cellKey, parentId, subType, starred } = parent;
+        const newIds = texts.slice(1).map(() => newSubLineId());
+        setGrid((prev) => ({
+          ...prev,
+          [cellKey]: (prev[cellKey] || []).map((l) =>
+            l.id !== parentId
+              ? l
+              : {
+                  ...l,
+                  [subType]: spliceLines(l[subType] || [], subId, texts, (text, i) => ({
+                    id: newIds[i],
+                    text,
+                    starred,
+                  })),
+                },
+          ),
+        }));
+        attr = "data-sub-line-id";
+        ids = [subId, ...newIds];
+      } else {
+        return;
+      }
+
+      e.preventDefault();
+      // Wait for the re-render so the caret lands in the updated text.
+      const lastId = ids[ids.length - 1];
+      requestAnimationFrame(() => focusByAttr(attr, lastId, caret));
+    },
+    [findLine, grid, otherActions, newLineId, newSubLineId, newOtherId, focusByAttr],
+  );
+
   const toggleCategorizedRiskHidden = useCallback(
     (cellKey: CellKey, lineId: string) => {
       const k = categorizedRiskRowKey(cellKey, lineId);
@@ -1394,6 +1504,7 @@ export function useRiskMatrix(options: UseRiskMatrixOptions = {}) {
     removeOtherAction,
     handleOtherKeyDown,
     handleOtherBlur,
+    handlePaste,
     hiddenCategorizedRiskKeys,
     categorizedRevealHidden,
     toggleCategorizedRiskHidden,

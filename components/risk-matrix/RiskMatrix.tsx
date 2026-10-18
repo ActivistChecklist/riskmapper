@@ -307,6 +307,7 @@ function RiskMatrixCanvas({ workspace: ws, cloud, remoteApplyRef }: CanvasProps)
         "mx-auto min-h-screen w-full max-w-[1320px] bg-rm-canvas px-4 py-5 font-sans text-rm-ink sm:px-6 sm:py-6 lg:px-8",
         m.dragState ? "touch-none rm-dragging-active" : "touch-auto",
       ].join(" ")}
+      onPaste={m.handlePaste}
     >
       <MatrixTopBar
         workspace={ws}
