@@ -4,9 +4,8 @@ import React, { useMemo } from "react";
 import { Copy, Star } from "lucide-react";
 import ActionRow from "./ActionRow";
 import OtherActionRow from "./OtherActionRow";
+import { groupActionsByTier, OTHER_ACTIONS_LABEL } from "./actionGroups";
 import {
-  ACTION_GROUP_LABEL,
-  COLOR_GROUPS,
   GROUP_LABEL_TEXT_CLASS,
   GROUP_STRIPE_CLASS,
   STEP_SECTION_ACTION_BUTTON_CLASS,
@@ -67,11 +66,7 @@ export default function ActionsAside({
   // Tier is the only context an action keeps: grouped under the tier's
   // label, in a card carrying its stripe, the same way step 3 shows risks.
   const actionsByTier = useMemo(
-    () =>
-      COLOR_GROUPS.flatMap((group) => {
-        const actions = allActions.filter((a) => a.groupTone === group.key);
-        return actions.length > 0 ? [{ group, actions }] : [];
-      }),
+    () => groupActionsByTier(allActions),
     [allActions],
   );
 
@@ -96,12 +91,12 @@ export default function ActionsAside({
   const listBody =
     allActions.length > 0 || otherActions.length > 0 ? (
       <div className="min-h-0 space-y-3 bg-rm-well px-2 pb-2 pt-2.5 sm:px-3">
-        {actionsByTier.map(({ group, actions }) => (
+        {actionsByTier.map(({ tone, label, actions }) => (
           <ActionGroup
-            key={group.key}
-            label={ACTION_GROUP_LABEL[group.key]}
-            labelClassName={GROUP_LABEL_TEXT_CLASS[group.key]}
-            stripeClassName={GROUP_STRIPE_CLASS[group.key]}
+            key={tone}
+            label={label}
+            labelClassName={GROUP_LABEL_TEXT_CLASS[tone]}
+            stripeClassName={GROUP_STRIPE_CLASS[tone]}
           >
             {actions.map((action) => (
               <ActionRow
@@ -115,7 +110,7 @@ export default function ActionsAside({
         ))}
         {otherActions.length > 0 ? (
           <ActionGroup
-            label="Other"
+            label={OTHER_ACTIONS_LABEL}
             labelClassName="text-rm-muted-2"
             stripeClassName="border-l-rm-border-strong"
           >

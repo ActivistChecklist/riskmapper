@@ -27,13 +27,13 @@ import type {
   LineLocation,
   OtherAction,
   PoolLine,
-  StarredAction,
   SubLine,
 } from "./types";
 import {
   handleListVerticalArrows,
   isArrowWithSelectionOrOsShortcut,
 } from "./listTextareaNav";
+import { starredActionsFromGrid } from "./actionGroups";
 import {
   applyPoolTextUpdate,
   categorizedRiskRowKey,
@@ -1242,43 +1242,7 @@ export function useRiskMatrix(options: UseRiskMatrixOptions = {}) {
     return result;
   }, [grid]);
 
-  const allActions = useMemo(() => {
-    const actions: StarredAction[] = [];
-    for (const group of COLOR_GROUPS) {
-      for (const cellKey of group.cells) {
-        const lines = grid[cellKey] || [];
-        for (const line of lines) {
-          const reduce = line.reduce || [];
-          const prepare = line.prepare || [];
-          for (const s of reduce) {
-            if (s.starred) {
-              actions.push({
-                subLine: s,
-                cellKey,
-                parentLineId: line.id,
-                subType: "reduce",
-                parentText: line.text,
-                groupTone: group.key,
-              });
-            }
-          }
-          for (const s of prepare) {
-            if (s.starred) {
-              actions.push({
-                subLine: s,
-                cellKey,
-                parentLineId: line.id,
-                subType: "prepare",
-                parentText: line.text,
-                groupTone: group.key,
-              });
-            }
-          }
-        }
-      }
-    }
-    return actions;
-  }, [grid]);
+  const allActions = useMemo(() => starredActionsFromGrid(grid), [grid]);
 
   const addOtherAction = useCallback(() => {
     setOtherActions((prev) => [...prev, { id: newOtherId(), text: "" }]);

@@ -84,7 +84,7 @@ describe("buildMatrixCsv", () => {
         "Medium",
         "High",
         "Phone seized at protest",
-        "Reduction",
+        "Reduce likelihood",
         "Leave phone at home",
         "Yes",
       ],
@@ -93,7 +93,7 @@ describe("buildMatrixCsv", () => {
         "Medium",
         "High",
         "Phone seized at protest",
-        "Preparation",
+        "Limit harm",
         "Full-disk encryption",
         "",
       ],
@@ -177,19 +177,25 @@ describe("buildWorksheetCsv", () => {
       ["Low likelihood"],
       [],
       ["━━ STEP 3 · MITIGATIONS (⭐ = an action you intend to take) ━━"],
+      ["🔴 HIGHEST RISK"],
+      ["🔴 Doxxing"],
       [
-        "Risk",
         "How can we reduce the likelihood of this happening?",
         "How can we limit the harm if it happens?",
       ],
-      ["🔴 HIGHEST RISK"],
-      ["🔴 Doxxing"],
+      [],
       ["🟠 HIGH RISK"],
-      ["🟠 Phone seized at protest", "⭐ Leave phone at home", "• Full-disk encryption"],
+      ["🟠 Phone seized at protest"],
+      [
+        "How can we reduce the likelihood of this happening?",
+        "How can we limit the harm if it happens?",
+      ],
+      ["⭐ Leave phone at home", "• Full-disk encryption"],
       [],
       ["━━ ⭐ ACTIONS ━━"],
-      ["⭐ Leave phone at home", "Reduction for 🟠 Phone seized at protest"],
-      ["Other actions"],
+      ["🟠 For high risks"],
+      ["⭐ Leave phone at home"],
+      ["Other"],
       ["• Set up a phone tree"],
       [],
       ["━━ NOTES ━━"],
@@ -211,7 +217,7 @@ describe("buildWorksheetCsv", () => {
     expect(medium?.[2]).toBe("🟡 Kettling\n🟡 Mass arrest");
   });
 
-  it("gives a risk as many rows as its longest mitigation column", () => {
+  it("puts each risk on its own row, its questions under it, then its ideas", () => {
     const grid = emptyGrid();
     grid["0-0"] = [
       {
@@ -227,10 +233,16 @@ describe("buildWorksheetCsv", () => {
     ];
     const rows = worksheet({ grid });
     const start = rows.findIndex((r) => r[0] === "🟡 Rain");
-    expect(rows.slice(start, start + 3)).toEqual([
-      ["🟡 Rain", "• Check forecast", "⭐ Ponchos"],
-      ["", "• Pick a covered spot"],
-      ["", "• Have a backup date"],
+    expect(rows.slice(start, start + 6)).toEqual([
+      ["🟡 Rain"],
+      [
+        "How can we reduce the likelihood of this happening?",
+        "How can we limit the harm if it happens?",
+      ],
+      ["• Check forecast", "⭐ Ponchos"],
+      ["• Pick a covered spot"],
+      ["• Have a backup date"],
+      [],
     ]);
   });
 

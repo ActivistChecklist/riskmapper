@@ -1,5 +1,12 @@
-import { escapeHtml } from "./actionsClipboard";
-import { CELL_BG_CLASSES, COLOR_GROUPS, COL_LABELS, ROW_LABELS } from "./constants";
+import { escapeHtml, formatAllForClipboardHtmlInner } from "./actionsClipboard";
+import { PROMPT_HEX, TIER_STRIPE_HEX, TIER_TEXT_HEX } from "./exportColors";
+import {
+  CELL_BG_CLASSES,
+  COLOR_GROUPS,
+  COL_LABELS,
+  MITIGATION_PROMPTS,
+  ROW_LABELS,
+} from "./constants";
 import { parseNotesMarkdown, type NotesBlock, type NotesInline } from "./notesMarkdown";
 import type {
   CellKey,
@@ -14,30 +21,11 @@ const HEX = {
   orange: "#f2d2b6",
   yellow: "#f1e6b8",
   green: "#d4ebd4",
-  redSat: "#e0a3a3",
-  orangeSat: "#e6bb98",
-  yellowSat: "#e4d398",
-  greenSat: "#b8d8b8",
   primary: "#0f7669",
   primaryFg: "#fafaf7",
   ink: "#1a1a1a",
   border: "#dadad6",
 };
-
-const TONE_TO_HEX: Record<"red" | "orange" | "yellow" | "green", string> = {
-  red: HEX.red,
-  orange: HEX.orange,
-  yellow: HEX.yellow,
-  green: HEX.green,
-};
-
-const TONE_TO_GROUP_HEX: Record<"red" | "orange" | "yellow" | "green", string> =
-  {
-    red: HEX.redSat,
-    orange: HEX.orangeSat,
-    yellow: HEX.yellowSat,
-    green: HEX.greenSat,
-  };
 
 const CLASS_TO_HEX: Record<string, string> = {
   "bg-rm-red": HEX.red,
@@ -162,42 +150,32 @@ function matrixHtml(grid: Record<CellKey, GridLine[]>): string {
   );
 }
 
+/**
+ * Step 3 laid out like the app: each tier's label in its color, then each
+ * risk as a block with a tier-colored stripe, the risk as its title, and
+ * its two questions side by side over their lists. The stripe is a filled
+ * table cell rather than a border because Google Docs and Word keep cell
+ * backgrounds on paste but often drop borders.
+ */
 function mitigationsHtml(grid: Record<CellKey, GridLine[]>): string {
-  const sections = COLOR_GROUPS.map((group) => {
-    const rows: { line: GridLine; cellKey: CellKey }[] = [];
-    for (const cellKey of group.cells) {
-      for (const line of grid[cellKey] || []) {
-        if (line.text.trim().length > 0) rows.push({ line, cellKey });
-      }
-    }
-    return { group, rows };
-  }).filter((s) => s.rows.length > 0);
+  const sections = COLOR_GROUPS.map((group) => ({
+    group,
+    risks: group.cells.flatMap((cellKey) =>
+      (grid[cellKey] || []).filter((l) => l.text.trim().length > 0),
+    ),
+  })).filter((s) => s.risks.length > 0);
 
   if (sections.length === 0) {
     return `<p style="margin:0.4em 0;color:#777;font-style:italic;">No risks placed in the matrix yet.</p>`;
   }
 
-  const head =
-    `<thead><tr>` +
-    [
-      "Risk",
-      "How can we reduce the likelihood of this happening?",
-      "How can we limit the harm if it happens?",
-    ]
-      .map(
-        (h) =>
-          `<th style="padding:6px 8px;border:1px solid ${HEX.border};background:#fafaf7;font-weight:500;text-align:left;font-size:12px;">${escapeHtml(h)}</th>`,
-      )
-      .join("") +
-    `</tr></thead>`;
-
-  const renderSubs = (subs: { id: string; text: string; starred: boolean }[]) => {
+  const renderSubs = (subs: { text: string; starred: boolean }[]) => {
     const nonEmpty = subs.filter((s) => s.text.trim().length > 0);
     if (nonEmpty.length === 0) return "&nbsp;";
     const items = nonEmpty
       .map(
         (s) =>
-          `<li style="margin:0 0 2px 0;list-style:none;">${
+          `<li style="margin:0 0 3px 0;list-style:none;">${
             s.starred ? "★ " : "• "
           }${escapeHtml(s.text)}</li>`,
       )
@@ -205,66 +183,48 @@ function mitigationsHtml(grid: Record<CellKey, GridLine[]>): string {
     return `<ul style="margin:0;padding:0;">${items}</ul>`;
   };
 
-  const body = sections
-    .map(({ group, rows }) => {
-      const headerRow =
-        `<tr><td colspan="3" bgcolor="${TONE_TO_GROUP_HEX[group.key]}" style="background-color:${TONE_TO_GROUP_HEX[group.key]};border:1px solid ${HEX.border};padding:5px 8px;font-weight:700;text-transform:uppercase;font-size:11px;letter-spacing:0.04em;">${escapeHtml(group.label)} (${rows.length})</td></tr>`;
-      const rowsHtml = rows
-        .map(({ line }) => {
-          const bg = TONE_TO_HEX[group.key];
-          const reduce = line.reduce ?? [];
-          const prepare = line.prepare ?? [];
-          return (
-            `<tr bgcolor="${bg}">` +
-            `<td bgcolor="${bg}" style="background-color:${bg};border:1px solid ${HEX.border};padding:5px;vertical-align:top;width:33%;">` +
-            `<div style="background:rgba(255,255,255,0.55);border:1px solid ${HEX.border};border-radius:3px;padding:3px 6px;font-size:12px;">${escapeHtml(line.text)}</div>` +
-            `</td>` +
-            `<td bgcolor="${bg}" style="background-color:${bg};border:1px solid ${HEX.border};padding:5px;vertical-align:top;font-size:12px;">${renderSubs(reduce)}</td>` +
-            `<td bgcolor="${bg}" style="background-color:${bg};border:1px solid ${HEX.border};padding:5px;vertical-align:top;font-size:12px;">${renderSubs(prepare)}</td>` +
-            `</tr>`
-          );
-        })
+  const cell = (content: string, extra = "") =>
+    `<td style="padding:2px 10px;vertical-align:top;width:50%;font-size:12px;${extra}">${content}</td>`;
+
+  return sections
+    .map(({ group, risks }) => {
+      const stripe = TIER_STRIPE_HEX[group.key];
+      const label =
+        `<p style="margin:0.9em 0 0.35em 0;font-size:11px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:${TIER_TEXT_HEX[group.key]};">` +
+        `${escapeHtml(group.label)} (${risks.length})</p>`;
+      const blocks = risks
+        .map(
+          (line) =>
+            `<table cellspacing="0" cellpadding="0" style="border-collapse:collapse;width:100%;margin:0 0 8px 0;">` +
+            `<tr>` +
+            `<td rowspan="3" bgcolor="${stripe}" style="background-color:${stripe};width:4px;padding:0;"></td>` +
+            `<td colspan="2" style="padding:6px 10px 3px 10px;font-weight:600;font-size:13px;">${escapeHtml(line.text)}</td>` +
+            `</tr>` +
+            `<tr>` +
+            cell(escapeHtml(MITIGATION_PROMPTS.reduce), `color:${PROMPT_HEX};font-size:11px;`) +
+            cell(escapeHtml(MITIGATION_PROMPTS.prepare), `color:${PROMPT_HEX};font-size:11px;`) +
+            `</tr>` +
+            `<tr>` +
+            cell(renderSubs(line.reduce ?? []), "padding-bottom:6px;") +
+            cell(renderSubs(line.prepare ?? []), "padding-bottom:6px;") +
+            `</tr>` +
+            `</table>`,
+        )
         .join("");
-      return headerRow + rowsHtml;
+      return label + blocks;
     })
     .join("");
-
-  return (
-    `<table cellspacing="0" cellpadding="0" style="border-collapse:collapse;border:1px solid ${HEX.border};margin:0.5em 0;width:100%;">` +
-    head +
-    `<tbody>${body}</tbody></table>`
-  );
 }
 
 function actionsHtml(
   starred: StarredAction[],
   otherActions: OtherAction[],
 ): string {
-  const others = otherActions.filter((o) => o.text.trim().length > 0);
-  if (starred.length === 0 && others.length === 0) {
-    return `<p style="margin:0.4em 0;color:#777;font-style:italic;">No starred actions yet.</p>`;
-  }
-  const starredItems = starred
-    .map((a) => {
-      const kind = a.subType === "reduce" ? "Reduce" : "Prepare";
-      const risk = a.parentText.trim() || "Untitled risk";
-      return (
-        `<li style="margin:0 0 0.4em 0;list-style:none;">` +
-        `<span>★ </span>` +
-        `<strong>${escapeHtml(a.subLine.text)}</strong>` +
-        ` <span style="color:#555;font-size:0.9em;">— ${escapeHtml(kind)} · ${escapeHtml(risk)}</span>` +
-        `</li>`
-      );
-    })
-    .join("");
-  const otherItems = others
-    .map(
-      (o) =>
-        `<li style="margin:0 0 0.3em 0;list-style:none;">• ${escapeHtml(o.text)}</li>`,
-    )
-    .join("");
-  const list = starredItems + otherItems;
-  return `<ul style="margin:0.4em 0;padding-left:0;">${list}</ul>`;
+  const inner = formatAllForClipboardHtmlInner(starred, otherActions);
+  return (
+    inner ||
+    `<p style="margin:0.4em 0;color:#777;font-style:italic;">No starred actions yet.</p>`
+  );
 }
 
 export type RichWorksheetArgs = {

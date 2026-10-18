@@ -1,7 +1,7 @@
-import { COL_LABELS, ROW_LABELS } from "./constants";
+import { COLOR_GROUPS, MITIGATION_PROMPTS } from "./constants";
 import { escapeMarkdownFetches } from "./markdownEscape";
-import { cellKeyToTone, prependToneCircle } from "./riskTone";
-import type { CellKey, GridLine, SubLine } from "./types";
+import { prependToneCircle } from "./riskTone";
+import type { CellKey, ColorGroupKey, GridLine, SubLine } from "./types";
 
 /** One line of text safe to use after `- ` (and optional ⭐) in a Markdown bullet. */
 function bulletLine(text: string): string {
@@ -24,7 +24,10 @@ function riskHeadingTitle(line: GridLine): string {
 }
 
 /** Markdown for one risk line’s mitigations, or null if none to export. */
-function formatRiskMitigationsBlock(line: GridLine, cellKey: CellKey): string | null {
+function formatRiskMitigationsBlock(
+  line: GridLine,
+  tone: ColorGroupKey,
+): string | null {
   const reduceArr = line.reduce ?? [];
   const prepareArr = line.prepare ?? [];
   const reduceBullets = reduceArr
@@ -35,45 +38,44 @@ function formatRiskMitigationsBlock(line: GridLine, cellKey: CellKey): string | 
     .filter((b): b is string => b != null);
   if (reduceBullets.length === 0 && prepareBullets.length === 0) return null;
 
-  const tone = cellKeyToTone(cellKey);
   const chunks: string[] = [
     `### ${prependToneCircle(riskHeadingTitle(line), tone)}`,
     "",
   ];
+  // The same two questions the app shows under each risk.
   if (reduceBullets.length > 0) {
-    chunks.push("**Reductions**", "");
+    chunks.push(`**${MITIGATION_PROMPTS.reduce}**`, "");
     for (const b of reduceBullets) chunks.push(b, "");
   }
   if (prepareBullets.length > 0) {
-    chunks.push("**Preparations**", "");
+    chunks.push(`**${MITIGATION_PROMPTS.prepare}**`, "");
     for (const b of prepareBullets) chunks.push(b, "");
   }
   return chunks.join("\n").replace(/\n+$/, "");
 }
 
 /**
- * Plain-text Markdown export of every non-empty mitigation and preparation,
- * grouped by matrix cell (likelihood × impact), then by risk.
+ * Plain-text Markdown export of every non-empty mitigation, laid out like
+ * step 3: grouped by risk tier (highest first), then by risk, with each
+ * risk's two questions as labels. Starred lines come first in each list
+ * because the app keeps them there.
  */
 export function formatAllMitigationsMarkdown(
   grid: Record<CellKey, GridLine[]>,
 ): string {
-  const cellSections: string[] = [];
-  for (let row = 0; row < 3; row++) {
-    for (let col = 0; col < 3; col++) {
-      const key = `${row}-${col}` as CellKey;
-      const lines = grid[key] ?? [];
-      const riskBlocks = lines
-        .map((line) => formatRiskMitigationsBlock(line, key))
-        .filter((b): b is string => b != null);
-      if (riskBlocks.length === 0) continue;
-      cellSections.push(
-        `## ${prependToneCircle(`${ROW_LABELS[row]} · ${COL_LABELS[col]}`, cellKeyToTone(key))}\n\n${riskBlocks.join("\n\n")}`,
-      );
-    }
+  const tierSections: string[] = [];
+  for (const group of COLOR_GROUPS) {
+    const riskBlocks = group.cells
+      .flatMap((cellKey) => grid[cellKey] ?? [])
+      .map((line) => formatRiskMitigationsBlock(line, group.key))
+      .filter((b): b is string => b != null);
+    if (riskBlocks.length === 0) continue;
+    tierSections.push(
+      `## ${prependToneCircle(group.label, group.key)}\n\n${riskBlocks.join("\n\n")}`,
+    );
   }
-  if (cellSections.length === 0) return "";
-  return `# All mitigations\n\n${cellSections.join("\n\n")}\n`;
+  if (tierSections.length === 0) return "";
+  return `# All mitigations\n\n${tierSections.join("\n\n")}\n`;
 }
 
 export function hasMitigationsMarkdownExport(

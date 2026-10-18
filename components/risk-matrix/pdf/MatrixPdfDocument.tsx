@@ -10,13 +10,19 @@ import {
   View,
 } from "@react-pdf/renderer";
 import {
+  groupActionsByTier,
+  OTHER_ACTIONS_LABEL,
+  starredActionsFromGrid,
+} from "../actionGroups";
+import {
   CELL_BG_CLASSES,
   COLOR_GROUPS,
   COL_LABELS,
+  MITIGATION_PROMPTS,
   ROW_LABELS,
-  type ColorGroup,
 } from "../constants";
-import type { CellKey, GridLine, OtherAction, StarredAction } from "../types";
+import { PROMPT_HEX, TIER_STRIPE_HEX, TIER_TEXT_HEX } from "../exportColors";
+import type { CellKey, GridLine, OtherAction, StarredAction, SubLine } from "../types";
 import type { RiskMatrixSnapshot } from "../matrixTypes";
 import {
   parseNotesMarkdown,
@@ -58,15 +64,12 @@ const COLORS = {
   borderFaint: "#efefec",
   helpBg: "#f4f4f0",
   cellTextBg: "rgba(255,255,255,0.55)",
-  zebra: "#f7f7f5",
+  // --rm-well: the recessed area step 3 cards sit on.
+  well: "#f4f4f1",
   red: "#eebcbc",
   orange: "#f2d2b6",
   yellow: "#f1e6b8",
   green: "#d4ebd4",
-  redSat: "#e0a3a3",
-  orangeSat: "#e6bb98",
-  yellowSat: "#e4d398",
-  greenSat: "#b8d8b8",
 };
 
 const CELL_BG_HEX: Record<string, string> = {
@@ -74,20 +77,6 @@ const CELL_BG_HEX: Record<string, string> = {
   "bg-rm-orange": COLORS.orange,
   "bg-rm-yellow": COLORS.yellow,
   "bg-rm-green": COLORS.green,
-};
-
-const GROUP_BG: Record<ColorGroup["key"], string> = {
-  red: COLORS.red,
-  orange: COLORS.orange,
-  yellow: COLORS.yellow,
-  green: COLORS.green,
-};
-
-const GROUP_HEADER_BG: Record<ColorGroup["key"], string> = {
-  red: COLORS.redSat,
-  orange: COLORS.orangeSat,
-  yellow: COLORS.yellowSat,
-  green: COLORS.greenSat,
 };
 
 const styles = StyleSheet.create({
@@ -274,68 +263,50 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     lineHeight: 1.3,
   },
-  // Mitigations table
-  mitWrap: {
-    borderWidth: 1,
-    borderColor: COLORS.borderSoft,
-  },
-  mitColHeader: {
-    flexDirection: "row",
-    backgroundColor: "#ffffff",
-    borderBottomWidth: 1,
-    borderColor: COLORS.borderSoft,
+  // Step 3, laid out like the app: a recessed body with each tier's label
+  // in its color and each risk as a white card with a tier stripe.
+  mitBody: {
+    backgroundColor: COLORS.well,
     paddingVertical: 6,
-    paddingHorizontal: 6,
-  },
-  mitColHeaderCell: {
-    flex: 1,
-    fontSize: 9,
-    fontWeight: 500,
-    paddingHorizontal: 4,
-  },
-  mitGroupHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 5,
     paddingHorizontal: 8,
-    borderTopWidth: 1,
-    borderColor: COLORS.borderSoft,
   },
-  mitGroupLabel: {
-    fontSize: 9,
+  tierLabel: {
+    fontSize: 8.5,
     fontWeight: 700,
     letterSpacing: 0.6,
     textTransform: "uppercase",
-    flex: 1,
+    marginTop: 6,
+    marginBottom: 4,
   },
-  mitGroupCount: {
-    fontSize: 9,
-    opacity: 0.85,
+  tierCount: {
+    color: PROMPT_HEX,
+    fontWeight: 400,
   },
-  mitRow: {
+  riskCard: {
+    backgroundColor: "#ffffff",
+    borderLeftWidth: 3,
+    paddingVertical: 6,
+    paddingHorizontal: 9,
+    marginBottom: 5,
+  },
+  riskTitle: {
+    fontSize: 10,
+    fontWeight: 700,
+    lineHeight: 1.3,
+    marginBottom: 4,
+  },
+  mitCols: {
     flexDirection: "row",
-    paddingVertical: 5,
-    paddingHorizontal: 6,
-    borderTopWidth: 1,
-    borderColor: COLORS.borderFaint,
-    alignItems: "flex-start",
+    gap: 12,
   },
-  mitRowZebra: {
-    backgroundColor: COLORS.zebra,
-  },
-  mitRiskBox: {
-    flex: 1,
-    padding: 4,
-    backgroundColor: "rgba(255,255,255,0.45)",
-    borderWidth: 1,
-    borderColor: COLORS.borderSoft,
-    borderRadius: 3,
-    marginRight: 6,
-  },
-  mitRiskText: { fontSize: 9, lineHeight: 1.35 },
   mitCol: {
     flex: 1,
-    paddingHorizontal: 4,
+  },
+  mitPrompt: {
+    fontSize: 8,
+    color: PROMPT_HEX,
+    lineHeight: 1.3,
+    marginBottom: 2,
   },
   mitSubItem: {
     flexDirection: "row",
@@ -385,13 +356,20 @@ const styles = StyleSheet.create({
     opacity: 0.95,
   },
   actionsBody: {
+    backgroundColor: COLORS.well,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  actionGroup: {
     backgroundColor: "#ffffff",
-    paddingVertical: 6,
-    paddingHorizontal: 10,
+    borderLeftWidth: 3,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    marginBottom: 5,
   },
   actionItem: {
     flexDirection: "row",
-    paddingVertical: 4,
+    paddingVertical: 3,
     gap: 6,
     alignItems: "flex-start",
   },
@@ -407,11 +385,6 @@ const styles = StyleSheet.create({
   actionText: {
     fontSize: 10,
     lineHeight: 1.35,
-  },
-  actionContext: {
-    fontSize: 8,
-    marginTop: 1,
-    opacity: 0.7,
   },
   actionBullet: {
     fontSize: 10,
@@ -625,169 +598,109 @@ function MatrixGrid({ grid }: { grid: RiskMatrixSnapshot["grid"] }) {
   );
 }
 
-type RiskRow = { line: GridLine; cellKey: CellKey };
-
-function computeRisksByColor(
-  grid: RiskMatrixSnapshot["grid"],
-): Record<ColorGroup["key"], RiskRow[]> {
-  const out = {
-    red: [] as RiskRow[],
-    orange: [] as RiskRow[],
-    yellow: [] as RiskRow[],
-    green: [] as RiskRow[],
-  };
-  for (const group of COLOR_GROUPS) {
-    for (const cellKey of group.cells) {
-      for (const line of grid[cellKey] || []) {
-        if (line.text.trim().length > 0) {
-          out[group.key].push({ line, cellKey });
-        }
-      }
-    }
-  }
-  return out;
+function nonEmpty(subs: SubLine[] | undefined): SubLine[] {
+  return (subs || []).filter((s) => s.text.trim().length > 0);
 }
 
-function computeStarredActions(
-  grid: RiskMatrixSnapshot["grid"],
-): StarredAction[] {
-  const actions: StarredAction[] = [];
-  for (const group of COLOR_GROUPS) {
-    for (const cellKey of group.cells) {
-      for (const line of grid[cellKey] || []) {
-        for (const s of line.reduce || []) {
-          if (s.starred && s.text.trim().length > 0) {
-            actions.push({
-              subLine: s,
-              cellKey,
-              parentLineId: line.id,
-              subType: "reduce",
-              parentText: line.text,
-              groupTone: group.key,
-            });
-          }
-        }
-        for (const s of line.prepare || []) {
-          if (s.starred && s.text.trim().length > 0) {
-            actions.push({
-              subLine: s,
-              cellKey,
-              parentLineId: line.id,
-              subType: "prepare",
-              parentText: line.text,
-              groupTone: group.key,
-            });
-          }
-        }
-      }
-    }
-  }
-  return actions;
+function SubList({ subs }: { subs: SubLine[] }) {
+  if (subs.length === 0) return <Text style={styles.emptyText}> </Text>;
+  return (
+    <>
+      {subs.map((s) => (
+        <View key={s.id} style={styles.mitSubItem}>
+          <View style={styles.mitSubMarker}>
+            {s.starred ? (
+              <StarIcon size={9} />
+            ) : (
+              <Text style={styles.mitSubBullet}>•</Text>
+            )}
+          </View>
+          <Text style={styles.mitSubText}>{s.text}</Text>
+        </View>
+      ))}
+    </>
+  );
 }
 
-function MitigationsTable({ grid }: { grid: RiskMatrixSnapshot["grid"] }) {
-  const risksByColor = computeRisksByColor(grid);
-  const sections = COLOR_GROUPS.flatMap((group) => {
-    const rows = risksByColor[group.key];
-    if (!rows.length) return [];
-    return [{ group, rows }];
-  });
+function RiskCard({ line, stripe }: { line: GridLine; stripe: string }) {
+  return (
+    <View style={[styles.riskCard, { borderLeftColor: stripe }]} wrap={false}>
+      <Text style={styles.riskTitle}>{line.text}</Text>
+      <View style={styles.mitCols}>
+        {(["reduce", "prepare"] as const).map((subType) => (
+          <View key={subType} style={styles.mitCol}>
+            <Text style={styles.mitPrompt}>{MITIGATION_PROMPTS[subType]}</Text>
+            <SubList subs={nonEmpty(line[subType])} />
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function MitigationsSection({ grid }: { grid: RiskMatrixSnapshot["grid"] }) {
+  const sections = COLOR_GROUPS.map((group) => ({
+    group,
+    risks: group.cells.flatMap((cellKey) =>
+      (grid[cellKey] || []).filter((l) => l.text.trim().length > 0),
+    ),
+  })).filter((s) => s.risks.length > 0);
 
   if (sections.length === 0) {
     return (
       <Text style={styles.emptyText}>
-        No risks placed in the matrix yet — drag from the pool to start
+        No risks placed in the matrix yet. Drag from the pool to start
         brainstorming mitigations.
       </Text>
     );
   }
 
   return (
-    <View style={styles.mitWrap}>
-      <View style={styles.mitColHeader}>
-        <Text style={styles.mitColHeaderCell}>Risk</Text>
-        <Text style={styles.mitColHeaderCell}>
-          How can we reduce the likelihood of this happening?
-        </Text>
-        <Text style={styles.mitColHeaderCell}>
-          How can we limit the harm if it happens?
-        </Text>
-      </View>
-      {sections.map(({ group, rows }) => (
-        <View key={group.key} wrap={false}>
-          <View
-            style={[
-              styles.mitGroupHeader,
-              { backgroundColor: GROUP_HEADER_BG[group.key] },
-            ]}
+    <View style={styles.mitBody}>
+      {sections.map(({ group, risks }) => (
+        <View key={group.key}>
+          {/* Keep the label on the same page as its first card. */}
+          <Text
+            style={[styles.tierLabel, { color: TIER_TEXT_HEX[group.key] }]}
+            minPresenceAhead={60}
           >
-            <Text style={styles.mitGroupLabel}>{group.label}</Text>
-            <Text style={styles.mitGroupCount}>({rows.length})</Text>
-          </View>
-          {rows.map(({ line, cellKey }) => {
-            const reduce = (line.reduce || []).filter(
-              (s) => s.text.trim().length > 0,
-            );
-            const prepare = (line.prepare || []).filter(
-              (s) => s.text.trim().length > 0,
-            );
-            return (
-              <View
-                key={`${cellKey}:${line.id}`}
-                style={[
-                  styles.mitRow,
-                  { backgroundColor: GROUP_BG[group.key] },
-                ]}
-                wrap={false}
-              >
-                <View style={styles.mitRiskBox}>
-                  <Text style={styles.mitRiskText}>{line.text}</Text>
-                </View>
-                <View style={styles.mitCol}>
-                  {reduce.length === 0 ? (
-                    <Text style={styles.emptyText}> </Text>
-                  ) : (
-                    reduce.map((s) => (
-                      <View key={s.id} style={styles.mitSubItem}>
-                        <View style={styles.mitSubMarker}>
-                          {s.starred ? (
-                            <StarIcon size={9} />
-                          ) : (
-                            <Text style={styles.mitSubBullet}>•</Text>
-                          )}
-                        </View>
-                        <Text style={styles.mitSubText}>{s.text}</Text>
-                      </View>
-                    ))
-                  )}
-                </View>
-                <View style={styles.mitCol}>
-                  {prepare.length === 0 ? (
-                    <Text style={styles.emptyText}> </Text>
-                  ) : (
-                    prepare.map((s) => (
-                      <View key={s.id} style={styles.mitSubItem}>
-                        <View style={styles.mitSubMarker}>
-                          {s.starred ? (
-                            <StarIcon size={9} />
-                          ) : (
-                            <Text style={styles.mitSubBullet}>•</Text>
-                          )}
-                        </View>
-                        <Text style={styles.mitSubText}>{s.text}</Text>
-                      </View>
-                    ))
-                  )}
-                </View>
-              </View>
-            );
-          })}
+            {group.label} <Text style={styles.tierCount}>({risks.length})</Text>
+          </Text>
+          {risks.map((line) => (
+            <RiskCard
+              key={line.id}
+              line={line}
+              stripe={TIER_STRIPE_HEX[group.key]}
+            />
+          ))}
         </View>
       ))}
     </View>
   );
 }
 
+function ActionGroup({
+  label,
+  labelColor,
+  stripe,
+  children,
+}: {
+  label: string;
+  labelColor: string;
+  stripe: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <View wrap={false}>
+      <Text style={[styles.tierLabel, { color: labelColor }]}>{label}</Text>
+      <View style={[styles.actionGroup, { borderLeftColor: stripe }]}>
+        {children}
+      </View>
+    </View>
+  );
+}
+
+/** Same layout as the Actions panel: grouped by tier, no source risk. */
 function ActionsPanel({
   starred,
   otherActions,
@@ -796,12 +709,13 @@ function ActionsPanel({
   otherActions: OtherAction[];
 }) {
   const others = otherActions.filter((o) => o.text.trim().length > 0);
+  const tiers = groupActionsByTier(starred);
   const hasContent = starred.length > 0 || others.length > 0;
   const total = starred.length + others.length;
 
   return (
-    <View style={styles.actionsCard} wrap={false}>
-      <View style={styles.actionsHeader}>
+    <View style={styles.actionsCard}>
+      <View style={styles.actionsHeader} wrap={false} minPresenceAhead={60}>
         <View style={styles.actionMarker}>
           <StarIcon size={11} color={COLORS.primaryFg} />
         </View>
@@ -816,31 +730,44 @@ function ActionsPanel({
           </Text>
         ) : (
           <>
-            {starred.map((a) => (
-              <View
-                key={`${a.cellKey}-${a.parentLineId}-${a.subType}-${a.subLine.id}`}
-                style={styles.actionItem}
+            {tiers.map(({ tone, label, actions }) => (
+              <ActionGroup
+                key={tone}
+                label={label}
+                labelColor={TIER_TEXT_HEX[tone]}
+                stripe={TIER_STRIPE_HEX[tone]}
               >
-                <View style={styles.actionMarker}>
-                  <StarIcon size={11} />
-                </View>
-                <View style={styles.actionTextWrap}>
-                  <Text style={styles.actionText}>{a.subLine.text}</Text>
-                  <Text style={styles.actionContext}>
-                    {a.subType === "reduce" ? "Reduce" : "Prepare"} ·{" "}
-                    {a.parentText.trim() || "(no risk text)"}
-                  </Text>
-                </View>
-              </View>
+                {actions.map((a) => (
+                  <View
+                    key={`${a.cellKey}-${a.parentLineId}-${a.subType}-${a.subLine.id}`}
+                    style={styles.actionItem}
+                  >
+                    <View style={styles.actionMarker}>
+                      <StarIcon size={11} />
+                    </View>
+                    <View style={styles.actionTextWrap}>
+                      <Text style={styles.actionText}>{a.subLine.text}</Text>
+                    </View>
+                  </View>
+                ))}
+              </ActionGroup>
             ))}
-            {others.map((o) => (
-              <View key={o.id} style={styles.actionItem}>
-                <Text style={styles.actionBullet}>•</Text>
-                <View style={styles.actionTextWrap}>
-                  <Text style={styles.actionText}>{o.text}</Text>
-                </View>
-              </View>
-            ))}
+            {others.length > 0 ? (
+              <ActionGroup
+                label={tiers.length > 0 ? OTHER_ACTIONS_LABEL : ""}
+                labelColor={PROMPT_HEX}
+                stripe={COLORS.border}
+              >
+                {others.map((o) => (
+                  <View key={o.id} style={styles.actionItem}>
+                    <Text style={styles.actionBullet}>•</Text>
+                    <View style={styles.actionTextWrap}>
+                      <Text style={styles.actionText}>{o.text}</Text>
+                    </View>
+                  </View>
+                ))}
+              </ActionGroup>
+            ) : null}
           </>
         )}
       </View>
@@ -940,7 +867,10 @@ export type MatrixPdfDocumentProps = {
 };
 
 export function MatrixPdfDocument({ title, snapshot }: MatrixPdfDocumentProps) {
-  const starred = computeStarredActions(snapshot.grid);
+  // Starred lines with no text have nothing to print.
+  const starred = starredActionsFromGrid(snapshot.grid).filter(
+    (a) => a.subLine.text.trim().length > 0,
+  );
 
   return (
     <Document title={title || "Risk matrix"}>
@@ -998,7 +928,7 @@ export function MatrixPdfDocument({ title, snapshot }: MatrixPdfDocumentProps) {
             title="Brainstorm ways you can prepare for these risks. Star the items you intend to act on."
           />
           <View style={[styles.stepBody, { padding: 0 }]}>
-            <MitigationsTable grid={snapshot.grid} />
+            <MitigationsSection grid={snapshot.grid} />
           </View>
         </View>
         <ActionsPanel

@@ -1,5 +1,7 @@
-import { prependToneCircle } from "./riskTone";
+import { groupActionsByTier, OTHER_ACTIONS_LABEL } from "./actionGroups";
+import { PROMPT_HEX, TIER_STRIPE_HEX, TIER_TEXT_HEX } from "./exportColors";
 import { escapeMarkdownFetches } from "./markdownEscape";
+import { prependToneCircle } from "./riskTone";
 import type { OtherAction, StarredAction } from "./types";
 
 /** Escape text for safe inclusion in `text/html` clipboard payloads. */
@@ -11,60 +13,64 @@ export function escapeHtml(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
-function formatStarredForClipboard(actions: StarredAction[]): string {
-  if (actions.length === 0) return "";
-  return actions
-    .map((a, i) => {
-      const kind = a.subType === "reduce" ? "Reduction for" : "Preparation for";
-      const risk = prependToneCircle(
-        escapeMarkdownFetches(a.parentText.trim()) || "Untitled risk",
-        a.groupTone,
-      );
-      const body = escapeMarkdownFetches(a.subLine.text.trim()) || "(empty)";
-      return `${i + 1}. ${body}\n   ${kind} ${risk}`;
-    })
-    .join("\n\n");
+function bullet(text: string): string {
+  const oneLine = escapeMarkdownFetches(text.replace(/\s+/g, " ").trim());
+  return `- ${oneLine || "(empty)"}`;
+}
+
+/**
+ * Actions as Markdown, laid out like the Actions panel: starred actions
+ * grouped by tier ("🔴 For highest risks"), then other actions. No source
+ * risk, matching the panel. `heading` formats each group label, so the
+ * standalone copy can use bold and the full report real headings. Other
+ * actions get a label only when starred ones are listed above them.
+ */
+export function formatActionsMarkdown(
+  starred: StarredAction[],
+  other: OtherAction[],
+  heading: (label: string) => string = (label) => `**${label}**`,
+): string {
+  const blocks = groupActionsByTier(starred).map(({ tone, label, actions }) =>
+    [
+      heading(prependToneCircle(label, tone)),
+      "",
+      ...actions.map((a) => bullet(a.subLine.text)),
+    ].join("\n"),
+  );
+  const others = other.filter((o) => o.text.trim().length > 0);
+  if (others.length > 0) {
+    const list = others.map((o) => bullet(o.text)).join("\n");
+    blocks.push(
+      blocks.length > 0 ? `${heading(OTHER_ACTIONS_LABEL)}\n\n${list}` : list,
+    );
+  }
+  return blocks.join("\n\n");
 }
 
 export function formatAllForClipboard(
   starred: StarredAction[],
   other: OtherAction[],
 ): string {
-  const starPart = formatStarredForClipboard(starred);
-  const otherNonEmpty = other
-    .map((o) => escapeMarkdownFetches(o.text.trim()))
-    .filter((t) => t.length > 0);
-  if (otherNonEmpty.length === 0) return starPart;
-  const otherBlock = otherNonEmpty
-    .map((t, i) => `${i + 1}. ${t}`)
-    .join("\n\n");
-  const labeled =
-    starred.length > 0 ? `Other actions:\n${otherBlock}` : otherBlock;
-  if (!starPart) return labeled;
-  return `${starPart}\n\n${labeled}`;
+  return formatActionsMarkdown(starred, other);
 }
 
-function formatStarredForClipboardHtml(actions: StarredAction[]): string {
-  if (actions.length === 0) return "";
-  const items = actions
-    .map((a) => {
-      const kind =
-        a.subType === "reduce" ? "Reduction for" : "Preparation for";
-      const risk = prependToneCircle(
-        a.parentText.trim() || "Untitled risk",
-        a.groupTone,
-      );
-      const body = a.subLine.text.trim() || "(empty)";
-      return (
-        `<li style="margin:0 0 0.65em 0;list-style-position:outside;">` +
-        `<div style="font-weight:600;">${escapeHtml(body)}</div>` +
-        `<div style="margin-top:0.2em;color:#3f3f46;font-size:0.92em;line-height:1.35;">` +
-        `<span style="font-style:italic;">${escapeHtml(kind)}</span> ` +
-        `${escapeHtml(risk)}</div></li>`
-      );
-    })
+function groupHtml(
+  label: string,
+  labelColor: string,
+  stripeColor: string,
+  items: string[],
+  marker: string,
+): string {
+  const lis = items
+    .map(
+      (t) =>
+        `<li style="margin:0 0 0.35em 0;list-style:none;">${marker}${escapeHtml(t)}</li>`,
+    )
     .join("");
-  return `<ol style="margin:0.25em 0 0.5em 0;padding-left:1.35em;">${items}</ol>`;
+  return (
+    `<p style="margin:0.9em 0 0.3em 0;font-size:0.85em;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;color:${labelColor};">${escapeHtml(label)}</p>` +
+    `<ul style="margin:0;padding:2px 0 2px 10px;border-left:4px solid ${stripeColor};">${lis}</ul>`
+  );
 }
 
 /** Inner HTML only (no document wrapper); caller wraps for clipboard. */
@@ -72,29 +78,29 @@ export function formatAllForClipboardHtmlInner(
   starred: StarredAction[],
   other: OtherAction[],
 ): string {
-  const starHtml = formatStarredForClipboardHtml(starred);
-  const otherNonEmpty = other
-    .map((o) => o.text.trim())
-    .filter((t) => t.length > 0);
-  if (otherNonEmpty.length === 0) return starHtml;
-
-  const otherItems = otherNonEmpty
-    .map(
-      (t) =>
-        `<li style="margin:0 0 0.65em 0;list-style-position:outside;">` +
-        `<div style="font-weight:600;">${escapeHtml(t)}</div></li>`,
-    )
-    .join("");
-  let otherBlock =
-    `<ol style="margin:0.25em 0 0.5em 0;padding-left:1.35em;">${otherItems}</ol>`;
-  if (starred.length > 0) {
-    otherBlock =
-      `<p style="margin:0 0 0.45em 0;font-weight:600;color:#18181b;">` +
-      `${escapeHtml("Other actions:")}</p>` +
-      otherBlock;
+  const parts = groupActionsByTier(starred).map(({ tone, label, actions }) =>
+    groupHtml(
+      label,
+      TIER_TEXT_HEX[tone],
+      TIER_STRIPE_HEX[tone],
+      actions.map((a) => a.subLine.text.trim() || "(empty)"),
+      "★ ",
+    ),
+  );
+  const others = other.map((o) => o.text.trim()).filter((t) => t.length > 0);
+  if (others.length > 0) {
+    parts.push(
+      parts.length > 0
+        ? groupHtml(OTHER_ACTIONS_LABEL, PROMPT_HEX, "#d4d4d8", others, "• ")
+        : `<ul style="margin:0;padding-left:0;">${others
+            .map(
+              (t) =>
+                `<li style="margin:0 0 0.35em 0;list-style:none;">• ${escapeHtml(t)}</li>`,
+            )
+            .join("")}</ul>`,
+    );
   }
-  if (!starHtml) return otherBlock;
-  return `${starHtml}<div style="margin-top:1em;">${otherBlock}</div>`;
+  return parts.join("");
 }
 
 export function buildActionsClipboardPayload(

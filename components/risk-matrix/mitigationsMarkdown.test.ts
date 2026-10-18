@@ -12,7 +12,7 @@ describe("formatAllMitigationsMarkdown", () => {
     ).toBe("");
   });
 
-  it("groups by cell then risk with reductions and preparations", () => {
+  it("groups by tier then risk, labeled with the two questions", () => {
     const grid = {
       "0-2": [
         {
@@ -38,18 +38,18 @@ describe("formatAllMitigationsMarkdown", () => {
     // `###` prefix and the label (see riskTone.prependToneCircle).
     // Match with `(?:\S+ )?` so we accept either the emoji or no
     // prefix, decoupling the test from the specific emoji set.
-    expect(md).toMatch(/## (?:\S+ )?High likelihood · High impact/);
+    expect(md).toMatch(/## (?:\S+ )?Highest risk/);
     expect(md).toMatch(/### (?:\S+ )?Data breach/);
-    expect(md).toContain("**Reductions**");
-    expect(md).toContain("- Encrypt PII");
-    expect(md).toContain("**Preparations**");
-    expect(md).toContain("- Incident runbooks");
-    expect(md).toMatch(/## (?:\S+ )?Low likelihood · Low impact/);
+    expect(md).toContain(
+      "**How can we reduce the likelihood of this happening?**\n\n- Encrypt PII",
+    );
+    expect(md).toContain(
+      "**How can we limit the harm if it happens?**\n\n- Incident runbooks",
+    );
+    expect(md).toMatch(/## (?:\S+ )?Lower risk/);
     expect(md).toMatch(/### (?:\S+ )?Vendor delay/);
     expect(md).toContain("- Dual-source");
-    const hiIdx = md.indexOf("High likelihood · High impact");
-    const loIdx = md.indexOf("Low likelihood · Low impact");
-    expect(hiIdx).toBeLessThan(loIdx);
+    expect(md.indexOf("Highest risk")).toBeLessThan(md.indexOf("Lower risk"));
   });
 
   it("escapes bullet-like mitigation text", () => {

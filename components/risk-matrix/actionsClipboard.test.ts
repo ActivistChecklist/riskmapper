@@ -26,29 +26,34 @@ describe("actionsClipboard", () => {
     );
   });
 
-  it("keeps plain and rich lists aligned for starred actions", () => {
+  it("groups starred actions by tier and leaves out the source risk", () => {
     const starredActions: StarredAction[] = [
       starred({
         subType: "reduce",
+        groupTone: "orange",
         subLine: { id: "s1", text: "Do X", starred: true },
+      }),
+      starred({
+        subType: "prepare",
+        groupTone: "red",
+        subLine: { id: "s2", text: "Do Y", starred: true },
       }),
     ];
     const plain = formatAllForClipboard(starredActions, []);
+    expect(plain).toBe(
+      "**🔴 For highest risks**\n\n- Do Y\n\n**🟠 For high risks**\n\n- Do X",
+    );
     const inner = formatAllForClipboardHtmlInner(starredActions, []);
-    expect(plain).toContain("1. Do X");
-    // The exporter now prepends a tone-circle emoji to the risk name
-    // (see riskTone.prependToneCircle). Allow any non-whitespace
-    // prefix token between "Reduction for " and the risk text so this
-    // assertion stays meaningful without coupling to the specific
-    // emoji set.
-    expect(plain).toMatch(/Reduction for (?:\S+ )?Risk A/);
-    expect(inner).toContain("Do X");
-    expect(inner).toContain("Reduction for");
-    expect(inner).toContain("Risk A");
-    expect(inner).toContain("<ol");
+    expect(inner).toContain("For highest risks");
+    expect(inner).toContain("★ Do Y");
+    expect(inner.indexOf("Do Y")).toBeLessThan(inner.indexOf("Do X"));
+    for (const out of [plain, inner]) {
+      expect(out).not.toContain("Risk A");
+      expect(out).not.toMatch(/Reduction|Preparation/);
+    }
   });
 
-  it("adds Other actions heading when both starred rows and manual lines exist", () => {
+  it("labels other actions only when starred ones come first", () => {
     const starredActions: StarredAction[] = [
       starred({
         subType: "prepare",
@@ -56,21 +61,14 @@ describe("actionsClipboard", () => {
       }),
     ];
     const other: OtherAction[] = [{ id: "o1", text: "Manual" }];
-    const plain = formatAllForClipboard(starredActions, other);
-    const inner = formatAllForClipboardHtmlInner(starredActions, other);
-    expect(plain).toContain("Other actions:");
-    expect(plain).toContain("1. Manual");
-    expect(inner).toContain("Other actions:");
-    expect(inner).toContain("Manual");
-  });
-
-  it("does not prefix Other actions when there are only manual lines", () => {
-    const other: OtherAction[] = [{ id: "o1", text: "Only" }];
-    const plain = formatAllForClipboard([], other);
-    const inner = formatAllForClipboardHtmlInner([], other);
-    expect(plain).toBe("1. Only");
-    expect(inner).not.toContain("Other actions");
-    expect(inner).toContain("Only");
+    expect(formatAllForClipboard(starredActions, other)).toContain(
+      "**Other**\n\n- Manual",
+    );
+    expect(formatAllForClipboardHtmlInner(starredActions, other)).toContain(
+      ">Other</p>",
+    );
+    expect(formatAllForClipboard([], other)).toBe("- Manual");
+    expect(formatAllForClipboardHtmlInner([], other)).not.toContain("Other");
   });
 
   it("escapes user content in HTML but not in plain", () => {

@@ -1,4 +1,4 @@
-import { formatAllForClipboard } from "./actionsClipboard";
+import { formatActionsMarkdown, formatAllForClipboard } from "./actionsClipboard";
 import { escapeMarkdownFetches } from "./markdownEscape";
 import { COL_LABELS, ROW_LABELS } from "./constants";
 import { formatAllMitigationsMarkdown } from "./mitigationsMarkdown";
@@ -67,23 +67,12 @@ function formatActionsMarkdownSection(
   allActions: StarredAction[],
   otherActions: OtherAction[],
 ): string {
-  const starredPart = formatAllForClipboard(allActions, []).trim();
-  const otherNonEmpty = otherActions
-    .map((o) => escapeMarkdownFetches(o.text.trim()))
-    .filter((t) => t.length > 0);
-  if (!starredPart && otherNonEmpty.length === 0) {
-    return "(No actions listed yet.)";
-  }
-  const chunks: string[] = [];
-  if (starredPart) {
-    chunks.push("### Prioritized actions", "", starredPart);
-  }
-  if (otherNonEmpty.length > 0) {
-    const otherBlock = otherNonEmpty.map((t, i) => `${i + 1}. ${t}`).join("\n\n");
-    if (chunks.length > 0) chunks.push("");
-    chunks.push("### Other actions", "", otherBlock);
-  }
-  return chunks.join("\n");
+  const body = formatActionsMarkdown(
+    allActions,
+    otherActions,
+    (label) => `### ${label}`,
+  ).trim();
+  return body || "(No actions listed yet.)";
 }
 
 export function buildFullPlainReport(args: {
