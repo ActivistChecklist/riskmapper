@@ -12,10 +12,33 @@ function TooltipProvider({
   );
 }
 
+/**
+ * While true, every Tooltip below stays closed. Used during a drag so the
+ * pointer sweeping over stars and buttons doesn't pop their hints.
+ */
+const TooltipsSuppressedContext = React.createContext(false);
+
+function SuppressTooltips({
+  when,
+  children,
+}: {
+  when: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <TooltipsSuppressedContext.Provider value={when}>
+      {children}
+    </TooltipsSuppressedContext.Provider>
+  );
+}
+
 function Tooltip({
   ...props
 }: React.ComponentProps<typeof TooltipPrimitive.Root>) {
-  return <TooltipPrimitive.Root {...props} />;
+  const suppressed = React.useContext(TooltipsSuppressedContext);
+  return (
+    <TooltipPrimitive.Root {...props} open={suppressed ? false : props.open} />
+  );
 }
 
 function TooltipTrigger({
@@ -43,4 +66,10 @@ function TooltipContent({
   );
 }
 
-export { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger };
+export {
+  SuppressTooltips,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+};

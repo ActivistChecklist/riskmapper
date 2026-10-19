@@ -17,6 +17,7 @@ import { isCloudEnabled } from "./cloudConfig";
 import MitigationsTablePlaceholder from "./MitigationsTablePlaceholder";
 import DeleteRiskDialog from "./DeleteRiskDialog";
 import DragPreviewLayer from "./DragPreviewLayer";
+import { SuppressTooltips } from "@/components/ui/tooltip";
 import KeyboardShortcutsDialog from "./KeyboardShortcutsDialog";
 import LikelihoodImpactMatrix from "./LikelihoodImpactMatrix";
 import MatrixExportMenu from "./MatrixExportMenu";
@@ -301,193 +302,197 @@ function RiskMatrixCanvas({ workspace: ws, cloud, remoteApplyRef }: CanvasProps)
     onClick: () => void copyMitigationsMarkdown(m.grid),
   });
 
+  const dragging = Boolean(m.dragState || m.mitigationDragState);
+
   return (
-    <div
-      className={[
-        "mx-auto min-h-screen w-full max-w-[1320px] bg-rm-canvas px-4 py-5 font-sans text-rm-ink sm:px-6 sm:py-6 lg:px-8",
-        m.dragState ? "touch-none rm-dragging-active" : "touch-auto",
-      ].join(" ")}
-      onPaste={m.handlePaste}
-    >
-      <MatrixTopBar
-        workspace={ws}
-        exportMenu={
-          <MatrixExportMenu
-            title={ws.activeTitle}
-            getSnapshot={m.getSnapshot}
-            hasContent={hasAnyCopyableContent}
-            onCopyPlain={handleCopyAll}
-            onCopyRich={handleCopyRich}
-          />
-        }
-        statusIndicator={
-          <MatrixStatusIndicator
-            shared={Boolean(cloudMeta)}
-            syncState={cloud.syncState}
-            onIndicatorAction={cloud.reopenAction}
-          />
-        }
-        cloudShareControl={
-          cloudCapable ? (
-            <CloudShareControl
-              getSnapshot={m.getSnapshot}
-              matrixTitle={ws.activeTitle}
-              cloudMeta={cloudMeta}
-              repo={cloud.repo}
-              onCloudMetaSet={(meta) => {
-                // If we're on a draft when the user shares, promote it to a
-                // saved row first so there's something to attach the cloud
-                // meta to. Promotion uses the current draft title (defaults
-                // to "Untitled" if the user hasn't edited it).
-                let savedId = activeSaved?.id;
-                if (!savedId) {
-                  const newId = ws.promoteDraftToSaved(ws.activeTitle);
-                  if (!newId) return;
-                  savedId = newId;
-                }
-                ws.setCloudMeta(savedId, meta);
-              }}
-              onStopSharing={handleStopSharing}
-              onAcknowledge={cloud.acknowledge}
-            />
-          ) : null
-        }
-      />
-
-      <MatrixHelpSection />
-
-      <RiskPoolSection
-        pool={m.pool}
-        dragState={m.dragState}
-        dragOverTarget={m.dragOverTarget}
-        dropIndicator={m.dropIndicator}
-        onPoolClick={m.onPoolClick}
-        onAddPoolLine={m.requestAddPoolLine}
-        onChange={m.updateText}
-        onKeyDown={m.handleKeyDown}
-        onBlur={m.handleLineBlur}
-        onGripPointerDown={m.onGripPointerDown}
-        step1Actions={step1Copy}
-      />
-
-      <div className="-mx-4 mt-2 min-w-0 w-[calc(100%+2rem)] sm:mx-0 sm:mt-3 sm:w-full">
-        <StepSection
-          step={2}
-          readingWidth={false}
-          className="w-full max-w-none"
-          actions={step2Copy}
-          title="Drag the risks into the matrix"
-        >
-          <LikelihoodImpactMatrix
-            grid={m.grid}
-            dragState={m.dragState}
-            dragOverTarget={m.dragOverTarget}
-            dropIndicator={m.dropIndicator}
-            onAddCellLine={m.requestAddMatrixCellLine}
-            onCellClick={m.onCellClick}
-            onChange={m.updateText}
-            onKeyDown={m.handleKeyDown}
-            onBlur={m.handleLineBlur}
-            onGripPointerDown={m.onGripPointerDown}
-            stepSectionFrame
-          />
-        </StepSection>
-      </div>
-
+    <SuppressTooltips when={dragging}>
       <div
         className={[
-          "mt-9 grid w-full min-w-0 grid-cols-1 items-start gap-y-3",
-          "xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)] xl:gap-x-8 xl:gap-y-3",
+          "mx-auto min-h-screen w-full max-w-[1320px] bg-rm-canvas px-4 py-5 font-sans text-rm-ink sm:px-6 sm:py-6 lg:px-8",
+          dragging ? "touch-none rm-dragging-active" : "touch-auto",
         ].join(" ")}
+        onPaste={m.handlePaste}
       >
-        {/* Mitigations + step 3 header: one card spanning both grid rows (xl) */}
-        <div className="min-w-0 max-xl:mt-5 xl:col-start-1 xl:row-span-2 xl:row-start-1 xl:mt-0">
-          <StepSection
-            step={3}
-            readingWidth={false}
-            allowOverflow
-            className="w-full max-w-none"
-            actions={step3Copy}
-            title="Brainstorm ways you can prepare for these risks. Star the items you intend to act on."
-          >
-            {m.anyRisks ? (
-              <CategorizedRiskGroups
-                anyRisks={m.anyRisks}
-                risksByColor={m.risksByColor}
-                collapsed={m.collapsed}
-                setCollapsed={m.setCollapsed}
-                hiddenCategorizedRiskKeys={m.hiddenCategorizedRiskKeys}
-                categorizedRevealHidden={m.categorizedRevealHidden}
-                onToggleCategorizedRiskHidden={m.toggleCategorizedRiskHidden}
-                onToggleCategorizedRevealHidden={m.toggleCategorizedRevealHidden}
-                onChangeRisk={m.updateText}
-                onRiskKeyDown={m.handleRiskKeyDown}
-                onChangeSub={m.updateSubText}
-                onSubKeyDown={m.handleSubKeyDown}
-                onToggleStar={m.toggleStar}
-                onPointerAddMitigationSubLine={m.requestAddMitigationSubLine}
-                draggingSubId={m.draggingSubId}
-                mitigationDropEdge={m.mitigationDropEdge}
-                onMitigationGripPointerDown={m.onMitigationGripPointerDown}
-                embeddedInStepSection
+        <MatrixTopBar
+          workspace={ws}
+          exportMenu={
+            <MatrixExportMenu
+              title={ws.activeTitle}
+              getSnapshot={m.getSnapshot}
+              hasContent={hasAnyCopyableContent}
+              onCopyPlain={handleCopyAll}
+              onCopyRich={handleCopyRich}
+            />
+          }
+          statusIndicator={
+            <MatrixStatusIndicator
+              shared={Boolean(cloudMeta)}
+              syncState={cloud.syncState}
+              onIndicatorAction={cloud.reopenAction}
+            />
+          }
+          cloudShareControl={
+            cloudCapable ? (
+              <CloudShareControl
+                getSnapshot={m.getSnapshot}
+                matrixTitle={ws.activeTitle}
+                cloudMeta={cloudMeta}
+                repo={cloud.repo}
+                onCloudMetaSet={(meta) => {
+                  // If we're on a draft when the user shares, promote it to a
+                  // saved row first so there's something to attach the cloud
+                  // meta to. Promotion uses the current draft title (defaults
+                  // to "Untitled" if the user hasn't edited it).
+                  let savedId = activeSaved?.id;
+                  if (!savedId) {
+                    const newId = ws.promoteDraftToSaved(ws.activeTitle);
+                    if (!newId) return;
+                    savedId = newId;
+                  }
+                  ws.setCloudMeta(savedId, meta);
+                }}
+                onStopSharing={handleStopSharing}
+                onAcknowledge={cloud.acknowledge}
               />
-            ) : (
-              <MitigationsTablePlaceholder embeddedInStepSection />
-            )}
+            ) : null
+          }
+        />
+
+        <MatrixHelpSection />
+
+        <RiskPoolSection
+          pool={m.pool}
+          dragState={m.dragState}
+          dragOverTarget={m.dragOverTarget}
+          dropIndicator={m.dropIndicator}
+          onPoolClick={m.onPoolClick}
+          onAddPoolLine={m.requestAddPoolLine}
+          onChange={m.updateText}
+          onKeyDown={m.handleKeyDown}
+          onBlur={m.handleLineBlur}
+          onGripPointerDown={m.onGripPointerDown}
+          step1Actions={step1Copy}
+        />
+
+        <div className="-mx-4 mt-2 min-w-0 w-[calc(100%+2rem)] sm:mx-0 sm:mt-3 sm:w-full">
+          <StepSection
+            step={2}
+            readingWidth={false}
+            className="w-full max-w-none"
+            actions={step2Copy}
+            title="Drag the risks into the matrix"
+          >
+            <LikelihoodImpactMatrix
+              grid={m.grid}
+              dragState={m.dragState}
+              dragOverTarget={m.dragOverTarget}
+              dropIndicator={m.dropIndicator}
+              onAddCellLine={m.requestAddMatrixCellLine}
+              onCellClick={m.onCellClick}
+              onChange={m.updateText}
+              onKeyDown={m.handleKeyDown}
+              onBlur={m.handleLineBlur}
+              onGripPointerDown={m.onGripPointerDown}
+              stepSectionFrame
+            />
           </StepSection>
         </div>
-        {/* Actions sits at top of right column at xl+; on small screens it
-            continues to stack below mitigations with the existing top margin. */}
+
         <div
           className={[
-            MATRIX_READING_COLUMN_GRID_CHILD_CLASS,
-            "min-w-0 max-xl:mt-5 xl:col-start-2 xl:row-start-1 xl:mt-0",
+            "mt-9 grid w-full min-w-0 grid-cols-1 items-start gap-y-3",
+            "xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)] xl:gap-x-8 xl:gap-y-3",
           ].join(" ")}
         >
-          {/*
-            xl+: ActionsAside and NotesEditor share a single sticky
-            wrapper so they pin together as the page scrolls past the
-            mitigations table on the left. ActionsAside used to sticky
-            on its own (xl:sticky xl:top-6) — fine when it was the
-            only thing in this column, but now Notes lives below it
-            and would scroll up under the pinned Actions card.
-            Below xl: stacks normally with no sticky behaviour.
-          */}
-          <div className="xl:sticky xl:top-6 xl:self-start">
-            <ActionsAside
-              allActions={m.allActions}
-              otherActions={m.otherActions}
-              onChangeSub={m.updateSubText}
-              onToggleStar={m.toggleStar}
-              onChangeOther={m.updateOtherAction}
-              onAddOther={m.addOtherAction}
-              onOtherKeyDown={m.handleOtherKeyDown}
-              onOtherBlur={m.handleOtherBlur}
-            />
-            <NotesEditor
-              className="mt-5"
-              value={m.notes}
-              onChange={m.setNotes}
-            />
+          {/* Mitigations + step 3 header: one card spanning both grid rows (xl) */}
+          <div className="min-w-0 max-xl:mt-5 xl:col-start-1 xl:row-span-2 xl:row-start-1 xl:mt-0">
+            <StepSection
+              step={3}
+              readingWidth={false}
+              allowOverflow
+              className="w-full max-w-none"
+              actions={step3Copy}
+              title="Brainstorm ways you can prepare for these risks. Star the items you intend to act on."
+            >
+              {m.anyRisks ? (
+                <CategorizedRiskGroups
+                  anyRisks={m.anyRisks}
+                  risksByColor={m.risksByColor}
+                  collapsed={m.collapsed}
+                  setCollapsed={m.setCollapsed}
+                  hiddenCategorizedRiskKeys={m.hiddenCategorizedRiskKeys}
+                  categorizedRevealHidden={m.categorizedRevealHidden}
+                  onToggleCategorizedRiskHidden={m.toggleCategorizedRiskHidden}
+                  onToggleCategorizedRevealHidden={m.toggleCategorizedRevealHidden}
+                  onChangeRisk={m.updateText}
+                  onRiskKeyDown={m.handleRiskKeyDown}
+                  onChangeSub={m.updateSubText}
+                  onSubKeyDown={m.handleSubKeyDown}
+                  onToggleStar={m.toggleStar}
+                  onPointerAddMitigationSubLine={m.requestAddMitigationSubLine}
+                  draggingSubId={m.draggingSubId}
+                  mitigationDropEdge={m.mitigationDropEdge}
+                  onMitigationGripPointerDown={m.onMitigationGripPointerDown}
+                  embeddedInStepSection
+                />
+              ) : (
+                <MitigationsTablePlaceholder embeddedInStepSection />
+              )}
+            </StepSection>
+          </div>
+          {/* Actions sits at top of right column at xl+; on small screens it
+              continues to stack below mitigations with the existing top margin. */}
+          <div
+            className={[
+              MATRIX_READING_COLUMN_GRID_CHILD_CLASS,
+              "min-w-0 max-xl:mt-5 xl:col-start-2 xl:row-start-1 xl:mt-0",
+            ].join(" ")}
+          >
+            {/*
+              xl+: ActionsAside and NotesEditor share a single sticky
+              wrapper so they pin together as the page scrolls past the
+              mitigations table on the left. ActionsAside used to sticky
+              on its own (xl:sticky xl:top-6) — fine when it was the
+              only thing in this column, but now Notes lives below it
+              and would scroll up under the pinned Actions card.
+              Below xl: stacks normally with no sticky behaviour.
+            */}
+            <div className="xl:sticky xl:top-6 xl:self-start">
+              <ActionsAside
+                allActions={m.allActions}
+                otherActions={m.otherActions}
+                onChangeSub={m.updateSubText}
+                onToggleStar={m.toggleStar}
+                onChangeOther={m.updateOtherAction}
+                onAddOther={m.addOtherAction}
+                onOtherKeyDown={m.handleOtherKeyDown}
+                onOtherBlur={m.handleOtherBlur}
+              />
+              <NotesEditor
+                className="mt-5"
+                value={m.notes}
+                onChange={m.setNotes}
+              />
+            </div>
           </div>
         </div>
+
+        <DragPreviewLayer dragState={m.dragState} />
+        <DragPreviewLayer dragState={m.mitigationDragState} />
+
+        <DeleteRiskDialog
+          open={m.isDeleteConfirmOpen}
+          onOpenChange={m.deleteDialogOnOpenChange}
+          onCancel={m.closeDeleteConfirmation}
+          onConfirm={m.confirmDelete}
+        />
+
+        <KeyboardShortcutsDialog
+          open={shortcutsOpen}
+          onOpenChange={setShortcutsOpen}
+        />
       </div>
-
-      <DragPreviewLayer dragState={m.dragState} />
-      <DragPreviewLayer dragState={m.mitigationDragState} />
-
-      <DeleteRiskDialog
-        open={m.isDeleteConfirmOpen}
-        onOpenChange={m.deleteDialogOnOpenChange}
-        onCancel={m.closeDeleteConfirmation}
-        onConfirm={m.confirmDelete}
-      />
-
-      <KeyboardShortcutsDialog
-        open={shortcutsOpen}
-        onOpenChange={setShortcutsOpen}
-      />
-    </div>
+    </SuppressTooltips>
   );
 }
 
