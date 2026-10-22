@@ -4,7 +4,7 @@
   "private": true,
   "packageManager": "yarn@1.22.22",
   "engines": {
-    "node": "24"
+    "node": ">=24.22.1 <25"
   },
   "scripts": {
     "prepare": "node scripts/install-git-hooks.mjs",
