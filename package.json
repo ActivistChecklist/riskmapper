@@ -72,7 +72,7 @@
     "eslint": "^10",
     "eslint-config-next": "16.4.0",
     "jsdom": "^30.1.2",
-    "next": "16.4.0",
+    "next": "16.4.1",
     "tailwindcss": "^4",
     "typescript": "~6.0.0",
     "vite": "^8.0.8",
