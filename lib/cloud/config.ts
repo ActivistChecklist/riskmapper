@@ -1,28 +1,18 @@
 /**
- * Server-side cloud-sync configuration. The two values most commonly
- * overridden in tests (`MAX_CIPHERTEXT_BYTES` and `WRITE_RATE_LIMIT_PER_MIN`)
- * are exposed as getter functions so `vi.stubEnv` works at call time. The
- * rest are module-load constants — they only matter for the Mongo
- * connection, which tests mock wholesale.
+ * Server-side cloud-sync configuration, read from the environment at call
+ * time so `vi.stubEnv` works in tests.
  *
- * No CORS allow-list — the API runs in the same Next.js app as the SPA, so
+ * Storage settings live with the storage code: `SQLITE_PATH` in
+ * `sqliteStore.mts` and `RETENTION_DAYS` in `cleanup.mts`, because the
+ * maintenance scripts load those files directly with Node.
+ *
+ * No CORS allow-list: the API is served from the same origin as the SPA, so
  * requests are same-origin by definition.
  */
-
-export const MONGO_URL = process.env.MONGO_URL ?? "";
-export const MONGO_DB = process.env.MONGO_DB ?? "riskmatrix";
-export const MONGO_COLLECTION = process.env.MONGO_COLLECTION ?? "matrices";
-export const MONGO_UPDATES_COLLECTION =
-  process.env.MONGO_UPDATES_COLLECTION ?? "matrix_updates";
 
 /** Hard cap on ciphertext bytes per record. Mirrored client-side. */
 export function getMaxCiphertextBytes(): number {
   return Number(process.env.MAX_CIPHERTEXT_BYTES ?? 256 * 1024);
-}
-
-/** Days before an inactive record is purged. */
-export function getRetentionDays(): number {
-  return Number(process.env.RETENTION_DAYS ?? 90);
 }
 
 /**

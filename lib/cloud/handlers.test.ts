@@ -1,19 +1,16 @@
+import { existsSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  createFakeCollection,
-  createFakeUpdatesCollection,
-  type FakeCollection,
-  type FakeUpdatesCollection,
-} from "./fakeCollection";
+import { __resetDbForTests, __storeForTests, getCollection } from "./db";
 import { __resetRateLimiterForTests } from "./rateLimit";
 import { __resetPubSubForTests, subscribe, type UpdateEvent } from "./pubsub";
-import { updateRowId } from "./types";
+import * as sqliteTest from "./sqliteTestUtils";
+import type { MatrixDoc, MatrixUpdate } from "./types";
 import { hashWriteToken } from "./writeAuth";
 
 /**
- * Route-handler tests for `server/routes/**`. We mock the Mongo accessors
- * (`@/lib/cloud/db`) so route logic exercises deterministic in-memory
- * collections, and we control the rate limiter directly via env stubs +
+ * Route-handler tests for `server/routes/**`. They run against the real
+ * SQLite store (`@/lib/cloud/db`), on a fresh temporary database file per
+ * test, and control the rate limiter directly via env stubs +
  * `__resetRateLimiterForTests` so the budget is fresh for each case.
  */
 
@@ -25,39 +22,33 @@ const WRITE_TOKEN = "T".repeat(43);
 const OTHER_TOKEN = "X".repeat(43);
 const AUTH = { Authorization: `Bearer ${WRITE_TOKEN}` };
 
-const collHolder = vi.hoisted(() => ({
-  matrices: null as FakeCollection | null,
-  updates: null as FakeUpdatesCollection | null,
-}));
-
-vi.mock("./db", () => ({
-  getCollection: async () => {
-    if (!collHolder.matrices) {
-      throw new Error("test setup forgot to seed the fake matrices collection");
-    }
-    return collHolder.matrices;
-  },
-  getUpdatesCollection: async () => {
-    if (!collHolder.updates) {
-      throw new Error("test setup forgot to seed the fake updates collection");
-    }
-    return collHolder.updates;
-  },
-}));
+let tempDb: sqliteTest.TempDb;
 
 beforeEach(() => {
-  collHolder.matrices = createFakeCollection();
-  collHolder.updates = createFakeUpdatesCollection();
+  tempDb = sqliteTest.makeTempDb("riskmapper-handlers-");
+  vi.stubEnv("SQLITE_PATH", tempDb.file);
+  __resetDbForTests();
   vi.stubEnv("WRITE_RATE_LIMIT_PER_MIN", "10000");
   __resetRateLimiterForTests();
   __resetPubSubForTests();
 });
 
 afterEach(() => {
+  __resetDbForTests();
+  tempDb.remove();
   vi.unstubAllEnvs();
+  vi.restoreAllMocks();
   __resetRateLimiterForTests();
   __resetPubSubForTests();
 });
+
+// What the database holds, read straight from it, and seeding that skips
+// the routes. They share the routes' connection.
+const db = () => __storeForTests().db;
+const dumpMatrices = () => sqliteTest.dumpMatrices(db());
+const dumpUpdates = () => sqliteTest.dumpUpdates(db());
+const seedMatrixDoc = (doc: MatrixDoc) => sqliteTest.seedMatrix(db(), doc);
+const seedUpdateRow = (update: MatrixUpdate) => sqliteTest.seedUpdate(db(), update);
 
 function jsonRequest(url: string, init: RequestInit & { json?: unknown }): Request {
   const { json, ...rest } = init;
@@ -76,7 +67,7 @@ function seedMatrix(opts?: {
   /** Seed a record from before write authorization: no `writeHash`. */
   legacy?: boolean;
 }): void {
-  collHolder.matrices!.__seed({
+  seedMatrixDoc({
     ...(opts?.legacy ? {} : { writeHash: hashWriteToken(WRITE_TOKEN) }),
     _id: VALID_ID,
     baseline: VALID_CT,
@@ -154,13 +145,13 @@ describe("POST /api/matrix", () => {
     expect(body.headSeq).toBe(0);
     expect(body.lastReadDate).toBe(null);
     expect(body.createdDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    const stored = collHolder.matrices!.__dump();
+    const stored = dumpMatrices();
     expect(stored).toHaveLength(1);
     expect(stored[0]._id).toBe(VALID_ID);
     expect(stored[0].baseline).toBe(VALID_CT);
     expect(stored[0].headSeq).toBe(0);
     expect(stored[0].baselineSeq).toBe(0);
-    // TTL: create stamps lastActivityDate (midnight UTC).
+    // Idle cleanup: create stamps lastActivityDate (midnight UTC).
     const today = new Date();
     today.setUTCHours(0, 0, 0, 0);
     expect(stored[0].lastActivityDate.getTime()).toBe(today.getTime());
@@ -178,7 +169,7 @@ describe("POST /api/matrix", () => {
       expect(res.status).toBe(400);
       expect(await res.json()).toEqual({ error: "invalid id" });
     }
-    expect(collHolder.matrices!.__dump()).toHaveLength(0);
+    expect(dumpMatrices()).toHaveLength(0);
   });
 
   it("rejects a missing or non-envelope baseline", async () => {
@@ -223,7 +214,9 @@ describe("POST /api/matrix", () => {
   });
 
   it("returns 500 on unexpected DB failure (not duplicate)", async () => {
-    collHolder.matrices!.__setInsertError(new Error("connection lost"));
+    vi.spyOn(await getCollection(), "insertOne").mockRejectedValueOnce(
+      new Error("disk I/O error"),
+    );
     const { POST } = await import("@/server/routes/matrix");
     const res = await POST(
       jsonRequest("http://localhost/api/matrix", {
@@ -245,14 +238,14 @@ describe("GET /api/matrix/[id]", () => {
 
   it("returns baseline + all updates and bumps lastReadDate to today", async () => {
     seedMatrix({ headSeq: 2 });
-    collHolder.updates!.__seed({
+    seedUpdateRow({
       recordId: VALID_ID,
       seq: 1,
       ciphertext: "v1." + "B".repeat(80),
       clientId: "c-1",
       createdAt: "2026-01-02",
     });
-    collHolder.updates!.__seed({
+    seedUpdateRow({
       recordId: VALID_ID,
       seq: 2,
       ciphertext: "v1." + "C".repeat(80),
@@ -270,9 +263,9 @@ describe("GET /api/matrix/[id]", () => {
       { seq: 2, ciphertext: "v1." + "C".repeat(80), clientId: "c-2" },
     ]);
     expect(body.lastReadDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    expect(collHolder.matrices!.__dump()[0].lastReadDate).toBe(body.lastReadDate);
-    // TTL: read bumps lastActivityDate to today (midnight UTC).
-    const stored = collHolder.matrices!.__dump()[0].lastActivityDate;
+    expect(dumpMatrices()[0].lastReadDate).toBe(body.lastReadDate);
+    // Idle cleanup: read bumps lastActivityDate to today (midnight UTC).
+    const stored = dumpMatrices()[0].lastActivityDate;
     const today = new Date();
     today.setUTCHours(0, 0, 0, 0);
     expect(stored.getTime()).toBe(today.getTime());
@@ -281,7 +274,7 @@ describe("GET /api/matrix/[id]", () => {
   it("with ?since=N >= baselineSeq, omits baseline and returns only updates past N", async () => {
     seedMatrix({ headSeq: 3 });
     for (const seq of [1, 2, 3]) {
-      collHolder.updates!.__seed({
+      seedUpdateRow({
         recordId: VALID_ID,
         seq,
         ciphertext: `v1.${"X".repeat(20)}-${seq}`,
@@ -300,7 +293,7 @@ describe("GET /api/matrix/[id]", () => {
 
   it("with ?since=N < baselineSeq, includes baseline (since the caller is too far behind)", async () => {
     seedMatrix({ headSeq: 5, baselineSeq: 4 });
-    collHolder.updates!.__seed({
+    seedUpdateRow({
       recordId: VALID_ID,
       seq: 5,
       ciphertext: "v1.UPD",
@@ -352,46 +345,54 @@ describe("POST /api/matrix/[id]/updates", () => {
     const res2 = await post(VALID_ID, { ciphertext: "v1.U2", clientId: "bob" });
     expect(await res2.json()).toEqual({ seq: 2 });
 
-    const stored = collHolder.updates!.__dump();
+    const stored = dumpUpdates();
     expect(stored.map((u) => u.seq)).toEqual([1, 2]);
     expect(stored[0].clientId).toBe("alice");
     expect(stored[1].clientId).toBe("bob");
-    expect(collHolder.matrices!.__dump()[0].headSeq).toBe(2);
-    // TTL: append refreshes lastActivityDate to today (midnight UTC).
+    expect(dumpMatrices()[0].headSeq).toBe(2);
+    // Idle cleanup: append refreshes lastActivityDate to today (midnight UTC).
     const today = new Date();
     today.setUTCHours(0, 0, 0, 0);
     expect(
-      collHolder.matrices!.__dump()[0].lastActivityDate.getTime(),
+      dumpMatrices()[0].lastActivityDate.getTime(),
     ).toBe(today.getTime());
   });
 
-  it("stores a time-free _id rather than letting the driver mint an ObjectId", async () => {
-    // A generated ObjectId embeds its creation time to the second, which
-    // would put a precise wall-clock timestamp on every edit and defeat the
-    // whole point of rounding `createdAt` to a calendar day. Regression
-    // test for that leak; see MatrixUpdate._id.
+  it("stores no id or counter that could date an edit", async () => {
+    // Under MongoDB a driver-minted ObjectId would have embedded each edit's
+    // creation time to the second. The SQLite equivalent is a table's hidden
+    // rowid, which would record the global order edits arrived in across
+    // every matrix. Regression test for both; see MatrixUpdate._id.
     seedMatrix();
     await post(VALID_ID, { ciphertext: "v1.U1", clientId: "alice" });
     await post(VALID_ID, { ciphertext: "v1.U2", clientId: "alice" });
 
-    const stored = collHolder.updates!.__dump();
-    expect(stored.map((u) => u._id)).toEqual([
-      updateRowId(VALID_ID, 1),
-      updateRowId(VALID_ID, 2),
-    ]);
-    // Nothing in the id derives from the clock: the same record and seq
-    // always produce the same string.
-    expect(stored[0]._id).toBe(`${VALID_ID}:1`);
+    const raw = db()
+      .prepare("SELECT * FROM matrix_updates ORDER BY seq")
+      .all() as { doc: string }[];
+    expect(raw).toHaveLength(2);
+    for (const row of raw) {
+      expect(Object.keys(row).sort()).toEqual(["doc", "recordId", "seq"]);
+      expect(Object.keys(JSON.parse(row.doc)).sort()).toEqual([
+        "ciphertext",
+        "clientId",
+        "createdAt",
+      ]);
+    }
+    for (const table of ["matrices", "matrix_updates"]) {
+      expect(() => db().prepare(`SELECT rowid FROM ${table}`).all()).toThrow(
+        /no such column: rowid/,
+      );
+    }
   });
 
   it("records only a calendar date per edit, never a time of day", async () => {
     seedMatrix();
     await post(VALID_ID, { ciphertext: "v1.U1", clientId: "alice" });
-    const [row] = collHolder.updates!.__dump();
+    const [row] = dumpUpdates();
     expect(row.createdAt).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     // No other field may carry a timestamp either.
     expect(Object.keys(row).sort()).toEqual([
-      "_id",
       "ciphertext",
       "clientId",
       "createdAt",
@@ -412,7 +413,7 @@ describe("POST /api/matrix/[id]/updates", () => {
   it("returns 404 when the matrix does not exist", async () => {
     const res = await post(VALID_ID, { ciphertext: "v1.X", clientId: "c" });
     expect(res.status).toBe(404);
-    expect(collHolder.updates!.__dump()).toHaveLength(0);
+    expect(dumpUpdates()).toHaveLength(0);
   });
 
   it("returns 400 on invalid body", async () => {
@@ -426,7 +427,7 @@ describe("POST /api/matrix/[id]/updates", () => {
       const res = await post(VALID_ID, body);
       expect(res.status).toBe(400);
     }
-    expect(collHolder.matrices!.__dump()[0].headSeq).toBe(0);
+    expect(dumpMatrices()[0].headSeq).toBe(0);
   });
 
   it("returns 413 on oversized ciphertext", async () => {
@@ -453,7 +454,7 @@ describe("PUT /api/matrix/[id]/baseline", () => {
   }
 
   function seedUpdate(seq: number, ct = `v1.U${seq}`): void {
-    collHolder.updates!.__seed({
+    seedUpdateRow({
       recordId: VALID_ID,
       seq,
       ciphertext: ct,
@@ -476,17 +477,17 @@ describe("PUT /api/matrix/[id]/baseline", () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ baselineSeq: 4, headSeq: 5 });
 
-    const stored = collHolder.matrices!.__dump()[0];
+    const stored = dumpMatrices()[0];
     expect(stored.baseline).toBe(NEW_BASELINE);
     expect(stored.baselineSeq).toBe(4);
     expect(stored.headSeq).toBe(5);
-    // TTL: write bumps lastActivityDate to today.
+    // Idle cleanup: write bumps lastActivityDate to today.
     const today = new Date();
     today.setUTCHours(0, 0, 0, 0);
     expect(stored.lastActivityDate.getTime()).toBe(today.getTime());
 
     // Updates at seq <= 4 are pruned; seq=5 survives.
-    expect(collHolder.updates!.__dump().map((u) => u.seq)).toEqual([5]);
+    expect(dumpUpdates().map((u) => u.seq)).toEqual([5]);
   });
 
   it("returns 409 with current state when baselineSeq has already been reached", async () => {
@@ -505,8 +506,8 @@ describe("PUT /api/matrix/[id]/baseline", () => {
       headSeq: 7,
     });
     // Baseline doc + updates are untouched.
-    expect(collHolder.matrices!.__dump()[0].baseline).toBe(VALID_CT);
-    expect(collHolder.updates!.__dump().map((u) => u.seq)).toEqual([6, 7]);
+    expect(dumpMatrices()[0].baseline).toBe(VALID_CT);
+    expect(dumpUpdates().map((u) => u.seq)).toEqual([6, 7]);
   });
 
   it("returns 409 when baselineSeq is in the future (exceeds headSeq)", async () => {
@@ -637,7 +638,7 @@ describe("PUT /api/matrix/[id]/baseline", () => {
     expect(losers).toHaveLength(1);
     // The seq-8 baseline must win regardless of arrival order — or, if seq=6
     // arrived first, seq=8 still wins because 8 > 6.
-    const finalBaselineSeq = collHolder.matrices!.__dump()[0].baselineSeq;
+    const finalBaselineSeq = dumpMatrices()[0].baselineSeq;
     expect(finalBaselineSeq).toBeGreaterThanOrEqual(6);
   });
 });
@@ -656,14 +657,14 @@ describe("DELETE /api/matrix/[id]", () => {
 
   it("removes the record AND its updates and returns 204", async () => {
     seedMatrix({ headSeq: 2 });
-    collHolder.updates!.__seed({
+    seedUpdateRow({
       recordId: VALID_ID,
       seq: 1,
       ciphertext: "v1.U",
       clientId: "c",
       createdAt: "2026-01-01",
     });
-    collHolder.updates!.__seed({
+    seedUpdateRow({
       recordId: VALID_ID,
       seq: 2,
       ciphertext: "v1.U",
@@ -672,8 +673,8 @@ describe("DELETE /api/matrix/[id]", () => {
     });
     const res = await del(VALID_ID);
     expect(res.status).toBe(204);
-    expect(collHolder.matrices!.__dump()).toHaveLength(0);
-    expect(collHolder.updates!.__dump()).toHaveLength(0);
+    expect(dumpMatrices()).toHaveLength(0);
+    expect(dumpUpdates()).toHaveLength(0);
   });
 
   it("is idempotent for unknown ids (still 204)", async () => {
@@ -682,10 +683,11 @@ describe("DELETE /api/matrix/[id]", () => {
   });
 
   it("is 204 for implausible ids without touching the DB", async () => {
-    collHolder.matrices = null;
-    collHolder.updates = null;
     const res = await del("short");
     expect(res.status).toBe(204);
+    // The database opens on first use, so its file not existing proves the
+    // route never asked for it.
+    expect(existsSync(tempDb.file)).toBe(false);
   });
 });
 
@@ -742,14 +744,14 @@ describe("GET /api/matrix/[id]/events (SSE backfill)", () => {
   it("replays a `baseline` frame when Last-Event-ID is older than baselineSeq", async () => {
     seedMatrix({ headSeq: 5, baselineSeq: 3 });
     // After compaction, only updates with seq > baselineSeq survive.
-    collHolder.updates!.__seed({
+    seedUpdateRow({
       recordId: VALID_ID,
       seq: 4,
       ciphertext: "v1.U4",
       clientId: "c",
       createdAt: "2026-01-01",
     });
-    collHolder.updates!.__seed({
+    seedUpdateRow({
       recordId: VALID_ID,
       seq: 5,
       ciphertext: "v1.U5",
@@ -784,14 +786,14 @@ describe("GET /api/matrix/[id]/events (SSE backfill)", () => {
 
   it("does NOT send a baseline frame when Last-Event-ID is at or past baselineSeq", async () => {
     seedMatrix({ headSeq: 5, baselineSeq: 3 });
-    collHolder.updates!.__seed({
+    seedUpdateRow({
       recordId: VALID_ID,
       seq: 4,
       ciphertext: "v1.U4",
       clientId: "c",
       createdAt: "2026-01-01",
     });
-    collHolder.updates!.__seed({
+    seedUpdateRow({
       recordId: VALID_ID,
       seq: 5,
       ciphertext: "v1.U5",
@@ -914,7 +916,7 @@ describe("write authorization", () => {
 
   function seedTwoUpdates(): void {
     for (const seq of [1, 2]) {
-      collHolder.updates!.__seed({
+      seedUpdateRow({
         recordId: VALID_ID,
         seq,
         ciphertext: `v1.U${seq}`,
@@ -934,7 +936,7 @@ describe("write authorization", () => {
       }),
     );
     expect(res.status).toBe(401);
-    expect(collHolder.matrices!.__dump()).toEqual([]);
+    expect(dumpMatrices()).toEqual([]);
   });
 
   it("stores a hash of the token on create, never the token itself", async () => {
@@ -946,7 +948,7 @@ describe("write authorization", () => {
       }),
     );
     expect(res.status).toBe(201);
-    const [doc] = collHolder.matrices!.__dump();
+    const [doc] = dumpMatrices();
     expect(doc.writeHash).toBe(hashWriteToken(WRITE_TOKEN));
     expect(JSON.stringify(doc)).not.toContain(WRITE_TOKEN);
   });
@@ -963,8 +965,8 @@ describe("write authorization", () => {
     const res = await append(auth);
 
     expect(res.status).toBe(status);
-    expect(collHolder.updates!.__dump()).toEqual([]);
-    expect(collHolder.matrices!.__dump()[0].headSeq).toBe(0);
+    expect(dumpUpdates()).toEqual([]);
+    expect(dumpMatrices()[0].headSeq).toBe(0);
     expect(received).toEqual([]);
   });
 
@@ -979,8 +981,8 @@ describe("write authorization", () => {
     const res = await del(auth);
 
     expect(res.status).toBe(status);
-    expect(collHolder.matrices!.__dump()).toHaveLength(1);
-    expect(collHolder.updates!.__dump()).toHaveLength(2);
+    expect(dumpMatrices()).toHaveLength(1);
+    expect(dumpUpdates()).toHaveLength(2);
   });
 
   it.each([
@@ -996,10 +998,10 @@ describe("write authorization", () => {
       const res = await compact(auth);
 
       expect(res.status).toBe(status);
-      const [doc] = collHolder.matrices!.__dump();
+      const [doc] = dumpMatrices();
       expect(doc.baseline).toBe(VALID_CT);
       expect(doc.baselineSeq).toBe(0);
-      expect(collHolder.updates!.__dump()).toHaveLength(2);
+      expect(dumpUpdates()).toHaveLength(2);
     },
   );
 
@@ -1008,7 +1010,7 @@ describe("write authorization", () => {
     expect((await read()).status).toBe(200);
     expect((await read({ Authorization: `Bearer ${OTHER_TOKEN}` })).status).toBe(200);
     // A wrong token on a read never overwrites the stored hash.
-    expect(collHolder.matrices!.__dump()[0].writeHash).toBe(
+    expect(dumpMatrices()[0].writeHash).toBe(
       hashWriteToken(WRITE_TOKEN),
     );
   });
@@ -1018,29 +1020,29 @@ describe("write authorization", () => {
       seedMatrix({ legacy: true });
 
       expect((await append("ok")).status).toBe(201);
-      expect(collHolder.matrices!.__dump()[0].writeHash).toBe(
+      expect(dumpMatrices()[0].writeHash).toBe(
         hashWriteToken(WRITE_TOKEN),
       );
       expect((await append("wrong")).status).toBe(403);
       expect((await del("wrong")).status).toBe(403);
-      expect(collHolder.matrices!.__dump()).toHaveLength(1);
+      expect(dumpMatrices()).toHaveLength(1);
     });
 
     it("still refuse writes with no token at all", async () => {
       seedMatrix({ legacy: true });
       expect((await append("none")).status).toBe(401);
       expect((await del("none")).status).toBe(401);
-      expect(collHolder.matrices!.__dump()[0].writeHash).toBeUndefined();
+      expect(dumpMatrices()[0].writeHash).toBeUndefined();
     });
 
     it("are claimed by a read that carries a token, so the window closes on open", async () => {
       seedMatrix({ legacy: true });
 
       expect((await read()).status).toBe(200);
-      expect(collHolder.matrices!.__dump()[0].writeHash).toBeUndefined();
+      expect(dumpMatrices()[0].writeHash).toBeUndefined();
 
       expect((await read(AUTH)).status).toBe(200);
-      expect(collHolder.matrices!.__dump()[0].writeHash).toBe(
+      expect(dumpMatrices()[0].writeHash).toBe(
         hashWriteToken(WRITE_TOKEN),
       );
       expect((await append("wrong")).status).toBe(403);

@@ -112,8 +112,8 @@ export async function DELETE(req: Request, ctx: RouteParams) {
     const coll = await getCollection();
     const denied = await authorizeWrite(coll, id, req);
     // Already gone: still idempotent. Any orphaned update rows are swept by
-    // scripts/cleanup-orphan-updates.ts; without the record there is no
-    // hash to check a token against, so we don't touch them here.
+    // the daily cleanup (lib/cloud/cleanup.mts); without the record there is
+    // no hash to check a token against, so we don't touch them here.
     if (denied?.status === 404) return new Response(null, { status: 204 });
     if (denied) return denied;
     const updatesColl = await getUpdatesCollection();
