@@ -7,42 +7,6 @@ and how you can prepare for them.
 
 **[Use Risk Mapper →](https://riskmapper.app/)**
 
-## Deploying
-
-Every deploy has to be signed with the YubiKey, or Railway will reject it.
-
-Pushing `main` does it for you, which is the easy path:
-
-1. Make your changes, commit them, plug in the YubiKey.
-2. `git push`. The hook notices the signature is stale and asks. Say yes.
-3. Enter the PIN, then **tap the key** when prompted.
-4. It commits the refreshed `public/.well-known/webcat/` and pushes it. Railway
-   builds and deploys.
-5. `yarn webcat:verify` to confirm the live site matches.
-
-git prints `error: failed to push some refs` at the end of step 4, and the work
-is on the remote anyway. Ref lists are resolved before a pre-push hook runs and
-cannot be changed from inside one, so the hook pushes the signature itself and
-then stops the push it was asked about, which by then has nothing left to send.
-
-By hand it is the same thing in a different order: `yarn webcat:sign`, commit
-`public/.well-known/webcat/`, push.
-
-Signing picks the manifest's version for you, bumping the patch past whatever
-was last published. That is not bookkeeping. The extension caches an origin's
-manifest for the whole browser session, so anyone with the app open when a
-deploy lands is checking new bytes against the old manifest and gets an
-integrity error until they restart their browser. The server sends the version
-of the manifest it ships as `x-webcat-version` on every response, and a client
-holding an older one reloads instead of breaking. A version that did not move
-makes that header do nothing. For a real release, bump `version` in both
-`package.json` and `webcat.config.json` and signing will use it as-is.
-
-If a deploy comes back unhealthy, it almost always means the signing was
-skipped: the build no longer matches the signed manifest, so `/api/healthz`
-returns 503 and Railway keeps the previous version. Re-sign and push again.
-See [Git hooks](#git-hooks) for what the prompt does and how to skip it.
-
 ## Local Development
 
 ```bash

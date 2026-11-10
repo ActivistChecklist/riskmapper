@@ -88,11 +88,11 @@ describe("GET /api/healthz", () => {
     expect((await res.json()).ok).toBe(true);
   });
 
-  it("reports WEBCAT manifest health, which Railway uses to gate a deploy", async () => {
+  it("reports WEBCAT manifest health, which the deploy uses to gate a release", async () => {
     // A build whose bytes disagree with the signed manifest must not be
     // promoted: once enrolled, that state blocks the site for extension
     // users while looking fine to everyone else. The gate lives here because
-    // healthcheckPath in railway.toml points at this route.
+    // the deploy's health check points at this route.
     const { GET } = await import("@/server/routes/healthz");
     const body = await (await GET()).json();
     expect(typeof body.webcat).toBe("string");

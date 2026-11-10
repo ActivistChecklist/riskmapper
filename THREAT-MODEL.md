@@ -132,7 +132,8 @@ without a warning.
 
 **No forward secrecy.** Once a key has leaked, all past and future
 versions of that matrix are exposed for as long as the matrix exists on
-the server. Stopping sharing deletes it.
+the server. Stopping sharing deletes it, though the encrypted backups keep a
+copy until they expire after 30 days.
 
 **Traffic patterns can leak a little.** Someone with access to the
 server's logs can see when a matrix is being edited, how often, and the
