@@ -50,6 +50,43 @@ function headerValue(
   return Array.isArray(v) ? v[0] : v;
 }
 
+/**
+ * How many entries at the right end of `X-Forwarded-For` were written by
+ * proxies we run behind. `TRUSTED_PROXY_HOPS`, default 1.
+ */
+export function trustedProxyHops(): number {
+  const n = Number(process.env.TRUSTED_PROXY_HOPS ?? 1);
+  return Number.isInteger(n) && n >= 1 ? n : 1;
+}
+
+/**
+ * The visitor's address, as reported by the proxies we trust.
+ *
+ * Every proxy appends the address it received the request from, so only the
+ * rightmost `hops` entries of `X-Forwarded-For` come from our own
+ * infrastructure. Anything to their left was sent by the client and can say
+ * anything, which is why the leftmost entry must never be trusted: a client
+ * that sends `X-Forwarded-For: 1.2.3.4` would otherwise choose its own
+ * rate-limit bucket. On May First the header arrives as
+ * `<client-supplied...>, <visitor>, <visitor>` (nginx, then Apache, each
+ * appending the visitor's address), so the default of one hop picks the
+ * rightmost entry.
+ *
+ * With no header at all (local dev), the socket's peer address.
+ */
+export function trustedClientIp(
+  forwardedFor: string | undefined,
+  peer: string | undefined,
+  hops = trustedProxyHops(),
+): string | undefined {
+  const entries = (forwardedFor ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (entries.length === 0) return peer || undefined;
+  return entries[Math.max(0, entries.length - hops)];
+}
+
 export function toWebRequest(
   req: IncomingMessage,
   res: ServerResponse,
@@ -65,6 +102,17 @@ export function toWebRequest(
     if (Array.isArray(value)) for (const v of value) headers.append(key, v);
     else headers.set(key, value);
   }
+
+  // Hand the routes one trustworthy address and nothing a client could have
+  // written: the rate limiter and the analytics relay both read the leftmost
+  // `x-forwarded-for` entry, and fall back to `x-real-ip`.
+  const clientIp = trustedClientIp(
+    headers.get("x-forwarded-for") ?? undefined,
+    req.socket?.remoteAddress,
+  );
+  headers.delete("x-real-ip");
+  if (clientIp) headers.set("x-forwarded-for", clientIp);
+  else headers.delete("x-forwarded-for");
 
   const hasBody = req.method !== "GET" && req.method !== "HEAD";
   const { signal } = abortWiringFor(req, res);

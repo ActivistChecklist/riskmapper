@@ -8,10 +8,11 @@ import { RateLimiterMemory } from "rate-limiter-flexible";
  * Cached on `globalThis` so Next.js dev hot-reload doesn't reset counters
  * on every code change.
  *
- * The client key is the leftmost `x-forwarded-for` IP, which is the real
- * client when the app sits behind exactly one trusted proxy hop. If you
- * deploy behind multiple proxies, this needs to read further along the XFF
- * chain — see THREAT-MODEL.md.
+ * The client key is the leftmost `x-forwarded-for` IP. That is safe only
+ * because `server/webRequest.ts` replaces the header with the single address
+ * our own proxies reported (see `trustedClientIp`, and `TRUSTED_PROXY_HOPS`
+ * for hosts with a different number of proxies). A raw header's leftmost
+ * entry is whatever the client chose to send.
  */
 
 const g = globalThis as typeof globalThis & {
