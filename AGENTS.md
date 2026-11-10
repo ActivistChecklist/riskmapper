@@ -130,7 +130,7 @@ signature. `WEBCAT_SIGN_REMINDER=off` turns it off for one command.
   server serves `index.html` for anything it cannot match to a file, so the SPA
   renders its own not-found view. See `MIGRATION.md` D2 and D3.
 - **Client side by default.** Assume all of this app runs on the client side unless we need to add a server side compontent.
-- **TypeScript required.** All new files must be `.ts`/`.tsx`. No `any` types without a comment explaining why.
+- **TypeScript required.** All new files must be `.ts`/`.tsx`, or `.mts` for code Node runs directly (see Storage). No `any` types without a comment explaining why.
 - **Client env vars** are `VITE_*`, read via `import.meta.env`. `process.env` is
   not available in the browser bundle, and tests cannot catch that mistake
   because vitest runs in Node.
@@ -138,6 +138,16 @@ signature. `WEBCAT_SIGN_REMINDER=off` turns it off for one command.
   `Request`/`Response` handlers, wired up by `server/apiRoutes.ts`. Shared
   helpers live in `lib/cloud/`. The relay stores opaque ciphertext only — see
   `THREAT-MODEL.md`.
+- **Storage is SQLite** through Node's built-in `node:sqlite`, one file at
+  `SQLITE_PATH`, one connection in the one server process.
+  `lib/cloud/sqliteStore.mts` is the adapter behind `getCollection` and
+  `getUpdatesCollection` in `lib/cloud/db.ts`; its header lists the privacy
+  choices (no hidden rowids, day-only dates, secure delete, 0600 files) that
+  are easy to undo by accident. It and `lib/cloud/cleanup.mts` are also run by
+  plain `node`, with type stripping and no build, from the cleanup and backup
+  scripts. So they are `.mts`, and may import only `node:` builtins, other
+  `.mts` files by their full name, and whole-statement `import type`. The
+  script tests spawn `node` on the real files to catch a slip.
 - **The standalone document URLs keep their trailing slash** (`/privacy/`,
   `/security/`). A slashless path resolves to the SPA, and WEBCAT applies
   `default_index` only to paths ending in `/`.
@@ -154,7 +164,7 @@ Client and server code share one tree and one origin. Be deliberate about which 
 
 **Use server (`server/routes/*.ts`, `lib/cloud/**`) only when you need to:**
 
-- Touch the MongoDB collection (`getCollection` from `lib/cloud/db.ts`).
+- Touch the database (`getCollection` / `getUpdatesCollection` from `lib/cloud/db.ts`).
 - Enforce a security invariant the client cannot be trusted with — e.g. ciphertext size cap, rate limit, optimistic-concurrency check.
 - Hold a secret (DB credentials, future API keys). Anything imported only from `server/` is server-only and is **not** sent to the browser.
 
@@ -164,7 +174,7 @@ Client and server code share one tree and one origin. Be deliberate about which 
 - Anything that touches `lib/e2ee/*` — encryption MUST run client-side; the server never sees plaintext or keys.
 - Anything reading `window.location` (share-link import lives client-side).
 
-**Don't import server modules into client code.** A `"use client"` file that imports from `lib/cloud/db.ts` will leak `mongodb` and connection logic into the browser bundle. The line is enforced informally — if a client file imports from `lib/cloud/`, that's a smell to check.
+**Don't import server modules into client code.** A `"use client"` file that imports from `lib/cloud/db.ts` will try to pull `node:sqlite` and the storage layer into the browser bundle. The line is enforced informally: if a client file imports from `lib/cloud/`, that's a smell to check.
 
 **Don't import client modules into server code.** Anything under `client/` or `components/` is client UI. It also pulls in `import.meta.env`, which is a client-only construct.
 

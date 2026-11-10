@@ -17,12 +17,11 @@ export type MatrixDoc = {
   lastWriteDate: string;
   lastReadDate: string | null;
   /**
-   * Midnight-UTC `Date` of the most recent read or write. Indexed with
-   * MongoDB's TTL feature in `db.ts` so records become eligible for
-   * automatic deletion 90 days after their last activity. Stored as a
-   * BSON `Date` (TTL needs a real Date type) but always rounded to the
-   * day so the underlying datetime carries no time-of-day metadata —
-   * matches the "coarse calendar dates" promise in THREAT-MODEL.md.
+   * Midnight-UTC `Date` of the most recent read or write. The daily cleanup
+   * (`lib/cloud/cleanup.mts`) deletes records whose last activity is
+   * `RETENTION_DAYS` (90) days old. Stored as a `YYYY-MM-DD` column by
+   * `sqliteStore.mts`, so it carries no time of day even if a caller passes
+   * one: matches the "coarse calendar dates" promise in THREAT-MODEL.md.
    */
   lastActivityDate: Date;
   /**
@@ -37,19 +36,12 @@ export type MatrixDoc = {
 
 export type MatrixUpdate = {
   /**
-   * Set explicitly on every write, and never left to the driver.
-   *
-   * An auto-generated ObjectId carries its own creation time in its first
-   * four bytes, at one-second resolution. Leaving `_id` off would therefore
-   * have stamped a precise wall-clock timestamp on every single edit, which
-   * is exactly the metadata `createdAt` is rounded to a calendar day to
-   * avoid, and exactly what a database dump or a subpoena would surface.
-   * `recordId:seq` carries no time and is unique by construction, because
-   * `seq` is assigned by an atomic `$inc` on the matrix doc.
-   *
-   * Optional in the type only so the read path keeps working for rows
-   * written before this existed, which still have real ObjectIds. Nothing
-   * reads this field.
+   * Accepted on insert and never stored. Under MongoDB this was set
+   * explicitly to `recordId:seq` because a driver-minted ObjectId embeds its
+   * creation time to the second, which would have stamped a precise
+   * wall-clock time on every edit. SQLite keys the row on `(recordId, seq)`
+   * itself, which carries no time, and its table has no hidden rowid either
+   * (see `sqliteStore.mts`). Nothing reads this field.
    */
   _id?: string;
   recordId: string;
@@ -66,13 +58,15 @@ export function updateRowId(recordId: string, seq: number): string {
 }
 
 /**
- * Narrow Mongo surface for the matrices collection.
+ * Storage surface for matrices, implemented over SQLite in
+ * `sqliteStore.mts`. The method and operator names are MongoDB's, kept from
+ * before the move so the route handlers did not have to change.
  *
- * `findOneAndUpdate` accepts an optional `baselineSeq` / `headSeq`
- * comparison filter alongside `_id`. Compaction uses both: it must only
- * apply when `baselineSeq < N` (forward progress) AND `headSeq >= N`
- * (the seq has actually been issued). If the filter doesn't match,
- * Mongo returns null and the caller backs off.
+ * `findOneAndUpdate` is atomic and accepts an optional `baselineSeq` /
+ * `headSeq` comparison filter alongside `_id`. Compaction uses both: it must
+ * only apply when `baselineSeq < N` (forward progress) AND `headSeq >= N`
+ * (the seq has actually been issued). If the filter doesn't match, it
+ * returns null and the caller backs off.
  *
  * `writeHash: { $exists: false }` is the legacy-record claim in
  * `lib/cloud/writeAuth.ts`: it only matches a record with no hash yet.
@@ -95,12 +89,12 @@ export type AppCollection = {
       | { $inc: Partial<Pick<MatrixDoc, "headSeq">>; $set: Partial<MatrixDoc> },
     options: { returnDocument: "after" },
   ): Promise<MatrixDoc | null>;
+  /** Also deletes the record's updates. */
   deleteOne(filter: { _id: string }): Promise<unknown>;
-  deleteMany(filter: Record<string, unknown>): Promise<{ deletedCount?: number }>;
 };
 
 /**
- * Narrow Mongo surface for the matrix_updates collection. Append-only
+ * Storage surface for the matrix_updates log. Append-only
  * except for two prune paths: full-record deletion (matrix delete) and
  * compaction (drop updates already folded into a newer baseline).
  */
@@ -128,9 +122,9 @@ export function todayUtc(): string {
 }
 
 /**
- * Today as a midnight-UTC `Date`. Used for `lastActivityDate` (the TTL
- * field) so the BSON value is a real Date but carries no time-of-day
- * granularity — same calendar-day coarseness as `todayUtc()`.
+ * Today as a midnight-UTC `Date`. Used for `lastActivityDate` (the field
+ * the idle cleanup reads), with the same calendar-day coarseness as
+ * `todayUtc()`.
  */
 export function todayUtcDate(): Date {
   const d = new Date();

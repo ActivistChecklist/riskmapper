@@ -1,0 +1,11 @@
+{
+  "name": "riskmapper-mongo-to-sqlite",
+  "private": true,
+  "description": "One-time copy of the Railway MongoDB into SQLite. Kept apart so the app does not depend on mongodb. See README.md.",
+  "engines": {
+    "node": ">=24.22.1 <25"
+  },
+  "dependencies": {
+    "mongodb": "7.7.0"
+  }
+}

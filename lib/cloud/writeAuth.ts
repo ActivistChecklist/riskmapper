@@ -20,7 +20,7 @@ import type { AppCollection } from "./types";
  * before anyone with the link can claim a legacy record for themselves. That
  * is no worse than before this change, when they could already delete it,
  * and the window closes the first time anyone with the link opens it. Idle
- * records expire after 90 days (see `lib/cloud/db.ts`), so once the change
+ * records expire after 90 days (see `lib/cloud/cleanup.mts`), so once the change
  * has been live that long, every remaining record has a `writeHash`.
  */
 

@@ -60,7 +60,7 @@ export async function POST(req: Request, ctx: RouteParams) {
     const today = todayUtc();
     // Atomic seq assignment: bump headSeq on the matrix doc and read back
     // the new value. If the record doesn't exist, we get null — surface as
-    // 404. (Race-safe because Mongo's findOneAndUpdate is atomic per-doc.)
+    // 404. (Race-safe because findOneAndUpdate runs in one transaction.)
     const updated = await coll.findOneAndUpdate(
       { _id: id },
       {

@@ -52,19 +52,14 @@ yarn dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-The local-only experience works out of the box — matrices persist in
-`localStorage`. To exercise the cloud-sync feature in dev, you also need a
-local MongoDB:
+Matrices persist in `localStorage`, and cloud sync works out of the box
+too: the API keeps shared matrices in a SQLite file, using Node's built-in
+`node:sqlite`, so there is no database server to run. It creates
+`.data/riskmapper.sqlite` (gitignored) on first use. Delete that file to start
+over. Settings, all optional locally, are in `.env.local.example`:
 
 ```bash
-# Boot a Mongo container (persistent volume; survives restarts).
-yarn db:up
-
-# Tell the app where to find it. Copy .env.local.example → .env.local
-# and edit. The default MONGO_URL in the example points at yarn db:up.
 cp .env.local.example .env.local
-
-yarn dev
 ```
 
 | Command         | What it does                                          |
@@ -75,10 +70,8 @@ yarn dev
 | `yarn lint`     | ESLint                                                |
 | `yarn test`     | Vitest (UI, server route, and static-resolution tests).|
 | `yarn typecheck`| `tsc --noEmit`                                        |
-| `yarn db:up`    | Start the dev MongoDB container.                      |
-| `yarn db:down`  | Stop it (volume preserved).                           |
-| `yarn db:logs`  | Tail Mongo logs.                                      |
-| `yarn db:reset` | Stop AND wipe the dev volume.                         |
+| `yarn sqlite:cleanup` | Delete matrices idle for 90 days. Run daily.    |
+| `yarn sqlite:backup`  | Snapshot the database for an offsite upload.    |
 | `yarn hooks:install` | Point git at `.githooks/`. Runs on install.      |
 
 ### Git hooks
@@ -140,6 +133,33 @@ relative URLs. To disable the feature entirely on a deploy that has no
 database, set `VITE_CLOUD_SYNC_ENABLED=false` — all share affordances are
 hidden.
 
+## Storage
+
+Shared matrices live in one SQLite file at `SQLITE_PATH` (default
+`.data/riskmapper.sqlite`, relative to the working directory). The server is
+a single process and holds the only long-lived connection. Each matrix is a
+JSON document, so adding a field needs no migration. The adapter is
+`lib/cloud/sqliteStore.mts`; it explains the privacy-relevant choices, such as
+no hidden row ids and day-only dates.
+
+Two jobs keep it in shape on the server. Both run straight from the source
+tree with `node`, no build step, and print counts only:
+
+- **`node scripts/sqlite-cleanup.mts`**, daily. Deletes matrices with no read
+  or write for `RETENTION_DAYS` (90), their updates, and orphaned updates.
+  The Security page promises this deletion, so if the job stops running the
+  promise stops being true.
+- **`node scripts/sqlite-backup.mts`**. Takes a consistent snapshot with
+  `VACUUM INTO` and runs `SQLITE_BACKUP_UPLOAD_CMD` on it. Where backups go,
+  and the keys to get them there, are configured only in the server's
+  environment. The command should encrypt the snapshot and the destination
+  should expire old ones: a backup keeps a deleted matrix until the backup
+  itself is deleted.
+
+Both refuse to create a database, so a job pointed at the wrong path fails
+loudly. `scripts/mongo-to-sqlite/` holds the one-time copy from the old
+MongoDB.
+
 ## Project layout
 
 ```
@@ -149,13 +169,13 @@ security/index.html            Security page, its own static document
 client/                        Entries, app shell, router-less path dispatch
 client/Prose.tsx               Markdown renderer behind both static documents
 components/risk-matrix/        SPA components, hooks, local repo
-lib/cloud/                     Server-side: Mongo, route helpers, rate limit
+lib/cloud/                     Server-side: SQLite store, route helpers, rate limit
 lib/e2ee/                      Client-side: XChaCha20-Poly1305 envelope
 server/index.ts                Serves the static build and the API, one origin
 server/routes/                 API handlers (Web Request/Response)
 server/staticFiles.ts          Path resolution, traversal guards, cache policy
 public/theme-boot.js           Blocking pre-paint theme script (never inlined)
-docker-compose.dev.yml         Local Mongo for dev
+scripts/sqlite-*.mts           Daily cleanup and backup jobs for the database
 MIGRATION.md                   Migration plan, decisions, security gate
 THREAT-MODEL.md                In-scope guarantees and explicit out-of-scope risks
 ```

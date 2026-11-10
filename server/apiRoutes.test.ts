@@ -74,7 +74,7 @@ describe("matchApiRoute", () => {
     }
   });
 
-  it("rejects implausible record ids at the router, before Mongo", () => {
+  it("rejects implausible record ids at the router, before the database", () => {
     for (const id of ["short", "", "has spaces", "a".repeat(65), "id.with.dots"]) {
       const path = `/api/matrix/${id}`;
       expect(matchApiRoute("GET", path).kind, path).toBe("notFound");

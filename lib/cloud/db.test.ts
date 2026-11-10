@@ -1,134 +1,115 @@
+import { execFileSync } from "node:child_process";
+import { chmodSync, mkdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import path from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { __resetDbForTests, __storeForTests, getCollection, getUpdatesCollection } from "./db";
+import { makeTempDb, matrixDoc, type TempDb } from "./sqliteTestUtils";
+import { DEFAULT_SQLITE_PATH, sqlitePathFromEnv } from "./sqliteStore.mts";
 
 /**
- * Connection-cache recovery.
- *
- * The failure this guards against is nasty in production: if a failed
- * `connect()` is cached, every later request re-awaits the same rejected
- * promise, so a single transient Mongo outage takes the API down until
- * someone restarts the process by hand. It surfaced for real when the dev
- * Mongo container was stopped: the API kept returning 500 after the database
- * came back healthy, while a freshly started process served the same request
- * fine.
+ * The server's connection: where it opens, what it opens with, and that a
+ * failed open is retried rather than cached. A cached failure would leave a
+ * long-lived server returning 500 until someone restarted it by hand, which
+ * is what happened under MongoDB before the connect promise was evicted on
+ * failure.
  */
 
-const state = vi.hoisted(() => ({
-  connectResults: [] as (Error | null)[],
-  constructed: 0,
-  closed: 0,
-}));
-
-vi.mock("mongodb", () => ({
-  MongoClient: class {
-    constructor() {
-      state.constructed += 1;
-    }
-    connect() {
-      const next = state.connectResults.shift() ?? null;
-      return next ? Promise.reject(next) : Promise.resolve(this);
-    }
-    close() {
-      state.closed += 1;
-      return Promise.resolve();
-    }
-    db() {
-      return {
-        collection: () => ({
-          createIndex: () => Promise.resolve(),
-        }),
-      };
-    }
-  },
-}));
-
-vi.mock("./config", () => ({
-  MONGO_URL: "mongodb://127.0.0.1:27017",
-  MONGO_DB: "test",
-  MONGO_COLLECTION: "matrices",
-  MONGO_UPDATES_COLLECTION: "matrix_updates",
-}));
-
-async function loadDb() {
-  const mod = await import("./db");
-  mod.__resetDbForTests();
-  return mod;
-}
+let temp: TempDb;
 
 beforeEach(() => {
-  vi.resetModules();
-  state.connectResults = [];
-  state.constructed = 0;
-  state.closed = 0;
+  temp = makeTempDb("riskmapper-db-");
+  vi.stubEnv("SQLITE_PATH", temp.file);
+  __resetDbForTests();
 });
 
 afterEach(() => {
+  __resetDbForTests();
+  temp.remove();
+  vi.unstubAllEnvs();
   vi.restoreAllMocks();
 });
 
-describe("getCollection connection caching", () => {
-  it("reuses one connection across calls when Mongo is reachable", async () => {
-    const { getCollection } = await loadDb();
+const mode = (file: string) => statSync(file).mode & 0o777;
+
+describe("getCollection", () => {
+  it("opens on first use and reuses one connection", async () => {
+    const a = await getCollection();
+    const b = await getCollection();
+    const u = await getUpdatesCollection();
+    expect(a).toBe(b);
+    expect(__storeForTests().updates).toBe(u);
+  });
+
+  it("retries after a failed open instead of caching the failure", async () => {
+    // A file where the database's directory should be: the open fails the
+    // way a storage directory that is not mounted yet would.
+    writeFileSync(path.dirname(temp.file), "");
+    await expect(getCollection()).rejects.toThrow();
+    await expect(getUpdatesCollection()).rejects.toThrow();
+
+    rmSync(path.dirname(temp.file));
+    const coll = await getCollection();
+    await coll.insertOne(matrixDoc({ _id: "abcd1234efgh5678ijkl" }));
+    expect(await coll.findOne({ _id: "abcd1234efgh5678ijkl" })).not.toBeNull();
+  });
+
+  it("keeps data across reopening", async () => {
+    await (await getCollection()).insertOne(matrixDoc({ _id: "abcd1234efgh5678ijkl" }));
+    __resetDbForTests();
+    expect(await (await getCollection()).findOne({ _id: "abcd1234efgh5678ijkl" })).not.toBeNull();
+  });
+
+  it("refuses a database written by a newer schema, and retries next time", async () => {
+    mkdirSync(path.dirname(temp.file), { recursive: true });
+    const newer = new DatabaseSync(temp.file);
+    newer.exec("PRAGMA user_version = 99");
+    newer.close();
+
+    await expect(getCollection()).rejects.toThrow(/schema version 99 is newer/);
+    await expect(getCollection()).rejects.toThrow(/schema version 99 is newer/);
+  });
+});
+
+describe("the database file", () => {
+  it("creates its directory 0700 and the file 0600, WAL included", async () => {
+    await (await getCollection()).insertOne(matrixDoc({ _id: "abcd1234efgh5678ijkl" }));
+    expect(mode(path.dirname(temp.file))).toBe(0o700);
+    expect(mode(temp.file)).toBe(0o600);
+    expect(mode(`${temp.file}-wal`)).toBe(0o600);
+    expect(mode(`${temp.file}-shm`)).toBe(0o600);
+  });
+
+  it("tightens a file that arrives readable by others", async () => {
+    await getCollection();
+    __resetDbForTests();
+    chmodSync(temp.file, 0o644);
 
     await getCollection();
+    expect(mode(temp.file)).toBe(0o600);
+  });
+
+  it("opens with WAL, full sync, foreign keys, secure delete and a busy timeout", async () => {
     await getCollection();
-    await getCollection();
+    const db = __storeForTests().db;
+    const pragma = (name: string) => Object.values(db.prepare(`PRAGMA ${name}`).get()!)[0];
+    expect(pragma("journal_mode")).toBe("wal");
+    expect(pragma("synchronous")).toBe(2); // FULL
+    expect(pragma("foreign_keys")).toBe(1);
+    expect(pragma("secure_delete")).toBe(1);
+    expect(pragma("busy_timeout")).toBe(5000);
+  });
+});
 
-    expect(state.constructed).toBe(1);
+describe("SQLITE_PATH", () => {
+  it("defaults to a path under .data/ in the working directory", () => {
+    expect(sqlitePathFromEnv({})).toBe(path.resolve(DEFAULT_SQLITE_PATH));
+    expect(sqlitePathFromEnv({ SQLITE_PATH: "" })).toBe(path.resolve(DEFAULT_SQLITE_PATH));
+    expect(sqlitePathFromEnv({ SQLITE_PATH: "/srv/x.sqlite" })).toBe("/srv/x.sqlite");
   });
 
-  it("retries after a failed connection instead of replaying the rejection", async () => {
-    state.connectResults = [new Error("connect ECONNREFUSED 127.0.0.1:27017")];
-    const { getCollection } = await loadDb();
-
-    await expect(getCollection()).rejects.toThrow(/ECONNREFUSED/);
-
-    // Mongo is back. The next call must build a new client rather than
-    // re-await the cached rejection.
-    await expect(getCollection()).resolves.toBeDefined();
-    expect(state.constructed).toBe(2);
-  });
-
-  it("recovers even after several consecutive failures", async () => {
-    state.connectResults = [
-      new Error("down 1"),
-      new Error("down 2"),
-      new Error("down 3"),
-    ];
-    const { getCollection } = await loadDb();
-
-    for (const message of ["down 1", "down 2", "down 3"]) {
-      await expect(getCollection()).rejects.toThrow(message);
-    }
-    await expect(getCollection()).resolves.toBeDefined();
-    expect(state.constructed).toBe(4);
-  });
-
-  it("closes the client of a failed attempt so the socket is not leaked", async () => {
-    state.connectResults = [new Error("nope")];
-    const { getCollection } = await loadDb();
-
-    await expect(getCollection()).rejects.toThrow("nope");
-    // The catch handler calls close() on the abandoned client.
-    await vi.waitFor(() => expect(state.closed).toBe(1));
-  });
-
-  it("applies the same recovery to the updates collection", async () => {
-    state.connectResults = [new Error("connect ECONNREFUSED")];
-    const { getUpdatesCollection } = await loadDb();
-
-    await expect(getUpdatesCollection()).rejects.toThrow(/ECONNREFUSED/);
-    await expect(getUpdatesCollection()).resolves.toBeDefined();
-    expect(state.constructed).toBe(2);
-  });
-
-  it("shares one recovered connection between both accessors", async () => {
-    state.connectResults = [new Error("down")];
-    const { getCollection, getUpdatesCollection } = await loadDb();
-
-    await expect(getCollection()).rejects.toThrow("down");
-    await getCollection();
-    await getUpdatesCollection();
-
-    expect(state.constructed).toBe(2);
+  it("keeps the default database out of git", () => {
+    // Exits non-zero, and so throws, if the path is not ignored.
+    execFileSync("git", ["check-ignore", "-q", DEFAULT_SQLITE_PATH]);
   });
 });

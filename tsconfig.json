@@ -22,5 +22,13 @@
     }
   },
   "include": ["**/*.ts", "**/*.tsx", "**/*.mts"],
-  "exclude": ["node_modules", "dist", "out", ".next"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "out",
+    ".next",
+    // Imports mongodb, which only that folder installs. Typecheck it there:
+    // see scripts/mongo-to-sqlite/README.md.
+    "scripts/mongo-to-sqlite/copy.mts"
+  ]
 }
