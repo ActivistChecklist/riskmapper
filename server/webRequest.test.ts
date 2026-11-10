@@ -1,7 +1,7 @@
 import { EventEmitter } from "node:events";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { describe, expect, it } from "vitest";
-import { abortWiringFor, toWebRequest, trustedClientIp } from "./webRequest";
+import { abortWiringFor, isProxyPeer, toWebRequest, trustedClientIp } from "./webRequest";
 
 /**
  * Client-disconnect propagation.
@@ -113,8 +113,16 @@ describe("trustedClientIp", () => {
     ).toBe("203.0.113.7");
   });
 
-  it("uses the only entry it has when the chain is shorter than the hops", () => {
-    expect(trustedClientIp("203.0.113.7", "127.0.0.1", 3)).toBe("203.0.113.7");
+  it("falls back to the peer when the chain is shorter than the hops", () => {
+    // Fewer entries than our proxies write means the request skipped at
+    // least one of them, so even the rightmost entry may be the client's.
+    expect(trustedClientIp("203.0.113.7", "127.0.0.1", 3)).toBe("127.0.0.1");
+  });
+
+  it("ignores the header from a peer that is not a proxy", () => {
+    // A server reachable straight from the internet (HOST=0.0.0.0, no proxy)
+    // must not let the client pick its own address.
+    expect(trustedClientIp("1.2.3.4", "198.51.100.9", 1)).toBe("198.51.100.9");
   });
 
   it("falls back to the socket's peer with no header, as in local dev", () => {
@@ -152,5 +160,19 @@ describe("toWebRequest client address", () => {
   it("uses the peer address when no proxy is in front", () => {
     const r = fakeReq({ host: "localhost:3002" });
     expect(r.headers.get("x-forwarded-for")).toBe("127.0.0.1");
+  });
+});
+
+describe("isProxyPeer", () => {
+  it("accepts loopback and private addresses, where a proxy would connect from", () => {
+    for (const a of ["127.0.0.1", "::1", "::ffff:127.0.0.1", "10.1.2.3", "172.20.0.5", "192.168.1.9", "100.64.0.1", "fd12:3456::1"]) {
+      expect(isProxyPeer(a), a).toBe(true);
+    }
+  });
+
+  it("rejects public addresses and a missing peer", () => {
+    for (const a of ["203.0.113.7", "172.32.0.1", "8.8.8.8", "2001:db8::1", undefined]) {
+      expect(isProxyPeer(a), String(a)).toBe(false);
+    }
   });
 });

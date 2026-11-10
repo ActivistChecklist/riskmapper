@@ -60,6 +60,32 @@ export function trustedProxyHops(): number {
 }
 
 /**
+ * Whether the socket peer could be a proxy we run behind: a loopback or
+ * private address. A peer on the public internet reached the app directly,
+ * so any `X-Forwarded-For` it sends is its own invention.
+ *
+ * On a shared host such as May First, every member's processes also connect
+ * from loopback, so this cannot tell our Apache from a neighbour. There the
+ * boundary is that the app listens on 127.0.0.1 only.
+ */
+export function isProxyPeer(peer: string | undefined): boolean {
+  if (!peer) return false;
+  const addr = peer.startsWith("::ffff:") ? peer.slice("::ffff:".length) : peer;
+  if (addr === "::1" || /^f[cd][0-9a-f]{2}:/i.test(addr)) return true;
+  const m = addr.match(/^(\d{1,3})\.(\d{1,3})\.\d{1,3}\.\d{1,3}$/);
+  if (!m) return false;
+  const a = Number(m[1]);
+  const b = Number(m[2]);
+  return (
+    a === 127 ||
+    a === 10 ||
+    (a === 172 && b >= 16 && b <= 31) ||
+    (a === 192 && b === 168) ||
+    (a === 100 && b >= 64 && b <= 127)
+  );
+}
+
+/**
  * The visitor's address, as reported by the proxies we trust.
  *
  * Every proxy appends the address it received the request from, so only the
@@ -72,7 +98,10 @@ export function trustedProxyHops(): number {
  * appending the visitor's address), so the default of one hop picks the
  * rightmost entry.
  *
- * With no header at all (local dev), the socket's peer address.
+ * The socket's peer address is used instead when there is no header (local
+ * dev), when the peer is not a proxy (`isProxyPeer`), or when the chain has
+ * fewer entries than our proxies write, which means the request did not pass
+ * through all of them and every entry may be the client's.
  */
 export function trustedClientIp(
   forwardedFor: string | undefined,
@@ -83,8 +112,8 @@ export function trustedClientIp(
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
-  if (entries.length === 0) return peer || undefined;
-  return entries[Math.max(0, entries.length - hops)];
+  if (!isProxyPeer(peer) || entries.length < hops) return peer || undefined;
+  return entries[entries.length - hops];
 }
 
 export function toWebRequest(
