@@ -55,14 +55,25 @@ describe("SecurityPage", () => {
     expect(screen.getByText(/never times of day/i)).toBeTruthy();
   });
 
-  it("says plainly that the host keeps ordinary server logs", () => {
-    // Access logs carry real timestamps and IPs and sit outside our schema.
-    // THREAT-MODEL.md refuses to claim there is "nothing" responsive to a
-    // subpoena; this page must not claim it either.
+  it("says what the host can still see with its logs turned off", () => {
+    // Access and error logging are off in the host's web configuration, but
+    // the host still holds IPs in memory for a day. THREAT-MODEL.md refuses
+    // to claim there is "nothing" responsive to a subpoena; this page must
+    // not claim it either. If logging is ever turned back on, this changes.
     render(<SecurityPage />);
     expect(
-      screen.getByText(/our web host keeps ordinary server logs/i),
+      screen.getByText(/turned off\s+its access and error logs/i),
     ).toBeTruthy();
+    expect(
+      screen.getByText(/does hold IP addresses in memory for up to 24 hours/i),
+    ).toBeTruthy();
+  });
+
+  it("says a deleted matrix can outlive Stop sharing in a backup", () => {
+    // Backups are kept for 30 days by a lifecycle rule on the backup bucket.
+    // If that rule changes, this line on the page has to change with it.
+    render(<SecurityPage />);
+    expect(screen.getByText(/kept for 30 days/i)).toBeTruthy();
   });
 
   it("says the id before the # can't edit or delete a matrix on its own", () => {
