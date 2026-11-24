@@ -24,6 +24,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { isOfflineBuild, sitePageLinkProps } from "@/lib/offlineBuild";
+import { OFFLINE_DOWNLOAD_PATH } from "@/lib/offlinePaths.mts";
 import { cn } from "@/lib/utils";
 import type { SyncState } from "./CloudSyncIndicator";
 
@@ -85,10 +86,33 @@ function SecurityPageLink() {
 }
 
 /**
+ * Points at the single-file offline download, served from our own origin so
+ * getting it reveals nothing to a third party. Not shown inside the offline
+ * file itself, which is already that version.
+ */
+function OfflineDownloadLink() {
+  if (isOfflineBuild()) return null;
+  return (
+    <p>
+      To use Risk Mapper fully offline, with nothing sent to any server,{" "}
+      <a
+        href={OFFLINE_DOWNLOAD_PATH}
+        download
+        className="font-medium text-rm-ink underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rm-ring"
+      >
+        download the single-file version
+      </a>
+      .
+    </p>
+  );
+}
+
+/**
  * Where the offline file keeps work, which differs from the website and
  * between browsers: Firefox gives each file its own storage, so a moved,
- * renamed or newer copy starts empty, while Chrome lets every HTML file
- * opened from disk share one storage area. The export file is the one way
+ * renamed or newer copy starts empty and the old work stays behind, while
+ * Chromium browsers let every HTML file opened from disk share one storage
+ * area that any of them can read or rewrite. The export file is the one way
  * to carry work between copies that behaves the same everywhere.
  */
 function OfflineStorageNote() {
@@ -97,14 +121,19 @@ function OfflineStorageNote() {
       <p>
         This copy of Risk Mapper is a file on your computer, and your browser
         keeps your work for this file. In some browsers, moving or renaming
-        the file, or opening a newer copy, starts you over with nothing
-        saved. In Chrome, other HTML files you open from your computer can
-        read your work.
+        the file, or opening a newer copy, starts you over with an empty
+        matrix, while the old work stays in the browser until you delete it
+        in the old copy.
+      </p>
+      <p>
+        In Chrome, Edge, Brave and other Chromium-based browsers, any HTML
+        file you open from your computer can read or change your work.
+        Firefox keeps each file&apos;s work separate.
       </p>
       <p>
         To keep your work safe, or move it into a newer copy, choose Export,
-        then &quot;RiskMapper.app export format (JSON)&quot;. Bring it back
-        with Import.
+        then &quot;RiskMapper.app export format (JSON)&quot;, and bring it
+        back with Import. Then delete it from the old copy.
       </p>
     </>
   );
@@ -130,6 +159,7 @@ function StatusInfoDialog({
           <DialogDescription asChild>
             <div className="space-y-3 pt-1 text-sm leading-relaxed text-rm-ink opacity-90">
               {children}
+              <OfflineDownloadLink />
               <SecurityPageLink />
             </div>
           </DialogDescription>

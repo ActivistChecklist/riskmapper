@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
+import { parse, type DefaultTreeAdapterMap } from "parse5";
 import type { Plugin } from "vite";
-import { OFFLINE_FILENAME } from "../lib/offlinePaths.mts";
+import { OFFLINE_CHECKSUM_FILENAME, OFFLINE_FILENAME } from "../lib/offlinePaths.mts";
 
 /**
  * The single-file offline build: one HTML file holding the whole app, for
@@ -50,6 +51,14 @@ export function offlineCsp(scriptHashes: readonly string[]): string {
     "base-uri 'none'",
     "form-action 'none'",
   ].join("; ");
+}
+
+/**
+ * One line of `shasum -a 256` output for the file, which `shasum -a 256 -c`
+ * (and `sha256sum -c`) can check a downloaded copy against.
+ */
+export function checksumLine(content: string, filename: string): string {
+  return `${createHash("sha256").update(content, "utf8").digest("hex")}  ${filename}\n`;
 }
 
 /** The CSP source expression for one inline script's exact text. */
@@ -149,8 +158,23 @@ export function finishOfflineHtml(html: string, files: Record<string, string>): 
     throw new Error(`The build emitted files the offline HTML never references: ${unused.join(", ")}`);
   }
 
-  const hashes = [...out.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)].map((m) => scriptHash(m[1]));
-  const meta = `<meta http-equiv="Content-Security-Policy" content="${offlineCsp(hashes)}" />`;
+  const scriptBodies = [...out.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
+  // Browsers turn CR and CRLF into LF, and NUL into U+FFFD, before hashing
+  // an inline script, so a body containing either would not match its hash
+  // and the app would not load.
+  for (const body of scriptBodies) {
+    if (/[\r\0]/.test(body)) {
+      throw new Error("An inline script contains a carriage return or NUL, which would break its CSP hash.");
+    }
+  }
+  const hashes = scriptBodies.map(scriptHash);
+  const meta = [
+    `<meta http-equiv="Content-Security-Policy" content="${offlineCsp(hashes)}" />`,
+    // CSP does not cover DNS prefetching. Without this, a browser may look
+    // up the hosts of links on screen (the footer, links in notes) while
+    // the file is open, which tells the user's DNS resolver it was used.
+    `<meta http-equiv="x-dns-prefetch-control" content="off" />`,
+  ].join("\n    ");
   // Straight after the charset, so the policy is in force before any other
   // element in the document is parsed.
   const charset = /<meta charset="utf-8" \/>/;
@@ -170,22 +194,82 @@ export function finishOfflineHtml(html: string, files: Record<string, string>): 
   return out;
 }
 
+/** Attributes that make a browser fetch or navigate to their value. */
+const URL_ATTRIBUTES = new Set([
+  "action",
+  "background",
+  "cite",
+  "data",
+  "formaction",
+  "href",
+  "longdesc",
+  "manifest",
+  "ping",
+  "poster",
+  "src",
+  "srcset",
+  "xlink:href",
+]);
+
+/** The only http-equiv values the offline file may carry. */
+const ALLOWED_HTTP_EQUIV = new Set(["content-security-policy", "x-dns-prefetch-control"]);
+
+type ParsedNode = DefaultTreeAdapterMap["node"];
+
+function walk(node: ParsedNode, visit: (el: DefaultTreeAdapterMap["element"]) => void): void {
+  if ("tagName" in node) visit(node);
+  if ("content" in node && node.content) walk(node.content, visit);
+  if ("childNodes" in node) for (const child of node.childNodes) walk(child, visit);
+}
+
 /**
- * Everything in the markup that would make the browser fetch something.
- * Script and style bodies are skipped: what they may do at runtime is the
- * CSP's job, and they legitimately contain URLs as strings (the links to
- * riskmapper.app the PDF prints, for one).
+ * Everything in the document that would make the browser fetch, navigate, or
+ * run something the CSP hashes do not cover. Parsed with a real HTML parser
+ * rather than matched with regexes, so quoting, case and attribute order
+ * cannot hide anything, and the scripts it finds are the ones a browser
+ * would run. Script and style bodies are left to the CSP: they legitimately
+ * contain URLs as strings (the links to riskmapper.app the PDF prints).
  */
 export function selfContainedProblems(html: string): string[] {
-  const markup = html
-    .replace(/(<script\b[^>]*>)[\s\S]*?<\/script>/g, "$1</script>")
-    .replace(/(<style\b[^>]*>)[\s\S]*?<\/style>/g, "$1</style>");
   const problems: string[] = [];
-  for (const m of markup.matchAll(/\s(src|href)="([^"]*)"/g)) {
-    if (!m[2].startsWith("data:")) problems.push(`${m[1]}="${m[2]}"`);
-  }
-  if (!/<meta http-equiv="Content-Security-Policy"/.test(markup)) {
+  const parsedScripts: string[] = [];
+  let csp: string | null = null;
+
+  walk(parse(html), (el) => {
+    if (el.tagName === "script") {
+      if (el.attrs.some((a) => a.name === "src")) problems.push("a <script> with a src attribute");
+      parsedScripts.push(
+        el.childNodes.map((c) => ("value" in c ? c.value : "")).join(""),
+      );
+    }
+    for (const { name, value } of el.attrs) {
+      if (URL_ATTRIBUTES.has(name) && !value.trim().startsWith("data:")) {
+        problems.push(`<${el.tagName} ${name}="${value}">`);
+      }
+      if (name === "style" && /url\(\s*['"]?(?!data:)/i.test(value)) {
+        problems.push(`<${el.tagName} style="${value}">`);
+      }
+      if (name.startsWith("on")) problems.push(`<${el.tagName} ${name}>`);
+    }
+    if (el.tagName === "meta") {
+      const equiv = el.attrs.find((a) => a.name === "http-equiv")?.value.toLowerCase();
+      if (equiv && !ALLOWED_HTTP_EQUIV.has(equiv)) problems.push(`<meta http-equiv="${equiv}">`);
+      if (equiv === "content-security-policy") {
+        csp = el.attrs.find((a) => a.name === "content")?.value ?? "";
+      }
+    }
+  });
+
+  if (csp === null) {
     problems.push("no Content-Security-Policy <meta> tag");
+    return problems;
+  }
+  // The hashes in the policy have to be exactly the scripts the parser
+  // found, or the browser will refuse to run the app.
+  const allowed = (csp as string).match(/script-src ([^;]*)/)?.[1].split(/\s+/) ?? [];
+  const expected = [...parsedScripts.map((s) => `'${scriptHash(s)}'`), "'wasm-unsafe-eval'"];
+  if (allowed.join(" ") !== expected.join(" ")) {
+    problems.push("the CSP's script hashes do not match the scripts a browser would parse");
   }
   return problems;
 }
@@ -193,8 +277,9 @@ export function selfContainedProblems(html: string): string[] {
 /**
  * Wires the transforms into a Vite build. Expects the build to emit exactly
  * one HTML file plus the JS and CSS it references, which is what
- * `inlineDynamicImports` and an unlimited `assetsInlineLimit` produce; any
+ * `codeSplitting: false` and an unlimited `assetsInlineLimit` produce; any
  * other file fails the build rather than going missing from the download.
+ * Writes the single HTML file and its checksum.
  */
 export function offlineSingleFilePlugin(assets: { themeBoot: string; iconSvg: string }): Plugin {
   return {
@@ -230,6 +315,11 @@ export function offlineSingleFilePlugin(assets: { themeBoot: string; iconSvg: st
         const html = finishOfflineHtml(String(page.source), files);
         for (const fileName of Object.keys(bundle)) delete bundle[fileName];
         this.emitFile({ type: "asset", fileName: OFFLINE_FILENAME, source: html });
+        this.emitFile({
+          type: "asset",
+          fileName: OFFLINE_CHECKSUM_FILENAME,
+          source: checksumLine(html, OFFLINE_FILENAME),
+        });
       },
     },
   };

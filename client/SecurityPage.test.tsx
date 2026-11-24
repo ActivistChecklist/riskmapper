@@ -141,4 +141,14 @@ describe("SecurityPage", () => {
     ).toBe(OFFLINE_DOWNLOAD_PATH);
     expect(OFFLINE_DOWNLOAD_PATH).toBe("/download/riskmapper-offline.html");
   });
+
+  it("publishes a checksum on this site for checking a copy someone hands over", () => {
+    // The file's protections can be edited out of a copy, so the page has to
+    // give a way to check one against bytes served by us.
+    render(<SecurityPage />);
+    expect(
+      screen.getByRole("link", { name: /the one we publish/i }).getAttribute("href"),
+    ).toBe("/download/riskmapper-offline.html.sha256");
+    expect(screen.getByText(/shasum -a 256 riskmapper-offline.html/)).toBeTruthy();
+  });
 });

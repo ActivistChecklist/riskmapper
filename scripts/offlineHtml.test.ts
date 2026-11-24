@@ -163,6 +163,17 @@ describe("finishOfflineHtml", () => {
     expect(metaCsp(html).get("script-src")).toEqual([...hashes, "'wasm-unsafe-eval'"]);
   });
 
+  it("turns off DNS prefetching, which the CSP does not cover", () => {
+    const html = finishOfflineHtml(built, files);
+    expect(html).toContain('<meta http-equiv="x-dns-prefetch-control" content="off" />');
+  });
+
+  it("refuses a script containing a carriage return, which would break its hash", () => {
+    expect(() =>
+      finishOfflineHtml(built, { ...files, "/assets/main-abc.js": "a();\r\nb();" }),
+    ).toThrow(/carriage return/);
+  });
+
   it("refuses a reference to a file the build did not emit", () => {
     expect(() => finishOfflineHtml(built, { "/assets/main-abc.js": "" })).toThrow(/main-abc\.css/);
   });
@@ -183,25 +194,63 @@ describe("finishOfflineHtml", () => {
 });
 
 describe("selfContainedProblems", () => {
-  it("flags anything in the markup that would make the browser fetch", () => {
-    const html = [
-      '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'" />',
-      '<link rel="icon" href="/icon.svg">',
-      '<img src="https://example.org/x.png">',
-      '<link rel="icon" href="data:image/svg+xml;base64,AAAA">',
-    ].join("\n");
-    expect(selfContainedProblems(html)).toEqual([
-      'href="/icon.svg"',
-      'src="https://example.org/x.png"',
+  /** A document whose CSP allows exactly the given scripts. */
+  function doc(body: string, scripts: string[] = []): string {
+    const csp = offlineCsp(scripts.map(scriptHash));
+    return [
+      `<html><head><meta http-equiv="Content-Security-Policy" content="${csp}">`,
+      ...scripts.map((s) => `<script>${s}</script>`),
+      `</head><body>${body}</body></html>`,
+    ].join("");
+  }
+
+  it("accepts a document that loads nothing and runs only hashed scripts", () => {
+    expect(selfContainedProblems(doc('<link rel="icon" href="data:image/svg+xml;base64,AAAA">', ["boot()"]))).toEqual([]);
+  });
+
+  it("flags every attribute that would fetch or navigate, however it is quoted", () => {
+    const problems = selfContainedProblems(
+      doc(
+        [
+          "<link rel=icon href=/icon.svg>",
+          "<img src='https://example.org/x.png'>",
+          '<img srcset="https://example.org/2x.png 2x">',
+          '<form action="https://example.org/"></form>',
+          '<a ping="https://example.org/ping" href="data:,">x</a>',
+          '<div style="background:url(https://example.org/bg.png)"></div>',
+        ].join(""),
+      ),
+    );
+    expect(problems).toHaveLength(6);
+  });
+
+  it("flags a meta refresh, which the CSP does not stop", () => {
+    const problems = selfContainedProblems(
+      doc('<meta http-equiv="refresh" content="0;url=https://example.org/">'),
+    );
+    expect(problems).toEqual(['<meta http-equiv="refresh">']);
+  });
+
+  it("flags inline event handlers and external scripts", () => {
+    expect(selfContainedProblems(doc('<img src="data:," onerror="x()">'))).toEqual([
+      "<img onerror>",
     ]);
+    expect(selfContainedProblems(doc('<script src="data:,x()"></script>'))).toContain(
+      "a <script> with a src attribute",
+    );
   });
 
   it("ignores URLs inside script and style bodies, which the CSP governs", () => {
-    const html =
-      '<meta http-equiv="Content-Security-Policy" content="" />' +
-      '<script>const a = \' src="https://riskmapper.app"\';</script>' +
-      "<style>a::after { content: ' href=\"/x\"'; }</style>";
+    const script = "const a = ' src=\"https://riskmapper.app\"';";
+    const html = doc("<style>a::after { content: ' href=\"/x\"'; }</style>", [script]);
     expect(selfContainedProblems(html)).toEqual([]);
+  });
+
+  it("flags a CSP whose hashes are not the scripts a browser would run", () => {
+    const html = doc("", ["boot()"]).replace("<script>boot()</script>", "<script>other()</script>");
+    expect(selfContainedProblems(html)).toEqual([
+      "the CSP's script hashes do not match the scripts a browser would parse",
+    ]);
   });
 
   it("requires the CSP tag", () => {
@@ -237,6 +286,10 @@ describe("the built offline file", () => {
   it("is built with the offline flag on", () => {
     // Copy that only the offline build renders.
     expect(read()).toContain("Offline copy");
+  });
+
+  it("turns off DNS prefetching", () => {
+    expect(read()).toContain('<meta http-equiv="x-dns-prefetch-control" content="off" />');
   });
 
   it("has no build placeholders left in it", () => {

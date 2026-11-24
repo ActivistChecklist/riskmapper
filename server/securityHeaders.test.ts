@@ -1,4 +1,5 @@
 import { spawn, type ChildProcess } from "node:child_process";
+import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -111,6 +112,16 @@ describe("Content-Security-Policy on every response", () => {
       'attachment; filename="riskmapper-offline.html"',
     );
     expect(res.headers.get("content-type")).toBe("text/html; charset=utf-8");
+  });
+
+  it("serves the offline file's checksum as text that matches the file", async () => {
+    const res = await raw("/download/riskmapper-offline.html.sha256");
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("text/plain; charset=utf-8");
+    expect(res.headers.get("content-disposition")).toBe(null);
+    const file = Buffer.from(await (await raw("/download/riskmapper-offline.html")).arrayBuffer());
+    const digest = createHash("sha256").update(file).digest("hex");
+    expect(await res.text()).toBe(`${digest}  riskmapper-offline.html\n`);
   });
 
   it("still sets the right status codes", async () => {

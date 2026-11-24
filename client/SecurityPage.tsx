@@ -1,5 +1,5 @@
 import { RETENTION_DAYS } from "@/components/risk-matrix/cloudConfig";
-import { OFFLINE_DOWNLOAD_PATH } from "@/lib/offlinePaths.mts";
+import { OFFLINE_CHECKSUM_PATH, OFFLINE_DOWNLOAD_PATH } from "@/lib/offlinePaths.mts";
 import { DocPage } from "./DocPage";
 
 /**
@@ -15,7 +15,7 @@ import { DocPage } from "./DocPage";
  * in step.
  */
 
-const LAST_UPDATED = "October 9, 2026";
+const LAST_UPDATED = "November 24, 2026";
 
 const REPO_URL = "https://github.com/ActivistChecklist/riskmapper";
 const THREAT_MODEL_URL = `${REPO_URL}/blob/main/THREAT-MODEL.md`;
@@ -146,12 +146,22 @@ because the file tells your browser to block every network request. Links in
 it, such as the one back to this page, open the website only if you click
 them.
 
+**Only trust a copy you downloaded from riskmapper.app yourself, or one you
+have checked.** The file's protections live inside the file, so anyone who
+edits a copy can remove them, and an edited copy looks exactly the same. To
+check a copy someone gave you, compare its fingerprint with
+[the one we publish](${OFFLINE_CHECKSUM_PATH}). On a Mac or Linux, run
+\`shasum -a 256 riskmapper-offline.html\` in a terminal. On Windows, run
+\`Get-FileHash riskmapper-offline.html\` in PowerShell. The long code it
+prints must match ours, ignoring capital letters. A copy of an older version
+will not match either, so download a fresh one.
+
 How it differs from the website:
 
 - Share by link is not available, because it needs our server. Exporting and importing files work the same way.
-- Your work is saved in your browser for that file. In some browsers, moving or renaming the file, or opening a newer copy, starts you over with nothing saved. Use **Export → RiskMapper.app export format** to keep your work or move it into a newer copy.
-- In Chrome, other HTML files you open from your computer can read your saved work. Firefox keeps each file's storage separate.
-- The offline copy does not update itself. Download it again from this page to get a newer version.
+- Your work is saved in your browser for that file. In some browsers, moving or renaming the file, or opening a newer copy, starts you over with an empty matrix, while the old work stays in the browser until you delete it in the old copy. Use **Export → RiskMapper.app export format** to move your work into a newer copy, then delete it from the old one.
+- In Chrome, Edge, Brave and other Chromium-based browsers, any HTML file you open from your computer can read or change your saved work. Firefox keeps each file's storage separate, so it is the safer choice for the offline copy.
+- The offline copy does not update itself, so it does not get security fixes. Download it again from this page to get a newer version.
 - WEBCAT only checks pages our server sends, so it does not check the offline copy.
 
 ## What this does not protect against

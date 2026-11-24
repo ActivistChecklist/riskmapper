@@ -8,3 +8,10 @@
 export const OFFLINE_DOWNLOAD_DIR = "download";
 export const OFFLINE_FILENAME = "riskmapper-offline.html";
 export const OFFLINE_DOWNLOAD_PATH = `/${OFFLINE_DOWNLOAD_DIR}/${OFFLINE_FILENAME}`;
+
+/**
+ * SHA-256 of the offline file, in the format `shasum -a 256 -c` reads. Served
+ * from our origin, so a copy someone hands over can be checked against it.
+ */
+export const OFFLINE_CHECKSUM_FILENAME = `${OFFLINE_FILENAME}.sha256`;
+export const OFFLINE_CHECKSUM_PATH = `/${OFFLINE_DOWNLOAD_DIR}/${OFFLINE_CHECKSUM_FILENAME}`;

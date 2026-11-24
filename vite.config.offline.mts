@@ -32,6 +32,10 @@ export default defineConfig({
   resolve: sharedResolve,
 
   envPrefix: "VITE_",
+  // Ignore .env files. Signing hashes a local build and the deploy builds
+  // its own, so anything a local .env could change here would make the two
+  // differ. Everything this build needs is set in `define` below.
+  envDir: false,
 
   // Set here rather than in the environment so no .env file can switch them
   // back. Cloud sync needs our server, and analytics would post to a path

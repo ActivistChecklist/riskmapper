@@ -1,3 +1,4 @@
+import { OFFLINE_DOWNLOAD_PATH } from "@/lib/offlinePaths.mts";
 import { DocPage } from "./DocPage";
 
 /**
@@ -9,7 +10,7 @@ import { DocPage } from "./DocPage";
  * strings `lib/analytics/events.ts` fires, so it stays a component.
  */
 
-const LAST_UPDATED = "October 9, 2026";
+const LAST_UPDATED = "November 24, 2026";
 
 const TRACKED_EVENTS: { name: string; description: string }[] = [
   { name: "pageview", description: "A visit to a page on this site." },
@@ -121,6 +122,15 @@ IP address before forwarding it. We keep enough information to estimate which
 country or region the request came from, but not enough to identify you
 across visits, and the salt used for the remaining randomization rotates
 daily.
+
+## Use it without contacting us at all
+
+If you would rather we never see a visit from you,
+[download the single-file version](${OFFLINE_DOWNLOAD_PATH}) and open it
+from your computer. It works fully offline, sends no analytics, and never
+contacts this site or anyone else. Downloading it is one request to this
+site, like any other visit. The Security page explains
+[how it differs from the website](/security/).
 
 ## Verify any of this
 

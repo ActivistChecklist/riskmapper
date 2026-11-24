@@ -24,6 +24,7 @@
  * whose hash will not match what was served. See MIGRATION.md D7.
  */
 
+import { posix } from "node:path";
 import { OFFLINE_DOWNLOAD_DIR } from "@/lib/offlinePaths.mts";
 
 export const SPA_FALLBACK = "/index.html";
@@ -137,11 +138,17 @@ export const DOWNLOAD_PREFIX = `/${OFFLINE_DOWNLOAD_DIR}/`;
  * made of inline scripts. Rendered on this origin, our CSP would block every
  * one of them and leave a blank page, so it is always sent as an attachment:
  * the browser saves it and the person opens it from disk, where the file's
- * own CSP applies. See scripts/offlineHtml.mts.
+ * own CSP applies. See scripts/offlineHtml.mts. Its checksum file sits
+ * beside it and displays as plain text.
+ *
+ * The path is normalized first because the server serves `//download/...`
+ * and `/./download/...` from the same file (`safeJoin` resolves them), and
+ * the header must follow the file, not the spelling of the request.
  */
-export function contentDispositionFor(path: string): string | null {
-  if (!path.startsWith(DOWNLOAD_PREFIX)) return null;
-  const name = path.slice(path.lastIndexOf("/") + 1);
+export function contentDispositionFor(requestPath: string): string | null {
+  const normalized = posix.normalize(requestPath);
+  if (!normalized.startsWith(DOWNLOAD_PREFIX) || !normalized.endsWith(".html")) return null;
+  const name = normalized.slice(normalized.lastIndexOf("/") + 1);
   // Built file names only, but keep the header well-formed regardless.
   if (!/^[A-Za-z0-9._-]+$/.test(name)) return "attachment";
   return `attachment; filename="${name}"`;
