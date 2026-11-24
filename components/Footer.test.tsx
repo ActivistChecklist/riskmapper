@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { Footer } from "./Footer";
 
 /**
@@ -55,5 +55,37 @@ describe("Footer", () => {
   it("exposes the site nav as a labelled landmark", () => {
     render(<Footer />);
     expect(screen.getByRole("navigation", { name: /site/i })).toBeTruthy();
+  });
+});
+
+describe("Footer in the offline file", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("says it is the offline copy", () => {
+    vi.stubEnv("VITE_OFFLINE_BUILD", "true");
+    render(<Footer />);
+    expect(screen.getByText("Offline copy")).toBeTruthy();
+  });
+
+  it("sends the Security and Privacy links to the live site in a new tab", () => {
+    // A relative /privacy/ would resolve against the user's disk.
+    vi.stubEnv("VITE_OFFLINE_BUILD", "true");
+    render(<Footer />);
+    for (const [name, href] of [
+      [/security/i, "https://riskmapper.app/security/"],
+      [/privacy/i, "https://riskmapper.app/privacy/"],
+    ] as const) {
+      const link = screen.getByRole("link", { name });
+      expect(link.getAttribute("href")).toBe(href);
+      expect(link.getAttribute("target")).toBe("_blank");
+      expect(link.getAttribute("rel")).toBe("noopener noreferrer");
+    }
+  });
+
+  it("shows no offline label on the website", () => {
+    render(<Footer />);
+    expect(screen.queryByText("Offline copy")).toBe(null);
   });
 });

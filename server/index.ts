@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { matchApiRoute, type RouteId } from "./apiRoutes";
 import { CONTENT_SECURITY_POLICY } from "./csp";
 import { runManifestCheck } from "./manifestHealth";
-import { cacheControlFor, resolveStaticRequest } from "./staticFiles";
+import { cacheControlFor, contentDispositionFor, resolveStaticRequest } from "./staticFiles";
 import { readSignedManifestVersion, WEBCAT_VERSION_HEADER } from "./webcatVersion";
 import { toWebRequest } from "./webRequest";
 import { POST as counterPOST } from "./routes/counter";
@@ -135,9 +135,11 @@ function serveFile(res: ServerResponse, relPath: string, status = 200): void {
     return;
   }
   const ext = path.extname(abs).toLowerCase();
+  const disposition = contentDispositionFor(relPath);
   res.writeHead(status, {
     "Content-Type": CONTENT_TYPES[ext] ?? "application/octet-stream",
     "Cache-Control": cacheControlFor(relPath),
+    ...(disposition ? { "Content-Disposition": disposition } : {}),
     // CSP and the hardening headers are set for every response in handle().
   });
   createReadStream(abs).pipe(res);

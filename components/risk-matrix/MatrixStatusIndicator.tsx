@@ -23,6 +23,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { isOfflineBuild, sitePageLinkProps } from "@/lib/offlineBuild";
 import { cn } from "@/lib/utils";
 import type { SyncState } from "./CloudSyncIndicator";
 
@@ -74,12 +75,38 @@ function SecurityPageLink() {
   return (
     <p className="pt-1">
       <a
-        href="/security/"
+        {...sitePageLinkProps("/security/")}
         className="font-medium text-rm-ink underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rm-ring"
       >
         How Risk Mapper protects your data
       </a>
     </p>
+  );
+}
+
+/**
+ * Where the offline file keeps work, which differs from the website and
+ * between browsers: Firefox gives each file its own storage, so a moved,
+ * renamed or newer copy starts empty, while Chrome lets every HTML file
+ * opened from disk share one storage area. The export file is the one way
+ * to carry work between copies that behaves the same everywhere.
+ */
+function OfflineStorageNote() {
+  return (
+    <>
+      <p>
+        This copy of Risk Mapper is a file on your computer, and your browser
+        keeps your work for this file. In some browsers, moving or renaming
+        the file, or opening a newer copy, starts you over with nothing
+        saved. In Chrome, other HTML files you open from your computer can
+        read your work.
+      </p>
+      <p>
+        To keep your work safe, or move it into a newer copy, choose Export,
+        then &quot;RiskMapper.app export format (JSON)&quot;. Bring it back
+        with Import.
+      </p>
+    </>
   );
 }
 
@@ -165,10 +192,12 @@ export default function MatrixStatusIndicator({
             in this browser on this computer, like notes in a notebook that
             never leave your desk.
           </p>
-          <p>
-            If you clear this site&apos;s data in your browser, the data will be
-            deleted.
-          </p>
+          {isOfflineBuild() ? <OfflineStorageNote /> : (
+            <p>
+              If you clear this site&apos;s data in your browser, the data will be
+              deleted.
+            </p>
+          )}
         </StatusInfoDialog>
       </>
     );

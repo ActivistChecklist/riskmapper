@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { RETENTION_DAYS } from "@/components/risk-matrix/cloudConfig";
+import { OFFLINE_DOWNLOAD_PATH } from "@/lib/offlinePaths.mts";
 import SecurityPage from "./SecurityPage";
 
 /**
@@ -39,6 +40,7 @@ describe("SecurityPage", () => {
       /share by link/i,
       /keep the link safe/i,
       /the code you run is signed/i,
+      /use risk mapper with no internet/i,
       /what this does not protect against/i,
       /check for yourself/i,
     ]) {
@@ -129,5 +131,14 @@ describe("SecurityPage", () => {
       "https://github.com/ActivistChecklist/riskmapper",
     );
     expect(repo.getAttribute("rel")).toBe("noopener noreferrer");
+  });
+
+  it("links to the offline download the build produces", () => {
+    // The server sends this path as an attachment; see server/staticFiles.ts.
+    render(<SecurityPage />);
+    expect(
+      screen.getByRole("link", { name: /download the offline copy/i }).getAttribute("href"),
+    ).toBe(OFFLINE_DOWNLOAD_PATH);
+    expect(OFFLINE_DOWNLOAD_PATH).toBe("/download/riskmapper-offline.html");
   });
 });

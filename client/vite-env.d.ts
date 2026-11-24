@@ -14,6 +14,10 @@ interface ImportMetaEnv {
   readonly VITE_CLOUD_API_URL?: string;
   /** "false" silences lib/log.ts. Default: enabled. */
   readonly VITE_DEBUG?: string;
+  /** "true" only in the single-file offline build. See lib/offlineBuild.ts. */
+  readonly VITE_OFFLINE_BUILD?: string;
+  /** The offline build's logo as a data: URI. See `siteIconSrc`. */
+  readonly VITE_OFFLINE_ICON_SRC?: string;
 }
 
 interface ImportMeta {

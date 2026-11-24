@@ -1,4 +1,5 @@
 import { RETENTION_DAYS } from "@/components/risk-matrix/cloudConfig";
+import { OFFLINE_DOWNLOAD_PATH } from "@/lib/offlinePaths.mts";
 import { DocPage } from "./DocPage";
 
 /**
@@ -134,6 +135,24 @@ You can [install the WEBCAT Firefox extension here](https://addons.mozilla.org/e
 
 Installing the extension is worth it if you are at higher risk. Everything
 else on this page is true whether you install it or not.
+
+## Use Risk Mapper with no internet
+
+[Download the offline copy](${OFFLINE_DOWNLOAD_PATH}) if you need Risk Mapper
+on a computer with no internet, or would rather your browser never contacted
+our server again. It is the same app in a single HTML file: save it, then
+open it in your browser. It never connects to the internet on its own,
+because the file tells your browser to block every network request. Links in
+it, such as the one back to this page, open the website only if you click
+them.
+
+How it differs from the website:
+
+- Share by link is not available, because it needs our server. Exporting and importing files work the same way.
+- Your work is saved in your browser for that file. In some browsers, moving or renaming the file, or opening a newer copy, starts you over with nothing saved. Use **Export → RiskMapper.app export format** to keep your work or move it into a newer copy.
+- In Chrome, other HTML files you open from your computer can read your saved work. Firefox keeps each file's storage separate.
+- The offline copy does not update itself. Download it again from this page to get a newer version.
+- WEBCAT only checks pages our server sends, so it does not check the offline copy.
 
 ## What this does not protect against
 

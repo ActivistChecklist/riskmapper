@@ -57,6 +57,7 @@ describe("Content-Security-Policy on every response", () => {
     ["/grid/abc123def456ghij", "a share link (SPA fallback)"],
     ["/nope", "an unknown path (SPA fallback)"],
     ["/theme-boot.js", "the pre-paint script"],
+    ["/download/riskmapper-offline.html", "the offline download"],
     ["/api/healthz", "an API response"],
     ["/api/nope", "an API 404"],
     ["/.well-known/webcat/nope.json", "a well-known 404"],
@@ -101,6 +102,15 @@ describe("Content-Security-Policy on every response", () => {
       const res = await raw(p);
       expect(res.headers.get("x-webcat-version"), p).toBe(expected);
     }
+  });
+
+  it("sends the offline build as an attachment", async () => {
+    const res = await raw("/download/riskmapper-offline.html");
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-disposition")).toBe(
+      'attachment; filename="riskmapper-offline.html"',
+    );
+    expect(res.headers.get("content-type")).toBe("text/html; charset=utf-8");
   });
 
   it("still sets the right status codes", async () => {

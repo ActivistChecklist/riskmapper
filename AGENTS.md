@@ -43,6 +43,20 @@ site for anyone running the extension:
 - **Every HTML/JS/CSS byte served is a file built at build time.** No
   server-rendered or otherwise dynamic markup, scripts, or styles.
 
+The offline download, `dist/download/riskmapper-offline.html`, is the one file
+made of inline scripts, on purpose. It is the whole app in a single HTML file
+for people with no internet or who never want to contact our server; browsers
+will not load a separate script file from a page opened from disk. It does not
+break the rules above because it is never rendered on our origin: the server
+sends it as an attachment (`contentDispositionFor` in `server/staticFiles.ts`),
+and it carries its own CSP `<meta>` tag allowing only its own scripts, by
+hash, and no network requests at all. `vite.config.offline.mts` builds it as
+part of `yarn build`, and `scripts/offlineHtml.mts` explains the rest. Code
+that runs in it sees `isOfflineBuild()` from `lib/offlineBuild.ts`: no
+sharing, no analytics, and absolute links back to the site's own pages. A
+relative URL like `/icon.svg` resolves against the user's disk there, and its
+CSP blocks it, so anything new that loads by path needs an offline answer too.
+
 A third thing has to keep working, and it is easy to break by accident because
 nothing about it is visible in a browser without the extension. WEBCAT fetches
 an origin's manifest once and caches it for the whole browser session, so a
@@ -87,7 +101,8 @@ policy.
 | `yarn lint`         | Run ESLint                                                  |
 | `yarn test`         | Run test suite                                              |
 | `yarn typecheck`    | `tsc --noEmit`                                              |
-| `yarn build`        | Production build: `dist/` (client) and `dist-server/`        |
+| `yarn build`        | Production build: `dist/` (client, offline file) and `dist-server/` |
+| `yarn build:offline`| Just the single-file offline download, into `dist/download/` |
 | `yarn start`        | Run the built server. Env comes from the platform.           |
 | `yarn start:local`  | Same, but also loads `.env.local`                            |
 | `yarn hooks:install`| Point git at `.githooks/` (also runs on `yarn install`)      |

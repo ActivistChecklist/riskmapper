@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { TooltipProvider } from "@/components/ui/tooltip";
 import MatrixStatusIndicator from "./MatrixStatusIndicator";
@@ -74,5 +74,37 @@ describe("MatrixStatusIndicator", () => {
 
     expect(screen.getByRole("status")).toBeTruthy();
     expect(screen.queryByRole("button")).toBe(null);
+  });
+});
+
+describe("MatrixStatusIndicator in the offline file", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("explains where the file keeps work and how to carry it to a newer copy", async () => {
+    vi.stubEnv("VITE_OFFLINE_BUILD", "true");
+    const user = userEvent.setup();
+    renderPill({ shared: false, syncState: { kind: "idle" } });
+
+    await user.click(screen.getByRole("button", { name: /saved locally/i }));
+
+    expect(screen.getByText(/a file on your computer/i)).toBeTruthy();
+    expect(screen.getByText(/other HTML files you open from your computer/i)).toBeTruthy();
+    // Names the export format by the label the Export menu uses.
+    expect(screen.getByText(/RiskMapper\.app export format \(JSON\)/)).toBeTruthy();
+    expect(screen.queryByText(/clear this site/i)).toBe(null);
+  });
+
+  it("links to the live security page in a new tab", async () => {
+    vi.stubEnv("VITE_OFFLINE_BUILD", "true");
+    const user = userEvent.setup();
+    renderPill({ shared: false, syncState: { kind: "idle" } });
+
+    await user.click(screen.getByRole("button", { name: /saved locally/i }));
+
+    const link = screen.getByRole("link", { name: /protects your data/i });
+    expect(link.getAttribute("href")).toBe("https://riskmapper.app/security/");
+    expect(link.getAttribute("target")).toBe("_blank");
   });
 });
