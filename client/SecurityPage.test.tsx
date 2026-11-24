@@ -1,7 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { RETENTION_DAYS } from "@/components/risk-matrix/cloudConfig";
-import { OFFLINE_DOWNLOAD_PATH } from "@/lib/offlinePaths.mts";
+import { OFFLINE_DOWNLOAD_PATH, OFFLINE_SECTION_PATH } from "@/lib/offlinePaths.mts";
+import { builtOnLabel } from "@/lib/releaseDate";
 import SecurityPage from "./SecurityPage";
 
 /**
@@ -150,5 +151,23 @@ describe("SecurityPage", () => {
       screen.getByRole("link", { name: /the one we publish/i }).getAttribute("href"),
     ).toBe("/download/riskmapper-offline.html.sha256");
     expect(screen.getByText(/shasum -a 256 riskmapper-offline.html/)).toBeTruthy();
+  });
+
+  it("has the section the offline file's update notice links to", () => {
+    // Renaming the heading changes its id and would break that link.
+    render(<SecurityPage />);
+    const id = OFFLINE_SECTION_PATH.split("#")[1];
+    expect(document.getElementById(id)?.textContent).toMatch(/no internet/i);
+  });
+
+  it("sets off the latest offline copy's build date, with its download and fingerprint", () => {
+    render(<SecurityPage />);
+    const box = screen.getByRole("region", { name: /latest offline copy/i });
+    expect(box.textContent).toContain(`built ${builtOnLabel()}`);
+    const links = [...box.querySelectorAll("a")].map((a) => a.getAttribute("href"));
+    expect(links).toEqual([
+      "/download/riskmapper-offline.html",
+      "/download/riskmapper-offline.html.sha256",
+    ]);
   });
 });

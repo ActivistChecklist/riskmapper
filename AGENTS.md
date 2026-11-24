@@ -57,6 +57,13 @@ sharing, no analytics, and absolute links back to the site's own pages. A
 relative URL like `/icon.svg` resolves against the user's disk there, and its
 CSP blocks it, so anything new that loads by path needs an offline answer too.
 
+The build date the offline copy and the Security page show comes from
+`release.json`, never from the clock, because a date read during the build
+would make the signed bytes and the deployed bytes differ. `yarn webcat:sign`
+writes today's date there before it builds, and the pre-push hook commits it
+with the signature (`ARTIFACT_PATHS` in `scripts/webcat-sign-gate.mjs`). If you
+sign by hand, commit `release.json` along with `public/.well-known/webcat/`.
+
 A third thing has to keep working, and it is easy to break by accident because
 nothing about it is visible in a browser without the extension. WEBCAT fetches
 an origin's manifest once and caches it for the whole browser session, so a

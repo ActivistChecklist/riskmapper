@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { builtOnLabel } from "@/lib/releaseDate";
 import { Footer } from "./Footer";
 
 /**
@@ -63,10 +64,12 @@ describe("Footer in the offline file", () => {
     vi.unstubAllEnvs();
   });
 
-  it("says it is the offline copy", () => {
+  it("says it is the offline copy, and when it was built", () => {
+    // The date to compare with the Security page's latest copy.
     vi.stubEnv("VITE_OFFLINE_BUILD", "true");
     render(<Footer />);
     expect(screen.getByText("Offline copy")).toBeTruthy();
+    expect(screen.getByRole("contentinfo").textContent).toContain(`built ${builtOnLabel()}`);
   });
 
   it("sends the Security and Privacy links to the live site in a new tab", () => {

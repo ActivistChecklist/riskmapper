@@ -1,7 +1,11 @@
 import { createHash } from "node:crypto";
 import { parse, type DefaultTreeAdapterMap } from "parse5";
 import type { Plugin } from "vite";
-import { OFFLINE_CHECKSUM_FILENAME, OFFLINE_FILENAME } from "../lib/offlinePaths.mts";
+import {
+  OFFLINE_BUILD_META,
+  OFFLINE_CHECKSUM_FILENAME,
+  OFFLINE_FILENAME,
+} from "../lib/offlinePaths.mts";
 
 /**
  * The single-file offline build: one HTML file holding the whole app, for
@@ -59,6 +63,11 @@ export function offlineCsp(scriptHashes: readonly string[]): string {
  */
 export function checksumLine(content: string, filename: string): string {
   return `${createHash("sha256").update(content, "utf8").digest("hex")}  ${filename}\n`;
+}
+
+/** A short id for this version of the file, from its scripts' contents. */
+export function buildId(scriptBodies: readonly string[]): string {
+  return createHash("sha256").update(scriptBodies.join("\n"), "utf8").digest("hex").slice(0, 16);
 }
 
 /** The CSP source expression for one inline script's exact text. */
@@ -174,6 +183,10 @@ export function finishOfflineHtml(html: string, files: Record<string, string>): 
     // up the hosts of links on screen (the footer, links in notes) while
     // the file is open, which tells the user's DNS resolver it was used.
     `<meta http-equiv="x-dns-prefetch-control" content="off" />`,
+    // Which version this is, derived from the code so the build stays
+    // reproducible. The app uses it to tell a newer copy from an older one
+    // when they share storage. See lib/offlineAge.ts.
+    `<meta name="${OFFLINE_BUILD_META}" content="${buildId(scriptBodies)}" />`,
   ].join("\n    ");
   // Straight after the charset, so the policy is in force before any other
   // element in the document is parsed.

@@ -15,3 +15,13 @@ export const OFFLINE_DOWNLOAD_PATH = `/${OFFLINE_DOWNLOAD_DIR}/${OFFLINE_FILENAM
  */
 export const OFFLINE_CHECKSUM_FILENAME = `${OFFLINE_FILENAME}.sha256`;
 export const OFFLINE_CHECKSUM_PATH = `/${OFFLINE_DOWNLOAD_DIR}/${OFFLINE_CHECKSUM_FILENAME}`;
+
+/**
+ * The Security page section that offers the download, where the offline
+ * file sends people to check for a newer copy. The fragment is the heading's
+ * id (see `headingId` in client/Prose.tsx).
+ */
+export const OFFLINE_SECTION_PATH = "/security/#use-risk-mapper-with-no-internet";
+
+/** The <meta name> in the offline file that carries its build id. */
+export const OFFLINE_BUILD_META = "riskmapper-offline-build";

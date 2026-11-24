@@ -1,4 +1,5 @@
 import { isOfflineBuild, sitePageLinkProps } from "@/lib/offlineBuild";
+import { builtOnLabel } from "@/lib/releaseDate";
 
 const GITHUB_URL = "https://github.com/ActivistChecklist/riskmapper";
 const ACTIVIST_CHECKLIST_URL = "https://activistchecklist.org/";
@@ -33,7 +34,8 @@ export function Footer() {
           {isOfflineBuild() && (
             <>
               {" · "}
-              <span className="font-medium text-rm-ink">Offline copy</span>
+              <span className="font-medium text-rm-ink">Offline copy</span>, built{" "}
+              {builtOnLabel()}
             </>
           )}
         </p>

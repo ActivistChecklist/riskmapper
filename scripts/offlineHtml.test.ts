@@ -10,6 +10,7 @@ import {
   offlineCsp,
   prepareOfflineHtml,
   scriptHash,
+  buildId,
   selfContainedProblems,
   svgDataUri,
 } from "./offlineHtml.mts";
@@ -290,6 +291,12 @@ describe("the built offline file", () => {
 
   it("turns off DNS prefetching", () => {
     expect(read()).toContain('<meta http-equiv="x-dns-prefetch-control" content="off" />');
+  });
+
+  it("carries a build id derived from its own scripts", () => {
+    const html = read();
+    const id = html.match(/<meta name="riskmapper-offline-build" content="([0-9a-f]{16})" \/>/)?.[1];
+    expect(id).toBe(buildId(inlineScripts(html)));
   });
 
   it("has no build placeholders left in it", () => {

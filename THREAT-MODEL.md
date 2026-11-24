@@ -205,7 +205,10 @@ Downloading it is one request to our server, like any other visit.
   stays in the browser profile, where someone holding the device can
   recover it.
 - **Staying current.** The file never updates itself, so it never receives
-  security fixes. People have to download it again.
+  security fixes. People have to download it again. It shows its build date
+  in the footer, and a reminder once that date is more than a month old,
+  which they can compare with the latest build date on the Security page.
+  The reminder trusts the device's clock.
 
 ## In plain words
 

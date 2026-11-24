@@ -1,5 +1,6 @@
 import { RETENTION_DAYS } from "@/components/risk-matrix/cloudConfig";
 import { OFFLINE_CHECKSUM_PATH, OFFLINE_DOWNLOAD_PATH } from "@/lib/offlinePaths.mts";
+import { builtOnLabel } from "@/lib/releaseDate";
 import { DocPage } from "./DocPage";
 
 /**
@@ -20,6 +21,39 @@ const LAST_UPDATED = "November 24, 2026";
 const REPO_URL = "https://github.com/ActivistChecklist/riskmapper";
 const THREAT_MODEL_URL = `${REPO_URL}/blob/main/THREAT-MODEL.md`;
 const WEBCAT_URL = "https://github.com/freedomofpress/webcat";
+
+/**
+ * The build date of the copy this site is serving, set off from the prose so
+ * someone holding an offline copy can compare it with the date in their
+ * copy's footer and update notice. Both come from release.json; see
+ * lib/releaseDate.ts.
+ */
+function LatestOfflineCopy() {
+  const linkClass =
+    "font-medium text-rm-ink underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rm-ring";
+  return (
+    <section
+      aria-labelledby="latest-offline-copy"
+      className="mt-5 rounded-lg border border-l-4 border-rm-border-strong border-l-rm-primary bg-rm-surface-2 p-4 sm:p-5"
+    >
+      <h3 id="latest-offline-copy" className="text-base font-semibold text-rm-ink">
+        Latest offline copy: built {builtOnLabel()}
+      </h3>
+      <p className="mt-2 leading-relaxed">
+        Your copy shows the date it was built at the bottom of the page. If
+        that date is earlier than this one, download a new copy.
+      </p>
+      <p className="mt-3 flex flex-wrap gap-x-5 gap-y-2">
+        <a href={OFFLINE_DOWNLOAD_PATH} download className={linkClass}>
+          Download this version
+        </a>
+        <a href={OFFLINE_CHECKSUM_PATH} className={linkClass}>
+          Its SHA-256 fingerprint
+        </a>
+      </p>
+    </section>
+  );
+}
 
 export default function SecurityPage() {
   return (
@@ -145,6 +179,9 @@ open it in your browser. It never connects to the internet on its own,
 because the file tells your browser to block every network request. Links in
 it, such as the one back to this page, open the website only if you click
 them.
+`}
+      <LatestOfflineCopy />
+      {`
 
 **Only trust a copy you downloaded from riskmapper.app yourself, or one you
 have checked.** The file's protections live inside the file, so anyone who
