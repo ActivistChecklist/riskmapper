@@ -1,3 +1,6 @@
+import { isOfflineBuild, sitePageLinkProps } from "@/lib/offlineBuild";
+import { builtOnLabel } from "@/lib/releaseDate";
+
 const GITHUB_URL = "https://github.com/ActivistChecklist/riskmapper";
 const ACTIVIST_CHECKLIST_URL = "https://activistchecklist.org/";
 
@@ -28,6 +31,13 @@ export function Footer() {
           >
             Activist Checklist
           </a>
+          {isOfflineBuild() && (
+            <>
+              {" · "}
+              <span className="font-medium text-rm-ink">Offline copy</span>, built{" "}
+              {builtOnLabel()}
+            </>
+          )}
         </p>
         <nav
           aria-label="Site"
@@ -35,15 +45,16 @@ export function Footer() {
         >
           {/* Plain anchors, not router links: these are their own static
               documents. The trailing slash is canonical and load-bearing.
-              See MIGRATION.md decisions D2 and D7. */}
+              See MIGRATION.md decisions D2 and D7. In the offline file they
+              point at the live site; see lib/offlineBuild.ts. */}
           <a
-            href="/security/"
+            {...sitePageLinkProps("/security/")}
             className="hover:text-rm-ink hover:underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rm-ring"
           >
             Security
           </a>
           <a
-            href="/privacy/"
+            {...sitePageLinkProps("/privacy/")}
             className="hover:text-rm-ink hover:underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rm-ring"
           >
             Privacy

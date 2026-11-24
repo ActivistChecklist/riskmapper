@@ -24,6 +24,9 @@
  * whose hash will not match what was served. See MIGRATION.md D7.
  */
 
+import { posix } from "node:path";
+import { OFFLINE_DOWNLOAD_DIR } from "@/lib/offlinePaths.mts";
+
 export const SPA_FALLBACK = "/index.html";
 export const DIRECTORY_INDEX = "index.html";
 
@@ -122,4 +125,31 @@ export function cacheControlFor(path: string): string {
   if (path.startsWith("/assets/")) return "public, max-age=31536000, immutable";
   if (path.endsWith(".html")) return "no-cache";
   return "public, max-age=3600";
+}
+
+/** Files under here are for saving to disk, never for viewing on the site. */
+export const DOWNLOAD_PREFIX = `/${OFFLINE_DOWNLOAD_DIR}/`;
+
+/**
+ * `Content-Disposition` for a static file, or null for one the browser
+ * should display as usual.
+ *
+ * The offline build (dist/download/riskmapper-offline.html) is an HTML file
+ * made of inline scripts. Rendered on this origin, our CSP would block every
+ * one of them and leave a blank page, so it is always sent as an attachment:
+ * the browser saves it and the person opens it from disk, where the file's
+ * own CSP applies. See scripts/offlineHtml.mts. Its checksum file sits
+ * beside it and displays as plain text.
+ *
+ * The path is normalized first because the server serves `//download/...`
+ * and `/./download/...` from the same file (`safeJoin` resolves them), and
+ * the header must follow the file, not the spelling of the request.
+ */
+export function contentDispositionFor(requestPath: string): string | null {
+  const normalized = posix.normalize(requestPath);
+  if (!normalized.startsWith(DOWNLOAD_PREFIX) || !normalized.endsWith(".html")) return null;
+  const name = normalized.slice(normalized.lastIndexOf("/") + 1);
+  // Built file names only, but keep the header well-formed regardless.
+  if (!/^[A-Za-z0-9._-]+$/.test(name)) return "attachment";
+  return `attachment; filename="${name}"`;
 }

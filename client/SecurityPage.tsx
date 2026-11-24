@@ -1,4 +1,6 @@
 import { RETENTION_DAYS } from "@/components/risk-matrix/cloudConfig";
+import { OFFLINE_CHECKSUM_PATH, OFFLINE_DOWNLOAD_PATH } from "@/lib/offlinePaths.mts";
+import { builtOnLabel } from "@/lib/releaseDate";
 import { DocPage } from "./DocPage";
 
 /**
@@ -14,11 +16,44 @@ import { DocPage } from "./DocPage";
  * in step.
  */
 
-const LAST_UPDATED = "October 9, 2026";
+const LAST_UPDATED = "November 24, 2026";
 
 const REPO_URL = "https://github.com/ActivistChecklist/riskmapper";
 const THREAT_MODEL_URL = `${REPO_URL}/blob/main/THREAT-MODEL.md`;
 const WEBCAT_URL = "https://github.com/freedomofpress/webcat";
+
+/**
+ * The build date of the copy this site is serving, set off from the prose so
+ * someone holding an offline copy can compare it with the date in their
+ * copy's footer and update notice. Both come from release.json; see
+ * lib/releaseDate.ts.
+ */
+function LatestOfflineCopy() {
+  const linkClass =
+    "font-medium text-rm-ink underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rm-ring";
+  return (
+    <section
+      aria-labelledby="latest-offline-copy"
+      className="mt-5 rounded-lg border border-l-4 border-rm-border-strong border-l-rm-primary bg-rm-surface-2 p-4 sm:p-5"
+    >
+      <h3 id="latest-offline-copy" className="text-base font-semibold text-rm-ink">
+        Latest offline copy: built {builtOnLabel()}
+      </h3>
+      <p className="mt-2 leading-relaxed">
+        Your copy shows the date it was built at the bottom of the page. If
+        that date is earlier than this one, download a new copy.
+      </p>
+      <p className="mt-3 flex flex-wrap gap-x-5 gap-y-2">
+        <a href={OFFLINE_DOWNLOAD_PATH} download className={linkClass}>
+          Download this version
+        </a>
+        <a href={OFFLINE_CHECKSUM_PATH} className={linkClass}>
+          Its SHA-256 fingerprint
+        </a>
+      </p>
+    </section>
+  );
+}
 
 export default function SecurityPage() {
   return (
@@ -134,6 +169,37 @@ You can [install the WEBCAT Firefox extension here](https://addons.mozilla.org/e
 
 Installing the extension is worth it if you are at higher risk. Everything
 else on this page is true whether you install it or not.
+
+## Use Risk Mapper with no internet
+
+[Download the offline copy](${OFFLINE_DOWNLOAD_PATH}) if you need Risk Mapper
+on a computer with no internet, or would rather your browser never contacted
+our server again. It is the same app in a single HTML file: save it, then
+open it in your browser. It never connects to the internet on its own,
+because the file tells your browser to block every network request. Links in
+it, such as the one back to this page, open the website only if you click
+them.
+`}
+      <LatestOfflineCopy />
+      {`
+
+**Only trust a copy you downloaded from riskmapper.app yourself, or one you
+have checked.** The file's protections live inside the file, so anyone who
+edits a copy can remove them, and an edited copy looks exactly the same. To
+check a copy someone gave you, compare its fingerprint with
+[the one we publish](${OFFLINE_CHECKSUM_PATH}). On a Mac or Linux, run
+\`shasum -a 256 riskmapper-offline.html\` in a terminal. On Windows, run
+\`Get-FileHash riskmapper-offline.html\` in PowerShell. The long code it
+prints must match ours, ignoring capital letters. A copy of an older version
+will not match either, so download a fresh one.
+
+How it differs from the website:
+
+- Share by link is not available, because it needs our server. Exporting and importing files work the same way.
+- Your work is saved in your browser for that file. In some browsers, moving or renaming the file, or opening a newer copy, starts you over with an empty matrix, while the old work stays in the browser until you delete it in the old copy. Use **Export → RiskMapper.app export format** to move your work into a newer copy, then delete it from the old one.
+- In Chrome, Edge, Brave and other Chromium-based browsers, any HTML file you open from your computer can read or change your saved work. Firefox keeps each file's storage separate, so it is the safer choice for the offline copy.
+- The offline copy does not update itself, so it does not get security fixes. Download it again from this page to get a newer version.
+- WEBCAT only checks pages our server sends, so it does not check the offline copy.
 
 ## What this does not protect against
 

@@ -30,6 +30,7 @@ cp .env.local.example .env.local
 | --------------- | ----------------------------------------------------- |
 | `yarn dev`      | Vite dev server (HMR) plus the API.                   |
 | `yarn build`    | Production build: `dist/` + `dist-server/`.           |
+| `yarn build:offline` | The single-file offline download only.           |
 | `yarn start`    | Serve the production build.                           |
 | `yarn lint`     | ESLint                                                |
 | `yarn test`     | Vitest (UI, server route, and static-resolution tests).|
@@ -138,7 +139,9 @@ lib/e2ee/                      Client-side: XChaCha20-Poly1305 envelope
 server/index.ts                Serves the static build and the API, one origin
 server/routes/                 API handlers (Web Request/Response)
 server/staticFiles.ts          Path resolution, traversal guards, cache policy
-public/theme-boot.js           Blocking pre-paint theme script (never inlined)
+public/theme-boot.js           Blocking pre-paint theme script (never inlined on the site)
+vite.config.offline.mts        Single-file offline download, dist/download/
+scripts/offlineHtml.mts        Inlines that build and locks it down with its own CSP
 scripts/sqlite-*.mts           Daily cleanup and backup jobs for the database
 MIGRATION.md                   Migration plan, decisions, security gate
 THREAT-MODEL.md                In-scope guarantees and explicit out-of-scope risks
@@ -146,7 +149,9 @@ THREAT-MODEL.md                In-scope guarantees and explicit out-of-scope ris
 
 Built with Vite: `yarn build` produces the static client in `dist/` and the
 server bundle in `dist-server/`. One Node process serves both, so the app is
-same-origin by construction.
+same-origin by construction. The build also packs the whole app into one HTML
+file at `dist/download/riskmapper-offline.html`, which the Security page
+offers as a download for use with no internet.
 
 ## License
 

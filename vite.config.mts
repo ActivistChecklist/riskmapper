@@ -62,18 +62,21 @@ function webcatConfigPlugin(): Plugin {
   };
 }
 
+/** Shared with the single-file offline build in vite.config.offline.mts. */
+export const sharedResolve = {
+  alias: {
+    "@": path.resolve(import.meta.dirname, "."),
+  },
+  // One physical copy of yjs: duplicate instances break Y.* constructor
+  // checks (see https://github.com/yjs/yjs/issues/438). This replaces the
+  // webpack/turbopack aliases the old next.config.ts carried.
+  dedupe: ["yjs"],
+};
+
 export default defineConfig({
   plugins: [react(), webcatConfigPlugin()],
 
-  resolve: {
-    alias: {
-      "@": path.resolve(import.meta.dirname, "."),
-    },
-    // One physical copy of yjs — duplicate instances break Y.* constructor
-    // checks (see https://github.com/yjs/yjs/issues/438). This replaces the
-    // webpack/turbopack aliases the old next.config.ts carried.
-    dedupe: ["yjs"],
-  },
+  resolve: sharedResolve,
 
   // Client-visible env vars. Was NEXT_PUBLIC_* under Next; see the deploy
   // checklist in MIGRATION.md for the Railway rename.

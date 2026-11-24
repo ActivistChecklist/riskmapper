@@ -1,6 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { RETENTION_DAYS } from "@/components/risk-matrix/cloudConfig";
+import { OFFLINE_DOWNLOAD_PATH, OFFLINE_SECTION_PATH } from "@/lib/offlinePaths.mts";
+import { builtOnLabel } from "@/lib/releaseDate";
 import SecurityPage from "./SecurityPage";
 
 /**
@@ -39,6 +41,7 @@ describe("SecurityPage", () => {
       /share by link/i,
       /keep the link safe/i,
       /the code you run is signed/i,
+      /use risk mapper with no internet/i,
       /what this does not protect against/i,
       /check for yourself/i,
     ]) {
@@ -129,5 +132,42 @@ describe("SecurityPage", () => {
       "https://github.com/ActivistChecklist/riskmapper",
     );
     expect(repo.getAttribute("rel")).toBe("noopener noreferrer");
+  });
+
+  it("links to the offline download the build produces", () => {
+    // The server sends this path as an attachment; see server/staticFiles.ts.
+    render(<SecurityPage />);
+    expect(
+      screen.getByRole("link", { name: /download the offline copy/i }).getAttribute("href"),
+    ).toBe(OFFLINE_DOWNLOAD_PATH);
+    expect(OFFLINE_DOWNLOAD_PATH).toBe("/download/riskmapper-offline.html");
+  });
+
+  it("publishes a checksum on this site for checking a copy someone hands over", () => {
+    // The file's protections can be edited out of a copy, so the page has to
+    // give a way to check one against bytes served by us.
+    render(<SecurityPage />);
+    expect(
+      screen.getByRole("link", { name: /the one we publish/i }).getAttribute("href"),
+    ).toBe("/download/riskmapper-offline.html.sha256");
+    expect(screen.getByText(/shasum -a 256 riskmapper-offline.html/)).toBeTruthy();
+  });
+
+  it("has the section the offline file's update notice links to", () => {
+    // Renaming the heading changes its id and would break that link.
+    render(<SecurityPage />);
+    const id = OFFLINE_SECTION_PATH.split("#")[1];
+    expect(document.getElementById(id)?.textContent).toMatch(/no internet/i);
+  });
+
+  it("sets off the latest offline copy's build date, with its download and fingerprint", () => {
+    render(<SecurityPage />);
+    const box = screen.getByRole("region", { name: /latest offline copy/i });
+    expect(box.textContent).toContain(`built ${builtOnLabel()}`);
+    const links = [...box.querySelectorAll("a")].map((a) => a.getAttribute("href"));
+    expect(links).toEqual([
+      "/download/riskmapper-offline.html",
+      "/download/riskmapper-offline.html.sha256",
+    ]);
   });
 });

@@ -1,9 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { sendAnalytics } from "@activistchecklist/umami-extra-privacy/client";
 import {
   __resetAnalyticsSessionForTests,
   computeFirstTimeFlags,
   createFirstTimeTracker,
   sanitizePath,
+  trackEvent,
+  trackPageview,
   type FirstTimeEvent,
 } from "./events";
 import type { RiskMatrixSnapshot } from "@/components/risk-matrix/matrixTypes";
@@ -45,8 +48,42 @@ function withMitigationStarred(text = ""): RiskMatrixSnapshot {
   return gridSnap({ text: "risk", reduce: [sub] });
 }
 
+vi.mock("@activistchecklist/umami-extra-privacy/client", () => ({
+  sendAnalytics: vi.fn(async () => undefined),
+}));
+
 afterEach(() => {
   __resetAnalyticsSessionForTests();
+});
+
+describe("when analytics is skipped", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.mocked(sendAnalytics).mockClear();
+  });
+
+  /** The `skip` predicate each send hands to the umami client. */
+  function skipFor(send: () => void): () => boolean {
+    send();
+    const options = vi.mocked(sendAnalytics).mock.calls.at(-1)?.[1];
+    if (!options?.skip) throw new Error("no skip predicate passed");
+    return options.skip as () => boolean;
+  }
+
+  it("sends from the production website", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    expect(skipFor(trackPageview)()).toBe(false);
+    expect(skipFor(() => trackEvent("download_pdf"))()).toBe(false);
+  });
+
+  it("never sends from the offline file, even in a production build", () => {
+    // Opened from disk there is no relay, and the file's CSP would block
+    // the request anyway; this keeps it from trying.
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("VITE_OFFLINE_BUILD", "true");
+    expect(skipFor(trackPageview)()).toBe(true);
+    expect(skipFor(() => trackEvent("download_pdf"))()).toBe(true);
+  });
 });
 
 describe("sanitizePath", () => {

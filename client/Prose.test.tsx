@@ -111,4 +111,9 @@ describe("Prose", () => {
     expect(container.querySelector("script")).toBeNull();
     expect(container.textContent).toContain("<script>alert(1)</script>");
   });
+
+  it("gives each heading an id from its text, so sections can be linked", () => {
+    const { container } = render(<Prose>{"## Use Risk Mapper with no internet"}</Prose>);
+    expect(container.querySelector("h2")?.id).toBe("use-risk-mapper-with-no-internet");
+  });
 });

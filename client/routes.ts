@@ -1,4 +1,5 @@
 import { SHARE_PATH_PREFIX } from "@/components/risk-matrix/shareUrl";
+import { isOfflineBuild } from "@/lib/offlineBuild";
 
 /**
  * Which view `index.html` should render for a given pathname.
@@ -16,6 +17,10 @@ import { SHARE_PATH_PREFIX } from "@/components/risk-matrix/shareUrl";
 export type Route = "app" | "not-found";
 
 export function resolveRoute(pathname: string): Route {
+  // Opened from disk, the pathname is wherever the user saved the file, and
+  // the file is only ever the app.
+  if (isOfflineBuild()) return "app";
+
   if (pathname === "/" || pathname === "/index.html") return "app";
 
   // A share link: /grid/<recordId>, optionally with a trailing slash. The

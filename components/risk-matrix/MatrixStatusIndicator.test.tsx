@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { TooltipProvider } from "@/components/ui/tooltip";
 import MatrixStatusIndicator from "./MatrixStatusIndicator";
@@ -32,6 +32,21 @@ describe("MatrixStatusIndicator", () => {
     expect(
       screen.getByRole("link", { name: /protects your data/i }).getAttribute("href"),
     ).toBe("/security/");
+  });
+
+  it("offers the offline download from this site in both explainers", async () => {
+    const user = userEvent.setup();
+    for (const props of [
+      { shared: false, label: /saved locally/i },
+      { shared: true, label: /end-to-end encrypted/i },
+    ]) {
+      const { unmount } = renderPill({ shared: props.shared, syncState: { kind: "idle" } });
+      await user.click(screen.getByRole("button", { name: props.label }));
+      const link = screen.getByRole("link", { name: /download the single-file version/i });
+      expect(link.getAttribute("href")).toBe("/download/riskmapper-offline.html");
+      expect(link.hasAttribute("download")).toBe(true);
+      unmount();
+    }
   });
 
   it("explains end-to-end encryption and links to the security page", async () => {
@@ -74,5 +89,51 @@ describe("MatrixStatusIndicator", () => {
 
     expect(screen.getByRole("status")).toBeTruthy();
     expect(screen.queryByRole("button")).toBe(null);
+  });
+});
+
+describe("MatrixStatusIndicator in the offline file", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("explains where the file keeps work and how to carry it to a newer copy", async () => {
+    vi.stubEnv("VITE_OFFLINE_BUILD", "true");
+    const user = userEvent.setup();
+    renderPill({ shared: false, syncState: { kind: "idle" } });
+
+    await user.click(screen.getByRole("button", { name: /saved locally/i }));
+
+    expect(screen.getByText(/a file on your computer/i)).toBeTruthy();
+    // Every Chromium browser shares file:// storage, not only Chrome, and
+    // other files can rewrite the work as well as read it.
+    expect(screen.getByText(/Chromium-based browsers, any HTML\s+file you open from your computer can read or change/i)).toBeTruthy();
+    // Old work is left behind, not deleted.
+    expect(screen.getByText(/old work stays in the browser/i)).toBeTruthy();
+    // Names the export format by the label the Export menu uses.
+    expect(screen.getByText(/RiskMapper\.app export format \(JSON\)/)).toBeTruthy();
+    expect(screen.queryByText(/clear this site/i)).toBe(null);
+  });
+
+  it("links to the live security page in a new tab", async () => {
+    vi.stubEnv("VITE_OFFLINE_BUILD", "true");
+    const user = userEvent.setup();
+    renderPill({ shared: false, syncState: { kind: "idle" } });
+
+    await user.click(screen.getByRole("button", { name: /saved locally/i }));
+
+    const link = screen.getByRole("link", { name: /protects your data/i });
+    expect(link.getAttribute("href")).toBe("https://riskmapper.app/security/");
+    expect(link.getAttribute("target")).toBe("_blank");
+  });
+
+  it("does not offer the download inside the offline file itself", async () => {
+    vi.stubEnv("VITE_OFFLINE_BUILD", "true");
+    const user = userEvent.setup();
+    renderPill({ shared: false, syncState: { kind: "idle" } });
+
+    await user.click(screen.getByRole("button", { name: /saved locally/i }));
+
+    expect(screen.queryByRole("link", { name: /single-file version/i })).toBe(null);
   });
 });

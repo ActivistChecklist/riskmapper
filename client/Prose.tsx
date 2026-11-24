@@ -146,6 +146,20 @@ function renderList(block: Extract<NotesBlock, { kind: "ul" | "ol" }>, key: numb
   );
 }
 
+/**
+ * A URL fragment for a heading, from its text: "Use Risk Mapper with no
+ * internet" becomes "use-risk-mapper-with-no-internet". Lets other pages and
+ * the offline file link straight to a section. Exported for tests.
+ */
+export function headingId(inlines: NotesInline[]): string {
+  return inlines
+    .map((n) => n.text)
+    .join("")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
 // A switch rather than a chain of ifs: `NotesBlock` discriminates on a
 // property whose type is itself a union of literals, and TypeScript only
 // narrows the remaining cases through switch, not through `if (a || b)`.
@@ -163,7 +177,7 @@ function renderBlock(block: NotesBlock, key: number): ReactNode {
     default: {
       const Heading = block.kind;
       return (
-        <Heading key={key} className={HEADING_CLASS[block.kind]}>
+        <Heading key={key} id={headingId(block.inlines)} className={HEADING_CLASS[block.kind]}>
           {renderInlines(block.inlines)}
         </Heading>
       );

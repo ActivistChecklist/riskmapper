@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   SPA_FALLBACK,
   cacheControlFor,
+  contentDispositionFor,
   resolveStaticRequest,
 } from "./staticFiles";
 
@@ -206,5 +207,37 @@ describe("cacheControlFor", () => {
 
   it("caches other static files modestly", () => {
     expect(cacheControlFor("/theme-boot.js")).toBe("public, max-age=3600");
+  });
+});
+
+describe("contentDispositionFor", () => {
+  it("sends the offline build as a download, never as a page", () => {
+    // Rendered on this origin our CSP would block its inline scripts and
+    // leave a blank page; it is meant to be opened from disk.
+    expect(contentDispositionFor("/download/riskmapper-offline.html")).toBe(
+      'attachment; filename="riskmapper-offline.html"',
+    );
+  });
+
+  it("leaves every other file to display normally", () => {
+    for (const p of ["/index.html", "/security/index.html", "/assets/main-Df4apONn.js"]) {
+      expect(contentDispositionFor(p)).toBe(null);
+    }
+  });
+
+  it("still sends it as a download however the path is spelled", () => {
+    // The server resolves these to the same file; rendered inline, it would
+    // be a blank page on our origin.
+    for (const p of ["//download/riskmapper-offline.html", "/./download/riskmapper-offline.html"]) {
+      expect(contentDispositionFor(p)).toBe('attachment; filename="riskmapper-offline.html"');
+    }
+  });
+
+  it("shows the checksum as text rather than downloading it", () => {
+    expect(contentDispositionFor("/download/riskmapper-offline.html.sha256")).toBe(null);
+  });
+
+  it("drops a filename it would have to quote or escape", () => {
+    expect(contentDispositionFor('/download/a"b.html')).toBe("attachment");
   });
 });

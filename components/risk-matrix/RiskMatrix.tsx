@@ -195,7 +195,9 @@ function RiskMatrixCanvas({ workspace: ws, cloud, remoteApplyRef }: CanvasProps)
   }, [cloud.doc, ws.activeTitle]);
 
   const activeSaved = ws.activeSavedMatrix;
-  const cloudMeta = activeSaved?.cloud ?? null;
+  // Ignored with cloud sync off, so the pill never claims a share that this
+  // build cannot reach. See activeCloudMeta in RiskMatrix below.
+  const cloudMeta = isCloudEnabled() ? (activeSaved?.cloud ?? null) : null;
   // The Share button is always available when cloud is enabled. Drafts are
   // promoted to saved rows on demand (see handleCloudMetaSet below).
   const cloudCapable = isCloudEnabled();
@@ -499,7 +501,11 @@ function RiskMatrixCanvas({ workspace: ws, cloud, remoteApplyRef }: CanvasProps)
 export default function RiskMatrix() {
   const repo = useMemo(() => createLocalMatrixRepository(), []);
   const ws = useMatrixWorkspace(repo);
-  const activeCloudMeta = ws.activeSavedMatrix?.cloud ?? null;
+  // With cloud sync off (the offline file, or a deploy without a database)
+  // a row's share metadata is ignored, so nothing opens a connection or
+  // rewrites the address bar. Such a row can only come from storage written
+  // elsewhere: imported files never carry it.
+  const activeCloudMeta = isCloudEnabled() ? (ws.activeSavedMatrix?.cloud ?? null) : null;
   // Set by the canvas. Remote changes are applied to its state in place;
   // they must NOT remount it (e.g. through its `key`), because remounting
   // on every remote keystroke steals focus from whoever is typing here.
@@ -579,6 +585,9 @@ export default function RiskMatrix() {
   const lastActiveRecordIdRef = useRef<string | null>(null);
   useEffect(() => {
     if (typeof window === "undefined") return;
+    // No share links without cloud sync. In the offline file this would
+    // also throw: a file: URL's path cannot be rewritten.
+    if (!cloudEnabled) return;
     if (importer.state.kind === "loading" || importer.state.kind === "ready") {
       // The share-import flow owns the URL while it's resolving.
       return;
@@ -615,7 +624,7 @@ export default function RiskMatrix() {
     return () => {
       cancelled = true;
     };
-  }, [activeRecordId, activeKeyB64, importer.state.kind]);
+  }, [activeRecordId, activeKeyB64, importer.state.kind, cloudEnabled]);
 
   // Auto-adopt: when the share fetch resolves, drop the matrix straight into
   // the local library and switch to it. If the recordId is already in the

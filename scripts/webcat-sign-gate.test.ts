@@ -159,3 +159,13 @@ describe("webcat sign gate", () => {
     });
   });
 });
+
+describe("what signing commits", () => {
+  it("includes the build date, which the signed bytes contain", async () => {
+    // Without it the deploy would build an older date than the one signed,
+    // and WEBCAT would block the site.
+    const { ARTIFACT_PATHS } = await import("./webcat-sign-gate.mjs");
+    const { RELEASE_FILE } = await import("./releaseDate.mjs");
+    expect(ARTIFACT_PATHS).toContain(RELEASE_FILE);
+  });
+});

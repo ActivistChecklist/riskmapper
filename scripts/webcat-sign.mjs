@@ -24,6 +24,7 @@ import path from "node:path";
 import process from "node:process";
 import readline from "node:readline";
 import { dependencyProblem } from "./webcatDeps.mjs";
+import { stampReleaseDate } from "./releaseDate.mjs";
 import { nextVersion } from "./webcatVersion.mjs";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
@@ -388,6 +389,11 @@ async function main() {
   }
 
   step("Building the site");
+  // Before the build, so the date lands in the bytes being signed. The
+  // pre-push hook commits release.json with the signature so the deploy
+  // builds the same date. See scripts/releaseDate.mjs.
+  const builtOn = stampReleaseDate(ROOT);
+  ok(`build date ${builtOn} written to release.json`);
   run("yarn", ["build"]);
   if (!existsSync(GENERATED_CONFIG)) {
     die("the build did not write webcat.config.generated.json");
@@ -508,7 +514,7 @@ async function main() {
   ok("bundle verifies against the enrollment");
   rmSync(UNSIGNED, { force: true });
 
-  console.log(`\n${green(bold("Done."))} Signed artifacts are in ${bold("public/.well-known/webcat/")}`);
+  console.log(`\n${green(bold("Done."))} Signed artifacts are in ${bold("public/.well-known/webcat/")}, and the build date in ${bold("release.json")}`);
   console.log(dim("They ship on the next deploy, because public/ is copied into dist/."));
   console.log(
     dim("Re-run this whenever the site changes: a manifest that does not match\n" +
