@@ -158,6 +158,11 @@ signature. `WEBCAT_SIGN_REMINDER=off` turns it off for one command.
 - **Client env vars** are `VITE_*`, read via `import.meta.env`. `process.env` is
   not available in the browser bundle, and tests cannot catch that mistake
   because vitest runs in Node.
+  They reach `yarn dev` only. `vite build` reads no `.env` file and no
+  `VITE_*` variable (`buildEnv` in `vite.config.mts`), because signing builds
+  on a laptop and the deploy builds again, and the two must match byte for
+  byte. A value a production build needs goes in `BUILD_DEFINES` there, which
+  changes the signed bytes like any code change.
 - **Cloud-sync API** lives in `server/routes/*.ts` as plain Web
   `Request`/`Response` handlers, wired up by `server/apiRoutes.ts`. Shared
   helpers live in `lib/cloud/`. The relay stores opaque ciphertext only — see
