@@ -295,6 +295,25 @@ describe("safety planning guidance", () => {
     expect(within(dialog).getByRole("link", { name: "Ruckus Society" })).toBeTruthy();
   });
 
+  it("includes the resources and actions in the example finished plan", () => {
+    render(<RiskMatrix />);
+    fireEvent.click(
+      screen.getAllByRole("button", { name: "Show an example finished plan" })[0],
+    );
+    const dialog = screen.getByRole("dialog", { name: "Example safety plan" });
+    // In the app's order: matrix, resources, plan, actions.
+    expect(
+      within(dialog).getAllByRole("heading", { level: 3 }).map((h) => h.textContent),
+    ).toEqual(["On the matrix", "Resources", "The plan", "Actions"]);
+    expect(within(dialog).getByText("Medics who can give first aid")).toBeTruthy();
+    // Every starred item across the plan shows once on its card and once
+    // under Actions.
+    expect(within(dialog).getAllByText("Bring extra ponchos and hand warmers")).toHaveLength(2);
+    expect(
+      within(dialog).getAllByText("Scout night before and early morning of action"),
+    ).toHaveLength(2);
+  });
+
   it("turns all of it off with one switch, and remembers", () => {
     const { unmount } = render(<RiskMatrix />);
     const toggle = screen.getByRole("switch", { name: "Guidance" });

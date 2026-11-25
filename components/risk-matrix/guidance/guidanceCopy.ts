@@ -159,7 +159,7 @@ export const STEP_1 = {
 
 export const STEP_2 = {
   lead: {
-    strong: "Place every risk on the matrix",
+    strong: "Drag and drop every risk on the matrix",
     parts: [
       " by its ",
       { term: "likelihood", text: "likelihood" },

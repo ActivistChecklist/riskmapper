@@ -8,13 +8,19 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ExampleMatrix, ExampleTiers } from "./examples";
+import {
+  ExampleActionGroups,
+  ExampleMatrix,
+  ExampleResourceList,
+  ExampleTiers,
+} from "./examples";
 import { RuckusLink } from "./RuckusCredit";
 import { EXAMPLE_CELLS, EXAMPLE_PLAN, EXAMPLE_PLAN_TITLE } from "./guidanceCopy";
 
 /**
- * The worksheet's example plan, finished: the example on the matrix, then
- * the plan laid out as step 3's cards.
+ * The worksheet's example plan, finished, in the app's order: the risks on
+ * the matrix, the group's resources, the plan as step 4's cards, then the
+ * starred items as the Actions panel lists them.
  */
 export default function ExamplePlanDialog({
   open,
@@ -47,9 +53,15 @@ export default function ExamplePlanDialog({
         <div className="px-5 pb-5 pt-4">
           <h3 className="mb-2 text-sm font-semibold text-rm-ink">On the matrix</h3>
           <ExampleMatrix cells={EXAMPLE_CELLS} />
+          <h3 className="mb-2 mt-5 text-sm font-semibold text-rm-ink">Resources</h3>
+          <ExampleResourceList />
           <h3 className="mb-1 mt-5 text-sm font-semibold text-rm-ink">The plan</h3>
           <div className="-mx-3 rounded-md bg-rm-well">
             <ExampleTiers risks={EXAMPLE_PLAN} />
+          </div>
+          <h3 className="mb-2 mt-5 text-sm font-semibold text-rm-ink">Actions</h3>
+          <div className="-mx-3 rounded-md bg-rm-well px-3 py-3">
+            <ExampleActionGroups risks={EXAMPLE_PLAN} />
           </div>
         </div>
       </DialogContent>

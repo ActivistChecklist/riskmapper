@@ -3,6 +3,7 @@
 import React, { useMemo } from "react";
 import { Copy, Star } from "lucide-react";
 import ActionRow from "./ActionRow";
+import CountBadge from "./CountBadge";
 import OtherActionRow from "./OtherActionRow";
 import { groupActionsByTier, OTHER_ACTIONS_LABEL } from "./actionGroups";
 import {
@@ -180,10 +181,13 @@ export default function ActionsAside({
       <div className="flex flex-col overflow-hidden rounded-md border border-rm-border bg-rm-surface">
         <div className="flex shrink-0 items-center gap-1.5 border-b border-white/25 bg-rm-primary px-2 py-2 text-rm-primary-fg sm:px-3">
           <Star size={13} fill="currentColor" strokeWidth={1.5} />
-          <span className="min-w-0 flex-1 text-xs font-semibold uppercase tracking-wide sm:text-sm">
-            Actions
-          </span>
-          <span className="text-xs opacity-90 sm:text-sm">({totalCount})</span>
+          {/* The count sits with the title it counts, not by the Copy button. */}
+          <div className="flex min-w-0 flex-1 items-center gap-1.5">
+            <span className="min-w-0 truncate text-xs font-semibold uppercase tracking-wide sm:text-sm">
+              Actions
+            </span>
+            <CountBadge count={totalCount} variant="onPrimary" />
+          </div>
           <Button
             type="button"
             variant="outline"

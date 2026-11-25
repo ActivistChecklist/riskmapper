@@ -2,6 +2,7 @@
 
 import React, { useId, useMemo } from "react";
 import { ChevronDown, ChevronRight, Eye, EyeOff, Plus } from "lucide-react";
+import CountBadge from "./CountBadge";
 import MitigationLineRow from "./MitigationLineRow";
 import PointerAddLineButton from "./PointerAddLineButton";
 import RiskLineRow from "./RiskLineRow";
@@ -197,9 +198,7 @@ export default function CategorizedRiskGroups({
                   <span className="min-w-0 truncate text-xs font-semibold uppercase tracking-wide sm:text-sm">
                     {group.label}
                   </span>
-                  <span className="shrink-0 text-xs text-rm-muted-2 sm:text-sm">
-                    ({risks.length})
-                  </span>
+                  <CountBadge count={risks.length} />
                 </div>
                 <div className="flex max-w-[min(100%,20rem)] shrink-0 flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-2">
                   {group.key === "green" && isCollapsed ? (

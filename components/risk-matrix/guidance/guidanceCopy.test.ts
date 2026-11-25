@@ -75,7 +75,7 @@ describe("guidance copy", () => {
 
   it("reads a lead line as plain text for formats without popovers", () => {
     expect(leadText(STEP_2.lead)).toBe(
-      "Place every risk on the matrix by its likelihood and impact. Then look at where they clump.",
+      "Drag and drop every risk on the matrix by its likelihood and impact. Then look at where they clump.",
     );
   });
 });

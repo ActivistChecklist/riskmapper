@@ -22,6 +22,27 @@ describe("ActionsAside", () => {
     expect(onAddOther).toHaveBeenCalledTimes(1);
   });
 
+  it("shows the count beside the Actions title, before the Copy button", () => {
+    render(
+      <ActionsAside
+        allActions={[]}
+        otherActions={[{ id: "o1", text: "Book the van" }]}
+        onChangeSub={vi.fn()}
+        onToggleStar={vi.fn()}
+        onChangeOther={vi.fn()}
+        onAddOther={vi.fn()}
+        onOtherKeyDown={vi.fn()}
+        onOtherBlur={vi.fn()}
+      />,
+    );
+    const title = screen.getByText("Actions");
+    expect(title.parentElement?.textContent).toBe("Actions1");
+    const copy = screen.getByRole("button", { name: "Copy actions" });
+    expect(
+      title.compareDocumentPosition(copy) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
   it("groups actions under their tier label and leaves out the risk", () => {
     const action = (
       id: string,

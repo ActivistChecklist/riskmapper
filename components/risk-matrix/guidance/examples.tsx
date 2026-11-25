@@ -30,6 +30,7 @@ import {
   type ExampleRisk,
 } from "./guidanceCopy";
 import type { StepExample } from "./GuidanceContext";
+import CountBadge from "../CountBadge";
 import MitigationsTablePlaceholder from "../MitigationsTablePlaceholder";
 import { GUIDANCE_LINK_BUTTON_CLASS, GUIDANCE_SMALL_BUTTON_CLASS } from "./linkButton";
 
@@ -336,8 +337,10 @@ export function ExampleTiers({
               GROUP_LABEL_TEXT_CLASS[group.key],
             )}
           >
-            {group.label}{" "}
-            <span className="font-normal normal-case text-rm-muted-2">({inTier.length})</span>
+            <span className="inline-flex items-center gap-1.5">
+              {group.label}
+              <CountBadge count={inTier.length} />
+            </span>
           </p>
           <div className="space-y-2 px-3 pb-3">
             {inTier.map((r) => (
@@ -409,8 +412,59 @@ export function ExampleMatrix({
 }
 
 /**
- * Starred items from the risks step 4's example shows, grouped the way the
- * Actions panel groups them, so the two examples tell one story.
+ * The starred items of some example risks, grouped by tier the way the
+ * Actions panel groups them. `ghost` draws them gray and italic, for the
+ * example inside the panel; otherwise they look like real actions.
+ */
+export function ExampleActionGroups({
+  risks,
+  ghost = false,
+}: {
+  risks: readonly ExampleRisk[];
+  ghost?: boolean;
+}) {
+  const byTier = new Map<ColorGroupKey, string[]>();
+  for (const r of risks) {
+    for (const m of [...r.reduce, ...r.prepare]) {
+      if (!m.starred) continue;
+      const tier = exampleTier(r.cellKey);
+      byTier.set(tier, [...(byTier.get(tier) ?? []), m.text]);
+    }
+  }
+  return (
+    <div className="space-y-2.5">
+      {COLOR_GROUPS.filter((g) => byTier.has(g.key)).map((g) => (
+        <div key={g.key}>
+          <p
+            className={cn(
+              "mb-1 px-1 text-xs font-semibold uppercase tracking-wide",
+              GROUP_LABEL_TEXT_CLASS[g.key],
+            )}
+          >
+            {ACTION_GROUP_LABEL[g.key]}
+          </p>
+          <div
+            className={cn(
+              "rounded-r-md border-l-4 px-1 py-1",
+              GROUP_STRIPE_CLASS[g.key],
+              ghost
+                ? "italic text-rm-muted"
+                : "bg-rm-surface text-rm-ink shadow-[var(--rm-shadow-1)]",
+            )}
+          >
+            <ExampleMitigationList
+              items={(byTier.get(g.key) ?? []).map((text) => ({ text, starred: true }))}
+            />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * The Actions panel's example: starred items from the risks step 4's
+ * example shows, so the two examples tell one story.
  */
 export function ExampleActions({
   note,
@@ -420,41 +474,35 @@ export function ExampleActions({
   /** Sits on the panel's gray already, under starred actions. */
   onGray?: boolean;
 }) {
-  const byTier = new Map<ColorGroupKey, string[]>();
   const shown: readonly string[] = PLAN_EXAMPLE_RISKS;
-  for (const r of EXAMPLE_PLAN.filter((p) => shown.includes(p.text))) {
-    for (const m of [...r.reduce, ...r.prepare]) {
-      if (!m.starred) continue;
-      const tier = exampleTier(r.cellKey);
-      byTier.set(tier, [...(byTier.get(tier) ?? []), m.text]);
-    }
-  }
   return (
     <section
       aria-label="Example actions"
       className={cn(EXAMPLE_BORDER_CLASS, "px-2.5 pb-2.5 pt-2", !onGray && "bg-rm-surface-2")}
     >
       <ExampleHeading note={note} toggle={toggle} />
-      <div className="space-y-2.5">
-        {COLOR_GROUPS.filter((g) => byTier.has(g.key)).map((g) => (
-          <div key={g.key}>
-            <p
-              className={cn(
-                "mb-1 px-1 text-xs font-semibold uppercase tracking-wide",
-                GROUP_LABEL_TEXT_CLASS[g.key],
-              )}
-            >
-              {ACTION_GROUP_LABEL[g.key]}
-            </p>
-            <div className={cn("rounded-r-md border-l-4 px-1 py-1 italic text-rm-muted", GROUP_STRIPE_CLASS[g.key])}>
-              <ExampleMitigationList
-                items={(byTier.get(g.key) ?? []).map((text) => ({ text, starred: true }))}
-              />
-            </div>
-          </div>
-        ))}
-      </div>
+      <ExampleActionGroups
+        risks={EXAMPLE_PLAN.filter((p) => shown.includes(p.text))}
+        ghost
+      />
     </section>
+  );
+}
+
+/** The example resources as a plain list, for the example plan dialog. */
+export function ExampleResourceList() {
+  return (
+    <ul className="space-y-1">
+      {EXAMPLE_RESOURCES.map((r) => (
+        <li
+          key={r}
+          className="flex items-center gap-2 rounded-[5px] border border-rm-border bg-rm-line px-2 py-1.5 text-[14px] leading-snug text-rm-ink"
+        >
+          <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-rm-muted-2" />
+          {r}
+        </li>
+      ))}
+    </ul>
   );
 }
 
