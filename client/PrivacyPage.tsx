@@ -10,7 +10,7 @@ import { DocPage } from "./DocPage";
  * strings `lib/analytics/events.ts` fires, so it stays a component.
  */
 
-const LAST_UPDATED = "November 24, 2026";
+const LAST_UPDATED = "November 25, 2026";
 
 const TRACKED_EVENTS: { name: string; description: string }[] = [
   { name: "pageview", description: "A visit to a page on this site." },
@@ -116,12 +116,10 @@ view a shared matrix, the unique identifier in the URL (the part after
 
 ## How we anonymize your IP
 
-Your browser never talks to the analytics service directly. It posts each
-event to our own server, which strips most of the identifying bits from your
-IP address before forwarding it. We keep enough information to estimate which
-country or region the request came from, but not enough to identify you
-across visits, and the salt used for the remaining randomization rotates
-daily.
+Your browser never talks to the analytics service directly. Our server keeps
+enough of your IP address to estimate your country or region, and scrambles
+the rest with a random key that is never saved and is erased every day. After
+that, nobody, including us, can match the scrambled address to yours.
 
 ## Use it without contacting us at all
 
