@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { Analytics } from "@/components/Analytics";
 import { Footer } from "@/components/Footer";
+import { OfflineUpdateNotice } from "@/components/OfflineUpdateNotice";
 import { Toaster } from "@/components/ui/sonner";
 import { ErrorBoundary } from "./ErrorBoundary";
 
@@ -18,6 +19,7 @@ import { ErrorBoundary } from "./ErrorBoundary";
 export function AppShell({ children }: { children: ReactNode }) {
   return (
     <ErrorBoundary>
+      <OfflineUpdateNotice />
       <div className="flex-1">{children}</div>
       <Footer />
       <Toaster />

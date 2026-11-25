@@ -62,34 +62,37 @@ function webcatConfigPlugin(): Plugin {
   };
 }
 
+/** Shared with the single-file offline build in vite.config.offline.mts. */
+export const sharedResolve = {
+  alias: {
+    "@": path.resolve(import.meta.dirname, "."),
+  },
+  // One physical copy of yjs: duplicate instances break Y.* constructor
+  // checks (see https://github.com/yjs/yjs/issues/438). This replaces the
+  // webpack/turbopack aliases the old next.config.ts carried.
+  dedupe: ["yjs"],
+};
+
 export default defineConfig({
   plugins: [react(), webcatConfigPlugin()],
 
-  resolve: {
-    alias: {
-      "@": path.resolve(import.meta.dirname, "."),
-    },
-    // One physical copy of yjs — duplicate instances break Y.* constructor
-    // checks (see https://github.com/yjs/yjs/issues/438). This replaces the
-    // webpack/turbopack aliases the old next.config.ts carried.
-    dedupe: ["yjs"],
-  },
+  resolve: sharedResolve,
 
-  // Client-visible env vars. Was NEXT_PUBLIC_* under Next; see the deploy
-  // checklist in MIGRATION.md for the Railway rename.
+  // Client-visible env vars. Was NEXT_PUBLIC_* under Next.
   envPrefix: "VITE_",
 
   build: {
     outDir: "dist",
     emptyOutDir: true,
-    // Three documents: the SPA, plus the standalone privacy and security
-    // pages. Each of the latter resolves by directory index, which is also
-    // how WEBCAT's `default_index` resolves it.
+    // Four documents: the SPA, plus the standalone privacy, security and
+    // offline pages. Each of the latter resolves by directory index, which
+    // is also how WEBCAT's `default_index` resolves it.
     rollupOptions: {
       input: {
         main: path.resolve(import.meta.dirname, "index.html"),
         privacy: path.resolve(import.meta.dirname, "privacy/index.html"),
         security: path.resolve(import.meta.dirname, "security/index.html"),
+        offline: path.resolve(import.meta.dirname, "offline/index.html"),
       },
     },
   },

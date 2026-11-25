@@ -1,12 +1,13 @@
 import { SHARE_PATH_PREFIX } from "@/components/risk-matrix/shareUrl";
+import { isOfflineBuild } from "@/lib/offlineBuild";
 
 /**
  * Which view `index.html` should render for a given pathname.
  *
- * There is no router library: `/privacy/` and `/security/` are their own
- * documents, so the only paths that reach here are the app root, share
- * links, and anything the server could not match to a file. See
- * MIGRATION.md decision D2.
+ * There is no router library: `/privacy/`, `/security/` and `/offline/`
+ * are their own documents, so the only paths that reach here are the app
+ * root, share links, and anything the server could not match to a file.
+ * See MIGRATION.md decision D2.
  *
  * The server serves `index.html` for unmatched paths rather than a separate
  * 404 document, because WEBCAT resolves every unmanifested main_frame path
@@ -16,6 +17,10 @@ import { SHARE_PATH_PREFIX } from "@/components/risk-matrix/shareUrl";
 export type Route = "app" | "not-found";
 
 export function resolveRoute(pathname: string): Route {
+  // Opened from disk, the pathname is wherever the user saved the file, and
+  // the file is only ever the app.
+  if (isOfflineBuild()) return "app";
+
   if (pathname === "/" || pathname === "/index.html") return "app";
 
   // A share link: /grid/<recordId>, optionally with a trailing slash. The

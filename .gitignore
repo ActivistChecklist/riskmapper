@@ -57,3 +57,7 @@ next-env.d.ts
 
 # Sigsum rate-limit key: anti-spam credential, private half never committed
 /webcat/rate-limit-key
+
+# Local SQLite database (SQLITE_PATH default)
+/.data/
+

@@ -35,7 +35,7 @@ export type ApiMatch =
 /**
  * The id is minted client-side and validated again inside each handler via
  * `isPlausibleId`. This pattern is deliberately the same shape, so a
- * malformed id 404s at the router instead of reaching Mongo.
+ * malformed id 404s at the router instead of reaching the database.
  */
 const ID = "([A-Za-z0-9_-]{16,64})";
 

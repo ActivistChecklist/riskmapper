@@ -12,7 +12,7 @@
  * It is deliberately paranoid about *where* it reads from. Everything is
  * fetched over the network from the deployed origin; the local manifest is
  * used only to compare against. Verifying the local build against the local
- * manifest would prove nothing about what Railway actually serves.
+ * manifest would prove nothing about what the server actually serves.
  */
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";

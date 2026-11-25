@@ -22,5 +22,10 @@
     }
   },
   "include": ["**/*.ts", "**/*.tsx", "**/*.mts"],
-  "exclude": ["node_modules", "dist", "out", ".next"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "out",
+    ".next"
+  ]
 }

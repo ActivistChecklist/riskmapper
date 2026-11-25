@@ -1,5 +1,6 @@
 import { sendAnalytics } from "@activistchecklist/umami-extra-privacy/client";
 import type { RiskMatrixSnapshot } from "@/components/risk-matrix/matrixTypes";
+import { isOfflineBuild } from "@/lib/offlineBuild";
 
 /**
  * Privacy-preserving analytics for Risk Mapper. Events are fired through
@@ -9,11 +10,12 @@ import type { RiskMatrixSnapshot } from "@/components/risk-matrix/matrixTypes";
  * strings in event payloads either. Only event names cross the wire.
  *
  * In development, events are dropped so dev traffic does not pollute
- * production stats.
+ * production stats. The offline download never sends any: opened from disk
+ * there is no relay to send to, and its CSP would block the request anyway.
  */
 
 const ENDPOINT = "/api/counter";
-const skipInDev = () => process.env.NODE_ENV !== "production";
+const skipInDev = () => process.env.NODE_ENV !== "production" || isOfflineBuild();
 
 /**
  * Strip the per-matrix recordId from share URLs before reporting them.

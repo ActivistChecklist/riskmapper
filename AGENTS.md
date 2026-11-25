@@ -43,6 +43,27 @@ site for anyone running the extension:
 - **Every HTML/JS/CSS byte served is a file built at build time.** No
   server-rendered or otherwise dynamic markup, scripts, or styles.
 
+The offline download, `dist/download/riskmapper-offline.html`, is the one file
+made of inline scripts, on purpose. It is the whole app in a single HTML file
+for people with no internet or who never want to contact our server; browsers
+will not load a separate script file from a page opened from disk. It does not
+break the rules above because it is never rendered on our origin: the server
+sends it as an attachment (`contentDispositionFor` in `server/staticFiles.ts`),
+and it carries its own CSP `<meta>` tag allowing only its own scripts, by
+hash, and no network requests at all. `vite.config.offline.mts` builds it as
+part of `yarn build`, and `scripts/offlineHtml.mts` explains the rest. Code
+that runs in it sees `isOfflineBuild()` from `lib/offlineBuild.ts`: no
+sharing, no analytics, and absolute links back to the site's own pages. A
+relative URL like `/icon.svg` resolves against the user's disk there, and its
+CSP blocks it, so anything new that loads by path needs an offline answer too.
+
+The build date the offline copy and the Security page show comes from
+`release.json`, never from the clock, because a date read during the build
+would make the signed bytes and the deployed bytes differ. `yarn webcat:sign`
+writes today's date there before it builds, and the pre-push hook commits it
+with the signature (`ARTIFACT_PATHS` in `scripts/webcat-sign-gate.mjs`). If you
+sign by hand, commit `release.json` along with `public/.well-known/webcat/`.
+
 A third thing has to keep working, and it is easy to break by accident because
 nothing about it is visible in a browser without the extension. WEBCAT fetches
 an origin's manifest once and caches it for the whole browser session, so a
@@ -87,7 +108,8 @@ policy.
 | `yarn lint`         | Run ESLint                                                  |
 | `yarn test`         | Run test suite                                              |
 | `yarn typecheck`    | `tsc --noEmit`                                              |
-| `yarn build`        | Production build: `dist/` (client) and `dist-server/`        |
+| `yarn build`        | Production build: `dist/` (client, offline file) and `dist-server/` |
+| `yarn build:offline`| Just the single-file offline download, into `dist/download/` |
 | `yarn start`        | Run the built server. Env comes from the platform.           |
 | `yarn start:local`  | Same, but also loads `.env.local`                            |
 | `yarn hooks:install`| Point git at `.githooks/` (also runs on `yarn install`)      |
@@ -97,15 +119,16 @@ environment from the platform, and a stray `.env.local` on the host must never
 override it. Local runs use `start:local`.
 
 Node is pinned to major 24 in three places that must move together:
-`engines` in `package.json`, `.nvmrc` (CI reads it), and `target` in
-`vite.config.server.mts`. Railway builds with Railpack, which reads `engines`;
-its older Nixpacks builder stops at Node 23.
+`engines` in `package.json`, `.nvmrc`, and `target` in
+`vite.config.server.mts`. CI and the deploy both run the version `.nvmrc`
+names, and `engines` makes yarn refuse any other.
 
-`engines` and `.nvmrc` also carry a patch floor, `24.22.1`, the first 24.x with
-the October 2026 TLS hostname-verification fixes. A bare `24` let Railway keep
-serving whatever 24.x it built with last. Raise the floor with each Node
-security release that touches the server; drop back to a bare `24` once
-Railway's build logs show Railpack resolving a bare major to the newest patch.
+`engines` and `.nvmrc` also carry a patch floor, `24.22.3`, the November 2026
+security release with fixes to the HTTP parser (llhttp), HTTP/2, TLS and the
+bundled SQLite. Raise both with each Node security release that touches the
+server; bumping `.nvmrc` is what upgrades the deploy. Dependabot does not read
+`.nvmrc` or `engines`, so nothing will open a PR for this: check
+https://nodejs.org/en/blog/vulnerability when a release is announced.
 
 `yarn build` is safe to run now: it writes `dist/` and `dist-server/` and does
 not disturb the dev server.
@@ -121,16 +144,17 @@ signature. `WEBCAT_SIGN_REMINDER=off` turns it off for one command.
 
 ## Architecture
 
-- **Static SPA.** `index.html` is the app; `privacy/index.html` and
-  `security/index.html` are separate documents. Entries and the app shell live
-  in `client/`. Adding another standalone document means a new HTML entry, a
-  new `client/*.tsx` entry, and a new `rollupOptions.input` in
-  `vite.config.mts`. Miss the last one and the page builds to nothing.
+- **Static SPA.** `index.html` is the app; `privacy/index.html`,
+  `security/index.html` and `offline/index.html` are separate documents.
+  Entries and the app shell live in `client/`. Adding another standalone
+  document means a new HTML entry, a new `client/*.tsx` entry, and a new
+  `rollupOptions.input` in `vite.config.mts`. Miss the last one and the page
+  builds to nothing.
 - **No router library.** `client/routes.ts` maps the pathname to a view. The
   server serves `index.html` for anything it cannot match to a file, so the SPA
   renders its own not-found view. See `MIGRATION.md` D2 and D3.
 - **Client side by default.** Assume all of this app runs on the client side unless we need to add a server side compontent.
-- **TypeScript required.** All new files must be `.ts`/`.tsx`. No `any` types without a comment explaining why.
+- **TypeScript required.** All new files must be `.ts`/`.tsx`, or `.mts` for code Node runs directly (see Storage). No `any` types without a comment explaining why.
 - **Client env vars** are `VITE_*`, read via `import.meta.env`. `process.env` is
   not available in the browser bundle, and tests cannot catch that mistake
   because vitest runs in Node.
@@ -138,15 +162,25 @@ signature. `WEBCAT_SIGN_REMINDER=off` turns it off for one command.
   `Request`/`Response` handlers, wired up by `server/apiRoutes.ts`. Shared
   helpers live in `lib/cloud/`. The relay stores opaque ciphertext only — see
   `THREAT-MODEL.md`.
+- **Storage is SQLite** through Node's built-in `node:sqlite`, one file at
+  `SQLITE_PATH`, one connection in the one server process.
+  `lib/cloud/sqliteStore.mts` is the adapter behind `getCollection` and
+  `getUpdatesCollection` in `lib/cloud/db.ts`; its header lists the privacy
+  choices (no hidden rowids, day-only dates, secure delete, 0600 files) that
+  are easy to undo by accident. It and `lib/cloud/cleanup.mts` are also run by
+  plain `node`, with type stripping and no build, from the cleanup and backup
+  scripts. So they are `.mts`, and may import only `node:` builtins, other
+  `.mts` files by their full name, and whole-statement `import type`. The
+  script tests spawn `node` on the real files to catch a slip.
 - **The standalone document URLs keep their trailing slash** (`/privacy/`,
-  `/security/`). A slashless path resolves to the SPA, and WEBCAT applies
-  `default_index` only to paths ending in `/`.
-- **Privacy and Security are written in Markdown**, not JSX. `client/Prose.tsx`
-  renders a Markdown string into styled React elements, and passes any
-  non-string child straight through for the things Markdown can't express (the
-  analytics event list). Edit the copy, not the markup. Values that must stay
-  true as the code changes get interpolated from the constant rather than
-  retyped, as `RETENTION_DAYS` is in `client/SecurityPage.tsx`.
+  `/security/`, `/offline/`). A slashless path resolves to the SPA, and WEBCAT
+  applies `default_index` only to paths ending in `/`.
+- **Privacy, Security and Offline are written in Markdown**, not JSX.
+  `client/Prose.tsx` renders a Markdown string into styled React elements, and
+  passes any non-string child straight through for the things Markdown can't
+  express (the analytics event list). Edit the copy, not the markup. Values
+  that must stay true as the code changes get interpolated from the constant
+  rather than retyped, as `RETENTION_DAYS` is in `client/SecurityPage.tsx`.
 
 ## Server vs. client — when to use each
 
@@ -154,7 +188,7 @@ Client and server code share one tree and one origin. Be deliberate about which 
 
 **Use server (`server/routes/*.ts`, `lib/cloud/**`) only when you need to:**
 
-- Touch the MongoDB collection (`getCollection` from `lib/cloud/db.ts`).
+- Touch the database (`getCollection` / `getUpdatesCollection` from `lib/cloud/db.ts`).
 - Enforce a security invariant the client cannot be trusted with — e.g. ciphertext size cap, rate limit, optimistic-concurrency check.
 - Hold a secret (DB credentials, future API keys). Anything imported only from `server/` is server-only and is **not** sent to the browser.
 
@@ -164,7 +198,7 @@ Client and server code share one tree and one origin. Be deliberate about which 
 - Anything that touches `lib/e2ee/*` — encryption MUST run client-side; the server never sees plaintext or keys.
 - Anything reading `window.location` (share-link import lives client-side).
 
-**Don't import server modules into client code.** A `"use client"` file that imports from `lib/cloud/db.ts` will leak `mongodb` and connection logic into the browser bundle. The line is enforced informally — if a client file imports from `lib/cloud/`, that's a smell to check.
+**Don't import server modules into client code.** A `"use client"` file that imports from `lib/cloud/db.ts` will try to pull `node:sqlite` and the storage layer into the browser bundle. The line is enforced informally: if a client file imports from `lib/cloud/`, that's a smell to check.
 
 **Don't import client modules into server code.** Anything under `client/` or `components/` is client UI. It also pulls in `import.meta.env`, which is a client-only construct.
 

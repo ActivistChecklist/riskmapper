@@ -1,4 +1,5 @@
 import { RETENTION_DAYS } from "@/components/risk-matrix/cloudConfig";
+import { OFFLINE_PAGE_PATH } from "@/lib/offlinePaths.mts";
 import { DocPage } from "./DocPage";
 
 /**
@@ -12,9 +13,13 @@ import { DocPage } from "./DocPage";
  * The long-form version of the same material, aimed at someone who wants
  * the reasoning rather than the summary, is THREAT-MODEL.md. Keep the two
  * in step.
+ *
+ * Keep the "Use Risk Mapper with no internet" heading as it is. Offline
+ * copies built before the offline page existed link to its anchor
+ * (LEGACY_OFFLINE_SECTION_PATH), and they cannot be updated.
  */
 
-const LAST_UPDATED = "October 9, 2026";
+const LAST_UPDATED = "November 24, 2026";
 
 const REPO_URL = "https://github.com/ActivistChecklist/riskmapper";
 const THREAT_MODEL_URL = `${REPO_URL}/blob/main/THREAT-MODEL.md`;
@@ -84,14 +89,17 @@ What we hold on the server:
 - Calendar days in UTC, never times of day: when the matrix was created, when it was last edited or opened, and the day each individual edit was made
 - A counter per edit, plus a random per-browser label, so edits from two devices can be merged
 
-Separately from all of that, our web host keeps ordinary server logs, which do
-record request times and IP addresses. Every website has these. They contain
-nothing from your matrix, but they are not nothing, and we would rather say so
-than let you assume otherwise.
+Separately from all of that, our web host is May First, and we have turned off
+its access and error logs for this site, so no log records request times or IP
+addresses. May First does hold IP addresses in memory for up to 24 hours to fend
+off attacks, and never writes them to disk.
 
 We keep the dates for one reason: a shared matrix is deleted automatically
 after ${RETENTION_DAYS} days with no activity. **Stop sharing** deletes the
 server copy immediately, and anyone who had viewed it can still see a copy on their browser.
+Our backups are encrypted and kept for 30 days, so a deleted matrix can stay in
+a backup until that backup expires. Backups hold exactly what the server holds,
+nothing more.
 
 ## Keep the link safe
 
@@ -132,6 +140,12 @@ You can [install the WEBCAT Firefox extension here](https://addons.mozilla.org/e
 Installing the extension is worth it if you are at higher risk. Everything
 else on this page is true whether you install it or not.
 
+## Use Risk Mapper with no internet
+
+You can also download Risk Mapper as a single HTML file that works with no
+internet and never contacts our server. The [offline page](${OFFLINE_PAGE_PATH})
+has the download and explains how it differs from the website.
+
 ## What this does not protect against
 
 The limitations of our approach include:
@@ -139,8 +153,8 @@ The limitations of our approach include:
 - **A compromised device.** Malware, spyware, or a hostile browser extension on your computer can read what is on your screen and what is in your browser's storage. Encryption cannot help there.
 - **Anyone holding the link.** Reading, editing, and deleting are all the same capability, and we cannot tell them apart.
 - **Anyone who sees the first half of the link.** The id before the \`#\` does reach our servers. On its own it can download the encrypted copy, but it can't read, edit, or delete your matrix: every change has to carry proof that it came from someone with the full link. The one gap is a matrix shared before we added that proof and not opened since. Whoever opens it first, with or without the full link, decides who can change it from then on.
-- **Metadata under subpoena.** Whoever hosts our database or carries our traffic can generally be compelled to produce coarse dates and access logs. None of that decrypts your matrix, but it is not nothing.
-- **Traffic patterns.** Someone with access to our server logs can see that a shared matrix is being edited, how often, and roughly how large each edit is.
+- **Metadata under subpoena.** Whoever hosts our database or carries our traffic can generally be compelled to hand over what they hold, such as the coarse dates above and the IP addresses May First keeps in memory for up to 24 hours. None of that decrypts your matrix.
+- **Traffic patterns.** Someone who can watch our server's traffic can see that a shared matrix is being edited, how often, and roughly how large each edit is.
 - **Losing the link.** There are no accounts, so there is no recovery flow. Lose the link, lose the cloud copy.
 
 The full accounting, including what we deliberately decided not to defend

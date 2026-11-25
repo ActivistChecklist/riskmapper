@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   SPA_FALLBACK,
   cacheControlFor,
+  contentDispositionFor,
   resolveStaticRequest,
 } from "./staticFiles";
 
@@ -15,6 +16,7 @@ const FILES = new Set([
   "/index.html",
   "/privacy/index.html",
   "/security/index.html",
+  "/offline/index.html",
   "/theme-boot.js",
   "/favicon.ico",
   "/icon.svg",
@@ -95,6 +97,10 @@ describe("directory and index resolution", () => {
       kind: "file",
       path: "/security/index.html",
     });
+    expect(resolve("/offline/")).toEqual({
+      kind: "file",
+      path: "/offline/index.html",
+    });
   });
 
   it("redirects a slashless directory to its canonical trailing-slash form", () => {
@@ -106,6 +112,10 @@ describe("directory and index resolution", () => {
     expect(resolve("/security")).toEqual({
       kind: "redirect",
       location: "/security/",
+    });
+    expect(resolve("/offline")).toEqual({
+      kind: "redirect",
+      location: "/offline/",
     });
   });
 
@@ -206,5 +216,37 @@ describe("cacheControlFor", () => {
 
   it("caches other static files modestly", () => {
     expect(cacheControlFor("/theme-boot.js")).toBe("public, max-age=3600");
+  });
+});
+
+describe("contentDispositionFor", () => {
+  it("sends the offline build as a download, never as a page", () => {
+    // Rendered on this origin our CSP would block its inline scripts and
+    // leave a blank page; it is meant to be opened from disk.
+    expect(contentDispositionFor("/download/riskmapper-offline.html")).toBe(
+      'attachment; filename="riskmapper-offline.html"',
+    );
+  });
+
+  it("leaves every other file to display normally", () => {
+    for (const p of ["/index.html", "/security/index.html", "/assets/main-Df4apONn.js"]) {
+      expect(contentDispositionFor(p)).toBe(null);
+    }
+  });
+
+  it("still sends it as a download however the path is spelled", () => {
+    // The server resolves these to the same file; rendered inline, it would
+    // be a blank page on our origin.
+    for (const p of ["//download/riskmapper-offline.html", "/./download/riskmapper-offline.html"]) {
+      expect(contentDispositionFor(p)).toBe('attachment; filename="riskmapper-offline.html"');
+    }
+  });
+
+  it("shows the checksum as text rather than downloading it", () => {
+    expect(contentDispositionFor("/download/riskmapper-offline.html.sha256")).toBe(null);
+  });
+
+  it("drops a filename it would have to quote or escape", () => {
+    expect(contentDispositionFor('/download/a"b.html')).toBe("attachment");
   });
 });

@@ -6,8 +6,8 @@ import { dependencyProblem } from "./webcatDeps.mjs";
 
 /**
  * A signature over a build from drifted dependencies is a signature for bytes
- * the deploy never produces, and the only symptom is a failed healthcheck on
- * Railway. These pin the refusals that stop it at the signing step instead.
+ * the deploy never produces, and the only symptom is a failed healthcheck at
+ * deploy time. These pin the refusals that stop it at the signing step instead.
  */
 
 let root: string;

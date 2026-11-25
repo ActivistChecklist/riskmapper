@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { builtOnLabel } from "@/lib/releaseDate";
 import { Footer } from "./Footer";
 
 /**
@@ -26,6 +27,14 @@ describe("Footer", () => {
     expect(
       screen.getByRole("link", { name: /security/i }).getAttribute("href"),
     ).toBe("/security/");
+  });
+
+  it("links to the offline page, in the same tab", () => {
+    render(<Footer />);
+    const offline = screen.getByRole("link", { name: "Use this site fully offline" });
+    // Directory-index document, so the trailing slash matters here too.
+    expect(offline.getAttribute("href")).toBe("/offline/");
+    expect(offline.getAttribute("target")).toBeNull();
   });
 
   it("keeps the privacy link in-app (no new tab, no rel)", () => {
@@ -66,5 +75,45 @@ describe("Footer", () => {
   it("exposes the site nav as a labelled landmark", () => {
     render(<Footer />);
     expect(screen.getByRole("navigation", { name: /site/i })).toBeTruthy();
+  });
+});
+
+describe("Footer in the offline file", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("says it is the offline copy, and when it was built", () => {
+    // The date to compare with the Security page's latest copy.
+    vi.stubEnv("VITE_OFFLINE_BUILD", "true");
+    render(<Footer />);
+    expect(screen.getByText("Offline copy")).toBeTruthy();
+    expect(screen.getByRole("contentinfo").textContent).toContain(`built ${builtOnLabel()}`);
+  });
+
+  it("sends the Security and Privacy links to the live site in a new tab", () => {
+    // A relative /privacy/ would resolve against the user's disk.
+    vi.stubEnv("VITE_OFFLINE_BUILD", "true");
+    render(<Footer />);
+    for (const [name, href] of [
+      [/security/i, "https://riskmapper.app/security/"],
+      [/privacy/i, "https://riskmapper.app/privacy/"],
+    ] as const) {
+      const link = screen.getByRole("link", { name });
+      expect(link.getAttribute("href")).toBe(href);
+      expect(link.getAttribute("target")).toBe("_blank");
+      expect(link.getAttribute("rel")).toBe("noopener noreferrer");
+    }
+  });
+
+  it("leaves out the offline link, since the file is already offline", () => {
+    vi.stubEnv("VITE_OFFLINE_BUILD", "true");
+    render(<Footer />);
+    expect(screen.queryByRole("link", { name: /fully offline/i })).toBe(null);
+  });
+
+  it("shows no offline label on the website", () => {
+    render(<Footer />);
+    expect(screen.queryByText("Offline copy")).toBe(null);
   });
 });

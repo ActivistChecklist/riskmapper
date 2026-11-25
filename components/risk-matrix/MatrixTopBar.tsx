@@ -12,6 +12,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { siteIconSrc } from "@/lib/offlineBuild";
 import { MatrixDocumentActions } from "./MatrixToolbar";
 import ThemeToggle from "./ThemeToggle";
 import GuidanceSwitch from "./guidance/GuidanceSwitch";
@@ -190,9 +191,10 @@ export default function MatrixTopBar({
                 <div className="shrink-0">
                   {/* A plain <img>: the source is a static SVG we ship, so
                       there's nothing for an image optimizer to do, and the
-                      build has no server to do it. */}
+                      build has no server to do it. The offline build swaps
+                      in a data: URI; see siteIconSrc. */}
                   <img
-                    src="/icon.svg"
+                    src={siteIconSrc()}
                     alt={SITE_NAME}
                     width={32}
                     height={32}

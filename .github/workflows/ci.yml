@@ -30,12 +30,19 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: yarn
 
-      - run: yarn install --frozen-lockfile
+      # With a cold yarn cache, which every lockfile change brings, this can
+      # fail with "Extracting tar content ... failed, the file appears to be
+      # corrupt". Yarn builds the umami-extra-privacy git dependency with a
+      # second install that shares the cache, and the two can unpack the same
+      # package at once. The retry fetches one package at a time, so that
+      # second install runs alone. Most packages are cached by then, so it
+      # takes seconds.
+      - run: yarn install --frozen-lockfile || yarn install --frozen-lockfile --network-concurrency 1
       - run: yarn lint
       - run: yarn typecheck
       # Before tests: server/securityHeaders.test.ts runs the built server.

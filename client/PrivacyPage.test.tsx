@@ -38,6 +38,13 @@ describe("PrivacyPage", () => {
     ).toBe("/security/");
   });
 
+  it("sends readers to the offline page for how the download differs", () => {
+    render(<PrivacyPage />);
+    expect(
+      screen.getByRole("link", { name: "offline page" }).getAttribute("href"),
+    ).toBe("/offline/");
+  });
+
   it("shows a last-updated date", () => {
     render(<PrivacyPage />);
     expect(screen.getByText(/last updated/i)).toBeTruthy();
@@ -49,6 +56,7 @@ describe("PrivacyPage", () => {
       /what we do not collect/i,
       /what we do collect/i,
       /how we anonymize your ip/i,
+      /use it without contacting us at all/i,
       /verify any of this/i,
     ]) {
       expect(screen.getByRole("heading", { level: 2, name })).toBeTruthy();
@@ -71,5 +79,13 @@ describe("PrivacyPage", () => {
     ]) {
       expect(screen.getByText(event)).toBeTruthy();
     }
+  });
+
+  it("offers the offline download from this site, not a third party", () => {
+    // Getting it from GitHub would hand GitHub the visitor's IP.
+    render(<PrivacyPage />);
+    expect(
+      screen.getByRole("link", { name: /download the single-file version/i }).getAttribute("href"),
+    ).toBe("/download/riskmapper-offline.html");
   });
 });

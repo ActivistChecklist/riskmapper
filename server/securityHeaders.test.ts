@@ -1,4 +1,5 @@
 import { spawn, type ChildProcess } from "node:child_process";
+import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -54,9 +55,11 @@ describe("Content-Security-Policy on every response", () => {
     ["/privacy/", "the privacy document"],
     ["/privacy", "the 301 redirect — a main_frame response"],
     ["/security/", "the security document"],
+    ["/offline/", "the offline document"],
     ["/grid/abc123def456ghij", "a share link (SPA fallback)"],
     ["/nope", "an unknown path (SPA fallback)"],
     ["/theme-boot.js", "the pre-paint script"],
+    ["/download/riskmapper-offline.html", "the offline download"],
     ["/api/healthz", "an API response"],
     ["/api/nope", "an API 404"],
     ["/.well-known/webcat/nope.json", "a well-known 404"],
@@ -101,6 +104,25 @@ describe("Content-Security-Policy on every response", () => {
       const res = await raw(p);
       expect(res.headers.get("x-webcat-version"), p).toBe(expected);
     }
+  });
+
+  it("sends the offline build as an attachment", async () => {
+    const res = await raw("/download/riskmapper-offline.html");
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-disposition")).toBe(
+      'attachment; filename="riskmapper-offline.html"',
+    );
+    expect(res.headers.get("content-type")).toBe("text/html; charset=utf-8");
+  });
+
+  it("serves the offline file's checksum as text that matches the file", async () => {
+    const res = await raw("/download/riskmapper-offline.html.sha256");
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("text/plain; charset=utf-8");
+    expect(res.headers.get("content-disposition")).toBe(null);
+    const file = Buffer.from(await (await raw("/download/riskmapper-offline.html")).arrayBuffer());
+    const digest = createHash("sha256").update(file).digest("hex");
+    expect(await res.text()).toBe(`${digest}  riskmapper-offline.html\n`);
   });
 
   it("still sets the right status codes", async () => {

@@ -1,3 +1,5 @@
+import { isDuplicateKeyError } from "./sqliteStore.mts";
+
 /**
  * Tiny utilities shared across the `server/routes/matrix*.ts` Route Handlers.
  * Kept narrow on purpose — anything bigger belongs in its own module.
@@ -35,11 +37,7 @@ export function isPlausibleId(id: string): boolean {
 }
 
 export function isDuplicateKey(err: unknown): boolean {
-  return (
-    typeof err === "object" &&
-    err !== null &&
-    (err as { code?: unknown }).code === 11000
-  );
+  return isDuplicateKeyError(err);
 }
 
 export function internalError(err: unknown): Response {

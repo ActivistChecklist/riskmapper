@@ -13,7 +13,7 @@
  * hook; anything global without one is warned about here.
  *
  * Never fails an install. It runs during `yarn install` in places with no git
- * repo at all, such as the Railway build image.
+ * repo at all, such as a deploy that builds from an exported tree.
  */
 import { spawnSync } from "node:child_process";
 import { existsSync, readdirSync, statSync } from "node:fs";

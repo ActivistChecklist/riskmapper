@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { resolveRoute } from "./routes";
 
 /**
@@ -46,5 +46,24 @@ describe("resolveRoute", () => {
     // Still the app: the id is the first segment and useShareImport will
     // reject anything malformed on its own.
     expect(resolveRoute("/grid/abc/def")).toBe("app");
+  });
+});
+
+describe("resolveRoute in the offline file", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("renders the app wherever the file was saved", () => {
+    // Opened from disk, the pathname is the file's location, which would
+    // otherwise be an unknown path and show not-found.
+    vi.stubEnv("VITE_OFFLINE_BUILD", "true");
+    for (const pathname of [
+      "/Users/sam/Downloads/riskmapper-offline.html",
+      "/C:/Users/sam/Desktop/riskmapper-offline (1).html",
+      "/",
+    ]) {
+      expect(resolveRoute(pathname)).toBe("app");
+    }
   });
 });

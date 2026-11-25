@@ -12,7 +12,7 @@
  *   1. Anyone running the WEBCAT extension is refused the site outright, and
  *      the failure is invisible to everyone who is not running it.
  *   2. The deploy does not promote: server/verifyManifest.ts fails
- *      /api/healthz on a mismatch, so Railway keeps the previous version.
+ *      /api/healthz on a mismatch, so the server keeps the previous version.
  *
  * Saying yes runs scripts/webcat-sign.mjs right here (YubiKey, PIN, tap),
  * commits the refreshed artifacts, and pushes them, because the ref list git
@@ -37,6 +37,13 @@ export const MANIFEST_PATH = "public/.well-known/webcat/manifest.json";
 
 /** Everything the signing step writes, staged together after a signature. */
 export const ARTIFACT_DIR = "public/.well-known/webcat";
+/**
+ * Everything signing writes that has to ship with the signature: the
+ * artifacts, and the build date the signed bytes contain (see
+ * scripts/releaseDate.mjs). Leave release.json behind and the deploy builds
+ * different bytes from the ones that were signed.
+ */
+export const ARTIFACT_PATHS = [ARTIFACT_DIR, "release.json"];
 
 /**
  * Set on the push this hook makes itself, so the pre-push hook that push
@@ -302,10 +309,10 @@ function pushSigned(refs, update) {
 }
 
 function commitArtifacts() {
-  if (git(["add", "--", ARTIFACT_DIR]) === null) {
-    return { ok: false, reason: `could not stage ${ARTIFACT_DIR}` };
+  if (git(["add", "--", ...ARTIFACT_PATHS]) === null) {
+    return { ok: false, reason: `could not stage ${ARTIFACT_PATHS.join(" and ")}` };
   }
-  const staged = git(["diff", "--cached", "--name-only", "--", ARTIFACT_DIR]);
+  const staged = git(["diff", "--cached", "--name-only", "--", ...ARTIFACT_PATHS]);
   if (!staged) {
     // Signing rewrote nothing. Odd, but not something to invent a commit for.
     return { ok: true, sha: null };
@@ -331,11 +338,11 @@ function unsignedWarning() {
   say("      manifest, and the breakage is invisible to everyone who is");
   say("      not running it, including you.");
   say(`    ${yellow("•")} The deploy will not promote either: /api/healthz returns 503`);
-  say("      on a manifest mismatch, so Railway keeps the previous version");
+  say("      on a manifest mismatch, so the server keeps the previous version");
   say("      and the change never ships.");
   say();
   say(dim("  When you are ready:  yarn webcat:sign"));
-  say(dim("  then commit public/.well-known/webcat/ and push again."));
+  say(dim("  then commit public/.well-known/webcat/ and release.json, and push again."));
   say();
 }
 
@@ -427,7 +434,7 @@ function main() {
   if (!committed.ok) {
     say();
     say(yellow(`  Signed, but the artifacts are not committed (${committed.reason}).`));
-    say(dim(`  Commit ${ARTIFACT_DIR} yourself, then push again.`));
+    say(dim(`  Commit ${ARTIFACT_PATHS.join(" and ")} yourself, then push again.`));
     say();
     return ABORT;
   }

@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { RETENTION_DAYS } from "@/components/risk-matrix/cloudConfig";
+import { LEGACY_OFFLINE_SECTION_PATH } from "@/lib/offlinePaths.mts";
 import SecurityPage from "./SecurityPage";
 
 /**
@@ -39,6 +40,7 @@ describe("SecurityPage", () => {
       /share by link/i,
       /keep the link safe/i,
       /the code you run is signed/i,
+      /use risk mapper with no internet/i,
       /what this does not protect against/i,
       /check for yourself/i,
     ]) {
@@ -55,14 +57,25 @@ describe("SecurityPage", () => {
     expect(screen.getByText(/never times of day/i)).toBeTruthy();
   });
 
-  it("says plainly that the host keeps ordinary server logs", () => {
-    // Access logs carry real timestamps and IPs and sit outside our schema.
-    // THREAT-MODEL.md refuses to claim there is "nothing" responsive to a
-    // subpoena; this page must not claim it either.
+  it("says what the host can still see with its logs turned off", () => {
+    // Access and error logging are off in the host's web configuration, but
+    // the host still holds IPs in memory for a day. THREAT-MODEL.md refuses
+    // to claim there is "nothing" responsive to a subpoena; this page must
+    // not claim it either. If logging is ever turned back on, this changes.
     render(<SecurityPage />);
     expect(
-      screen.getByText(/our web host keeps ordinary server logs/i),
+      screen.getByText(/turned off\s+its access and error logs/i),
     ).toBeTruthy();
+    expect(
+      screen.getByText(/does hold IP addresses in memory for up to 24 hours/i),
+    ).toBeTruthy();
+  });
+
+  it("says a deleted matrix can outlive Stop sharing in a backup", () => {
+    // Backups are kept for 30 days by a lifecycle rule on the backup bucket.
+    // If that rule changes, this line on the page has to change with it.
+    render(<SecurityPage />);
+    expect(screen.getByText(/kept for 30 days/i)).toBeTruthy();
   });
 
   it("says the id before the # can't edit or delete a matrix on its own", () => {
@@ -118,5 +131,25 @@ describe("SecurityPage", () => {
       "https://github.com/ActivistChecklist/riskmapper",
     );
     expect(repo.getAttribute("rel")).toBe("noopener noreferrer");
+  });
+
+  it("points to the offline page instead of offering the download itself", () => {
+    render(<SecurityPage />);
+    expect(
+      screen.getByRole("link", { name: /offline page/i }).getAttribute("href"),
+    ).toBe("/offline/");
+    expect(screen.queryByRole("link", { name: /download/i })).toBe(null);
+  });
+
+  it("keeps the section older offline copies link to", () => {
+    // Copies built before the offline page existed send "Check for a newer
+    // version" here, and they cannot be updated. Renaming the heading
+    // changes its id and would break that link for good.
+    render(<SecurityPage />);
+    const id = LEGACY_OFFLINE_SECTION_PATH.split("#")[1];
+    const heading = document.getElementById(id);
+    expect(heading?.textContent).toMatch(/no internet/i);
+    const next = heading?.nextElementSibling;
+    expect(next?.querySelector('a[href="/offline/"]')).not.toBe(null);
   });
 });

@@ -132,7 +132,8 @@ without a warning.
 
 **No forward secrecy.** Once a key has leaked, all past and future
 versions of that matrix are exposed for as long as the matrix exists on
-the server. Stopping sharing deletes it.
+the server. Stopping sharing deletes it, though the encrypted backups keep a
+copy until they expire after 30 days.
 
 **Traffic patterns can leak a little.** Someone with access to the
 server's logs can see when a matrix is being edited, how often, and the
@@ -171,6 +172,43 @@ web, email, or phone links.
 
 **Nothing checks the advice.** A file can be full of bad suggestions, already
 starred as actions, and Risk Mapper has no way to tell.
+
+## The offline copy
+
+Risk Mapper also comes as a single HTML file, downloaded from
+`/download/riskmapper-offline.html` and opened from disk, for people with no
+internet or who never want to contact our server. Sharing and analytics are
+off in it, and its own Content-Security-Policy `<meta>` tag allows only its
+own scripts, by hash, and no network requests at all. It also turns off DNS
+prefetching, which that policy does not cover.
+
+**What it protects.** Once downloaded, it never contacts us or anyone else on
+its own. Links in it reach the web only when clicked, and send no Referer.
+Downloading it is one request to our server, like any other visit.
+
+**What it doesn't.**
+
+- **Tampered copies.** The protections live inside the file, so anyone who
+  edits a copy can remove them, and an edited copy looks the same. WEBCAT
+  only checks what our server sends. The Security page tells people to trust
+  only a copy they downloaded themselves, or one whose SHA-256 matches the
+  checksum we serve at `/download/riskmapper-offline.html.sha256`. That
+  checksum is itself in the signed WEBCAT manifest.
+- **Other local HTML files.** Chromium browsers (Chrome, Edge, Brave and the
+  rest) give every file opened from disk one shared storage area, so any
+  other local HTML file can read or rewrite the matrices the offline copy
+  saved. Rewritten share metadata is ignored, because cloud sync is off in
+  this build, but rewritten content is not. Firefox gives each file its own
+  storage. Safari has not been tested.
+- **Work left behind.** In browsers that key storage per file, a moved,
+  renamed or newly downloaded copy starts empty, and the old copy's work
+  stays in the browser profile, where someone holding the device can
+  recover it.
+- **Staying current.** The file never updates itself, so it never receives
+  security fixes. People have to download it again. It shows its build date
+  in the footer, and a reminder once that date is more than a month old,
+  which they can compare with the latest build date on the Security page.
+  The reminder trusts the device's clock.
 
 ## In plain words
 

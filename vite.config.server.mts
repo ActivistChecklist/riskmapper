@@ -6,7 +6,8 @@ import { defineConfig } from "vite";
  *
  * Vite's SSR mode rather than a second bundler or a `tsx` runtime dependency:
  * it already resolves the `@/` alias and leaves `node_modules` external, so
- * mongodb and rate-limiter-flexible load from the installed tree at runtime.
+ * rate-limiter-flexible loads from the installed tree at runtime. `node:sqlite`
+ * is a Node builtin, so it stays an import too.
  * See MIGRATION.md decision D6.
  */
 export default defineConfig({
