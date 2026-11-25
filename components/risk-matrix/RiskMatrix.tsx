@@ -115,6 +115,7 @@ function RiskMatrixCanvas({ workspace: ws, cloud, remoteApplyRef }: CanvasProps)
         snapshot: {
           pool: snap.pool,
           grid: snap.grid,
+          resources: snap.resources ?? [],
           otherActions: snap.otherActions,
           hiddenCategorizedRiskKeys: snap.hiddenCategorizedRiskKeys,
           notes: snap.notes,
@@ -612,6 +613,7 @@ export default function RiskMatrix() {
           ...row.snapshot,
           pool: view.snapshot.pool,
           grid: view.snapshot.grid,
+          resources: view.snapshot.resources,
           otherActions: view.snapshot.otherActions,
           hiddenCategorizedRiskKeys: view.snapshot.hiddenCategorizedRiskKeys,
           notes: view.snapshot.notes,

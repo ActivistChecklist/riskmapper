@@ -19,13 +19,25 @@ import { EXAMPLE_CELLS, EXAMPLE_PLAN, EXAMPLE_PLAN_TITLE } from "./guidanceCopy"
 export default function ExamplePlanDialog({
   open,
   onOpenChange,
+  returnFocusTo,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** The button that opened it, which gets focus back however it closes. */
+  returnFocusTo: React.RefObject<HTMLElement | null>;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl p-0">
+      <DialogContent
+        className="max-w-3xl p-0"
+        onCloseAutoFocus={(e) => {
+          const opener = returnFocusTo.current;
+          if (opener?.isConnected) {
+            e.preventDefault();
+            opener.focus();
+          }
+        }}
+      >
         <DialogHeader className="border-b border-rm-border px-5 pb-3 pt-4 pr-10">
           <DialogTitle>{EXAMPLE_PLAN_TITLE}</DialogTitle>
           <DialogDescription className="opacity-100 text-rm-muted">

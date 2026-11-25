@@ -5,6 +5,7 @@ import React, {
   useCallback,
   useContext,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import ExamplePlanDialog from "./ExamplePlanDialog";
@@ -40,7 +41,8 @@ export type ExampleStep = "risks" | "matrix" | "resources" | "plan" | "actions";
 export type GuidanceApi = {
   enabled: boolean;
   setEnabled: (enabled: boolean) => void;
-  showExamplePlan: () => void;
+  /** Open the example plan; focus returns to `opener` when it closes. */
+  showExamplePlan: (opener?: HTMLElement | null) => void;
   /** Steps whose examples someone showed (true) or hid (false) by hand. */
   exampleChoices: Partial<Record<ExampleStep, boolean>>;
   setExampleChoice: (step: ExampleStep, shown: boolean) => void;
@@ -76,6 +78,9 @@ export function useStepExample(step: ExampleStep, whenEmpty: boolean): StepExamp
 export function GuidanceProvider({ children }: { children: React.ReactNode }) {
   const [enabled, setEnabledState] = useState(readGuidancePreference);
   const [exampleOpen, setExampleOpen] = useState(false);
+  // The dialog is opened by plain buttons, not a Radix trigger, so it has to
+  // be told where focus goes back to.
+  const openerRef = useRef<HTMLElement | null>(null);
   const [exampleChoices, setExampleChoices] = useState<
     Partial<Record<ExampleStep, boolean>>
   >({});
@@ -84,7 +89,10 @@ export function GuidanceProvider({ children }: { children: React.ReactNode }) {
     setEnabledState(next);
     writeGuidancePreference(next);
   }, []);
-  const showExamplePlan = useCallback(() => setExampleOpen(true), []);
+  const showExamplePlan = useCallback((opener?: HTMLElement | null) => {
+    openerRef.current = opener ?? null;
+    setExampleOpen(true);
+  }, []);
   const setExampleChoice = useCallback((step: ExampleStep, shown: boolean) => {
     setExampleChoices((prev) => ({ ...prev, [step]: shown }));
   }, []);
@@ -97,7 +105,11 @@ export function GuidanceProvider({ children }: { children: React.ReactNode }) {
   return (
     <GuidanceContext.Provider value={api}>
       {children}
-      <ExamplePlanDialog open={exampleOpen} onOpenChange={setExampleOpen} />
+      <ExamplePlanDialog
+        open={exampleOpen}
+        onOpenChange={setExampleOpen}
+        returnFocusTo={openerRef}
+      />
     </GuidanceContext.Provider>
   );
 }

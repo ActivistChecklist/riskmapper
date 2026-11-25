@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 import RiskMatrix from "../RiskMatrix";
 import { GUIDANCE_STORAGE_KEY } from "./GuidanceContext";
@@ -205,6 +205,33 @@ describe("safety planning guidance", () => {
     render(<RiskMatrix />);
     fireEvent.click(screen.getByRole("button", { name: "likelihood" }));
     expect(screen.getByText(DEFINITIONS.likelihood.body)).toBeTruthy();
+  });
+
+  it("returns focus to the button that opened the example plan", async () => {
+    render(<RiskMatrix />);
+    const opener = screen.getAllByRole("button", { name: "Show an example finished plan" })[1];
+    fireEvent.click(opener);
+    const dialog = screen.getByRole("dialog", { name: "Example safety plan" });
+    fireEvent.keyDown(dialog, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+    // Radix moves focus on a timer once the dialog unmounts.
+    await waitFor(() => expect(document.activeElement).toBe(opener));
+  });
+
+  it("drops selected text when Enter splits a resource", () => {
+    render(<RiskMatrix />);
+    enterInto("Add a resource", "Medic big van");
+    const entry = within(screen.getByRole("list", { name: "Resources" })).getByRole(
+      "textbox",
+      { name: "Resource" },
+    ) as HTMLTextAreaElement;
+    entry.focus();
+    entry.setSelectionRange(6, 10); // "big "
+    fireEvent.keyDown(entry, { key: "Enter" });
+    const texts = within(screen.getByRole("list", { name: "Resources" }))
+      .getAllByRole("textbox", { name: "Resource" })
+      .map((t) => (t as HTMLTextAreaElement).value);
+    expect(texts).toEqual(["Medic ", "van"]);
   });
 
   it("shows the example finished plan on the matrix and as cards", () => {

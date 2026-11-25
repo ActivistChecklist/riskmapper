@@ -60,6 +60,13 @@ import {
   useMitigationDrag,
 } from "./useMitigationDrag";
 
+/** A short random tag, made once per page, for ids that must not collide between people. */
+function newClientTag(): string {
+  const bytes = new Uint8Array(4);
+  globalThis.crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => b.toString(36).padStart(2, "0")).join("");
+}
+
 /** Stable across SSR and client — not derived from `useId()`. */
 const DEFAULT_EMPTY_POOL_LINE_ID = "rm-ln-i-0";
 
@@ -97,10 +104,15 @@ export function useRiskMatrix(options: UseRiskMatrixOptions = {}) {
     return `rm-other-o-${otherSeq.current}`;
   }, []);
   const resourceSeq = useRef(0);
+  // Resource ids are their identity in the shared document, and two people
+  // who loaded the same matrix share the counter's starting point. A tag
+  // made once per page keeps their new ids apart. The id still ends in
+  // "-r-<n>", so advanceIdSeqsPast reads old, imported and tagged ids alike.
+  const [resourceTag] = useState(newClientTag);
   const newResourceId = useCallback(() => {
     resourceSeq.current += 1;
-    return `rm-res-r-${resourceSeq.current}`;
-  }, []);
+    return `rm-res-${resourceTag}-r-${resourceSeq.current}`;
+  }, [resourceTag]);
 
   const [pool, setPool] = useState<PoolLine[]>(() =>
     initialSnapshot?.pool?.length
@@ -1440,6 +1452,8 @@ export function useRiskMatrix(options: UseRiskMatrixOptions = {}) {
           return false;
         }
         const nid = newResourceId();
+        // Selected text is replaced, as typing would, not carried over.
+        const selectionEnd = Math.max(el.selectionEnd ?? caret, caret);
         setResources((prev) => {
           const i = prev.findIndex((r) => r.id === resource.id);
           if (i < 0) return prev;
@@ -1447,7 +1461,7 @@ export function useRiskMatrix(options: UseRiskMatrixOptions = {}) {
           return [
             ...prev.slice(0, i),
             { ...orig, text: orig.text.slice(0, caret) },
-            { id: nid, text: orig.text.slice(caret) },
+            { id: nid, text: orig.text.slice(selectionEnd) },
             ...prev.slice(i + 1),
           ];
         });

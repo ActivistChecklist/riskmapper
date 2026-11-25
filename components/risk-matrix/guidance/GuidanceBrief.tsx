@@ -40,7 +40,7 @@ export function ExamplePlanButton() {
   return (
     <button
       type="button"
-      onClick={showExamplePlan}
+      onClick={(e) => showExamplePlan(e.currentTarget)}
       className={GUIDANCE_SMALL_BUTTON_CLASS}
     >
       {SHOW_EXAMPLE_PLAN}
