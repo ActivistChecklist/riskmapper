@@ -123,10 +123,12 @@ Node is pinned to major 24 in three places that must move together:
 `vite.config.server.mts`. CI and the deploy both run the version `.nvmrc`
 names, and `engines` makes yarn refuse any other.
 
-`engines` and `.nvmrc` also carry a patch floor, `24.22.1`, the first 24.x with
-the October 2026 TLS hostname-verification fixes. Raise both with each Node
-security release that touches the server; bumping `.nvmrc` is what upgrades
-the deploy.
+`engines` and `.nvmrc` also carry a patch floor, `24.22.3`, the November 2026
+security release with fixes to the HTTP parser (llhttp), HTTP/2, TLS and the
+bundled SQLite. Raise both with each Node security release that touches the
+server; bumping `.nvmrc` is what upgrades the deploy. Dependabot does not read
+`.nvmrc` or `engines`, so nothing will open a PR for this: check
+https://nodejs.org/en/blog/vulnerability when a release is announced.
 
 `yarn build` is safe to run now: it writes `dist/` and `dist-server/` and does
 not disturb the dev server.
