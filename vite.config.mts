@@ -78,8 +78,7 @@ export default defineConfig({
 
   resolve: sharedResolve,
 
-  // Client-visible env vars. Was NEXT_PUBLIC_* under Next; see the deploy
-  // checklist in MIGRATION.md for the Railway rename.
+  // Client-visible env vars. Was NEXT_PUBLIC_* under Next.
   envPrefix: "VITE_",
 
   build: {
