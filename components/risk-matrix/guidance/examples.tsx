@@ -112,7 +112,7 @@ function ExampleToggle({
  * The step's examples link, for its box or the spot the box left. Moving
  * between the two remounts it, which is when it takes focus.
  */
-function useExampleToggle(
+export function useExampleToggle(
   example: StepExample,
   look: ToggleLook = "link",
 ): React.ReactNode {
@@ -392,7 +392,7 @@ export function ExampleMatrix({
 }
 
 /** Starred example items, grouped the way the Actions panel groups them. */
-export function ExampleActions() {
+export function ExampleActions({ note, toggle }: ExampleBoxProps) {
   const byTier = new Map<ColorGroupKey, string[]>();
   for (const r of EXAMPLE_PLAN) {
     for (const m of [...r.reduce, ...r.prepare]) {
@@ -406,7 +406,7 @@ export function ExampleActions() {
       aria-label="Example actions"
       className="rounded-lg border border-dashed border-rm-border-strong px-2.5 pb-2.5 pt-2"
     >
-      <ExampleHeading />
+      <ExampleHeading note={note} toggle={toggle} />
       <div className="space-y-2.5">
         {COLOR_GROUPS.filter((g) => byTier.has(g.key)).map((g) => (
           <div key={g.key}>

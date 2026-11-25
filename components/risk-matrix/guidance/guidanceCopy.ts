@@ -10,6 +10,8 @@
  * - The worksheet's example "communications break down" is too vague for a
  *   worksheet about being specific, so it reads "marshals can't reach each
  *   other when cell service drops".
+ * - The example plan's "Nuclear war" is now "Earthquake during the action":
+ *   the same kind of risk, with something to do if it happens.
  */
 
 import { COLOR_GROUPS } from "../constants";
@@ -289,10 +291,14 @@ export const EXAMPLE_PLAN: ExampleRisk[] = [
     ],
   },
   {
-    text: "Nuclear war",
+    // The worksheet's "Nuclear war" ("Uhh...total disarmament?", "n/a"),
+    // swapped for a risk that keeps its place on the matrix (very unlikely,
+    // very harmful, nothing to be done about the odds) but still has a
+    // useful answer for when it happens.
+    text: "Earthquake during the action",
     cellKey: "2-2",
-    reduce: [{ text: "Uhh...total disarmament?" }],
-    prepare: [{ text: "n/a" }],
+    reduce: [{ text: "Nothing we can do about this one" }],
+    prepare: [{ text: "Meet at the park two blocks away, clear of buildings" }],
   },
 ];
 

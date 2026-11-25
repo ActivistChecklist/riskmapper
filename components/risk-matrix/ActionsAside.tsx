@@ -11,8 +11,8 @@ import {
   STEP_SECTION_ACTION_BUTTON_CLASS,
 } from "./constants";
 import GuidanceBrief from "./guidance/GuidanceBrief";
-import { useStepExample } from "./guidance/GuidanceContext";
-import { ExampleActions } from "./guidance/examples";
+import { useGuidance, useStepExample } from "./guidance/GuidanceContext";
+import { ExampleActions, useExampleToggle } from "./guidance/examples";
 import { FINISHED } from "./guidance/guidanceCopy";
 import { copyStarredActions } from "./matrixClipboard";
 import { Button } from "@/components/ui/button";
@@ -58,7 +58,11 @@ export default function ActionsAside({
   onOtherBlur,
 }: ActionsAsideProps) {
   const totalCount = allActions.length + otherActions.length;
+  const { enabled: guidance } = useGuidance();
   const example = useStepExample("actions", totalCount === 0);
+  // Like steps 1, 3 and 4, the box holds its own Hide examples link, and a
+  // Show examples link takes the box's place once it is hidden.
+  const exampleToggle = useExampleToggle(example);
 
   const hasCopyableText = useMemo(() => {
     const starredOk = allActions.some(
@@ -130,14 +134,20 @@ export default function ActionsAside({
             ))}
           </ActionGroup>
         ) : null}
-        {example.shown ? <ExampleActions /> : null}
+        {guidance ? (
+          example.shown ? (
+            <ExampleActions note={false} toggle={exampleToggle} />
+          ) : (
+            <div className="px-1">{exampleToggle}</div>
+          )
+        ) : null}
         {addOtherActionControl}
       </div>
     ) : example.shown ? (
       // Until something is starred, the worksheet's example shows what
       // this panel collects.
       <div className="bg-rm-surface px-3 pb-2 pt-2.5">
-        <ExampleActions />
+        <ExampleActions note toggle={exampleToggle} />
         {addOtherActionControl}
       </div>
     ) : (
@@ -154,6 +164,7 @@ export default function ActionsAside({
             </span>{" "}
             below for anything else.
           </p>
+          {guidance ? <div className="mt-3">{exampleToggle}</div> : null}
         </div>
         {addOtherActionControl}
       </div>
@@ -191,7 +202,6 @@ export default function ActionsAside({
         <GuidanceBrief
           lead={FINISHED.lead}
           more={FINISHED.more}
-          example={example}
           className="border-b-0 border-t"
         />
       </div>

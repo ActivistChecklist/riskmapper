@@ -76,6 +76,20 @@ describe("safety planning guidance", () => {
     expect(screen.getByRole("region", { name: "Example plan" })).toBeTruthy();
   });
 
+  it("keeps the Actions panel's link in its example box", () => {
+    render(<RiskMatrix />);
+    const box = screen.getByRole("region", { name: "Example actions" });
+    fireEvent.click(within(box).getByRole("button", { name: "Hide examples" }));
+    expect(screen.queryByRole("region", { name: "Example actions" })).toBeNull();
+    // Nothing is starred, so the panel says what goes there, with the way
+    // back in that same box.
+    const placeholder = document.querySelector(
+      '[aria-label^="Placeholder: starred"]',
+    ) as HTMLElement;
+    const show = within(placeholder).getByRole("button", { name: "Show examples" });
+    expect(document.activeElement).toBe(show);
+  });
+
   it("keeps step 4's link in its example box too", () => {
     render(<RiskMatrix />);
     const plan = screen.getByRole("region", { name: "Example plan" });
@@ -200,7 +214,7 @@ describe("safety planning guidance", () => {
     );
     const dialog = screen.getByRole("dialog", { name: "Example safety plan" });
     expect(within(dialog).getByRole("table")).toBeTruthy();
-    expect(within(dialog).getAllByText("Nuclear war")).toHaveLength(2);
+    expect(within(dialog).getAllByText("Earthquake during the action")).toHaveLength(2);
     expect(within(dialog).getByRole("link", { name: "Ruckus Society" })).toBeTruthy();
   });
 
@@ -224,6 +238,19 @@ describe("safety planning guidance", () => {
     expect(
       screen.getByRole("switch", { name: "Guidance" }).getAttribute("aria-checked"),
     ).toBe("false");
+  });
+
+  it("on narrow screens, opens the labelled switch from a lightbulb", () => {
+    render(<RiskMatrix />);
+    // The bare switch says nothing on a phone, so the icon names its state
+    // and opens the switch with its label.
+    fireEvent.click(screen.getByRole("button", { name: "Guidance: on" }));
+    const switches = screen.getAllByRole("switch", { name: "Guidance" });
+    // The wide-screen switch, hidden on phones by CSS, and the popover's.
+    expect(switches).toHaveLength(2);
+    fireEvent.click(switches[1]);
+    expect(screen.getByRole("button", { name: "Guidance: off" })).toBeTruthy();
+    expect(screen.queryByRole("region", { name: "Safety planning" })).toBeNull();
   });
 
   it("gives no tip while guidance is off", () => {

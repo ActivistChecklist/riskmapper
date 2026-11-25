@@ -103,7 +103,7 @@ describe("the example plan", () => {
       Infiltrators: "red",
       "Dehydration and overheating on the picket line": "yellow",
       "Torrential rain": "green",
-      "Nuclear war": "yellow",
+      "Earthquake during the action": "yellow",
     });
   });
 
