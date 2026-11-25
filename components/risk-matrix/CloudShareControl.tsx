@@ -1,6 +1,11 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useState,
+} from "react";
 import { Loader2, UserPlus } from "lucide-react";
 import * as Y from "yjs";
 import { Button } from "@/components/ui/button";
@@ -35,6 +40,13 @@ export type CloudShareControlProps = {
   onAcknowledge: () => void;
   /** Disabled when there's no active saved matrix to share. */
   disabled?: boolean;
+  /** Lets another control open this share dialog, such as the local explainer. */
+  ref?: React.Ref<CloudShareControlHandle>;
+};
+
+export type CloudShareControlHandle = {
+  /** Open the share dialog, as clicking Share does. */
+  open: () => void;
 };
 
 /**
@@ -55,8 +67,18 @@ export default function CloudShareControl({
   onStopSharing,
   onAcknowledge,
   disabled,
+  ref,
 }: CloudShareControlProps) {
   const [open, setOpen] = useState(false);
+  useImperativeHandle(
+    ref,
+    () => ({
+      open: () => {
+        if (!disabled) setOpen(true);
+      },
+    }),
+    [disabled],
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [tempHandle, setTempHandle] = useState<CloudMatrixHandle | null>(null);

@@ -35,6 +35,12 @@ export type MatrixExportMenuProps = {
   onCopyPlain: () => void;
   /** Rich-text (HTML) full worksheet to the clipboard. */
   onCopyRich: () => void;
+  /**
+   * `callout` is the filled button in the save reminder: it always shows
+   * its label, since an icon alone means little beside a sentence, and it
+   * is filled because saving is the step people forget.
+   */
+  placement?: "toolbar" | "callout";
 };
 
 async function downloadPdf(title: string, snapshot: RiskMatrixSnapshot) {
@@ -76,7 +82,9 @@ export default function MatrixExportMenu({
   hasContent,
   onCopyPlain,
   onCopyRich,
+  placement = "toolbar",
 }: MatrixExportMenuProps) {
+  const callout = placement === "callout";
   const [pdfBusy, setPdfBusy] = useState(false);
   const [matrixFileOpen, setMatrixFileOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -121,7 +129,7 @@ export default function MatrixExportMenu({
     <Button
       ref={triggerRef}
       type="button"
-      variant="outline"
+      variant={callout ? "primary" : "outline"}
       size="default"
       className="gap-2 px-3 text-[15px] sm:px-4"
       aria-label="Export"
@@ -138,7 +146,13 @@ export default function MatrixExportMenu({
       ) : (
         <Download size={18} strokeWidth={2} aria-hidden />
       )}
-      <span className="hidden md:inline-flex md:items-center md:gap-1">
+      <span
+        className={
+          callout
+            ? "inline-flex items-center gap-1"
+            : "hidden md:inline-flex md:items-center md:gap-1"
+        }
+      >
         Export
         <ChevronDown
           size={14}
@@ -152,17 +166,26 @@ export default function MatrixExportMenu({
 
   return (
     <DropdownMenu>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
-        </TooltipTrigger>
-        <TooltipContent side="bottom" className="md:hidden">
-          Export
-        </TooltipContent>
-      </Tooltip>
+      {callout ? (
+        // Its label is always showing, so it needs no tooltip.
+        <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
+      ) : (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="md:hidden">
+            Export
+          </TooltipContent>
+        </Tooltip>
+      )}
       {/* Scrolls only when it would run off the screen (a short phone in
           landscape); collisionPadding keeps it off the screen edges. */}
-      <DropdownMenuContent align="end" collisionPadding={8} className="w-80">
+      <DropdownMenuContent
+        align="end"
+        collisionPadding={8}
+        className="w-80"
+      >
         <DropdownMenuLabel>Download</DropdownMenuLabel>
         <DropdownMenuItem
           disabled={!hasContent || pdfBusy}

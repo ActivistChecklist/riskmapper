@@ -11,7 +11,9 @@ import React, {
 import { Copy } from "lucide-react";
 import ActionsAside from "./ActionsAside";
 import CategorizedRiskGroups from "./CategorizedRiskGroups";
-import CloudShareControl from "./CloudShareControl";
+import CloudShareControl, {
+  type CloudShareControlHandle,
+} from "./CloudShareControl";
 import MatrixStatusIndicator from "./MatrixStatusIndicator";
 import { isCloudEnabled } from "./cloudConfig";
 import MitigationsTablePlaceholder from "./MitigationsTablePlaceholder";
@@ -24,6 +26,7 @@ import MatrixExportMenu from "./MatrixExportMenu";
 import MatrixTopBar from "./MatrixTopBar";
 import NotesEditor from "./NotesEditor";
 import RiskPoolSection from "./RiskPoolSection";
+import SaveReminder from "./SaveReminder";
 import ResourcesSection from "./ResourcesSection";
 import StepSection from "./StepSection";
 import GuidanceBrief from "./guidance/GuidanceBrief";
@@ -217,6 +220,9 @@ function RiskMatrixCanvas({ workspace: ws, cloud, remoteApplyRef }: CanvasProps)
   // The Share button is always available when cloud is enabled. Drafts are
   // promoted to saved rows on demand (see handleCloudMetaSet below).
   const cloudCapable = isCloudEnabled();
+  // The local explainer's Share button opens the top bar's own share
+  // dialog, so the share flow survives the matrix becoming shared.
+  const shareRef = useRef<CloudShareControlHandle>(null);
 
   const handleStopSharing = useCallback(async () => {
     if (!activeSaved?.cloud) return;
@@ -380,11 +386,23 @@ function RiskMatrixCanvas({ workspace: ws, cloud, remoteApplyRef }: CanvasProps)
               shared={Boolean(cloudMeta)}
               syncState={cloud.syncState}
               onIndicatorAction={cloud.reopenAction}
+              exportMenu={
+                <MatrixExportMenu
+                  title={ws.activeTitle}
+                  getSnapshot={m.getSnapshot}
+                  hasContent={hasAnyCopyableContent}
+                  onCopyPlain={handleCopyAll}
+                  onCopyRich={handleCopyRich}
+                  placement="callout"
+                />
+              }
+              onShare={cloudCapable ? () => shareRef.current?.open() : undefined}
             />
           }
           cloudShareControl={
             cloudCapable ? (
               <CloudShareControl
+                ref={shareRef}
                 getSnapshot={m.getSnapshot}
                 matrixTitle={ws.activeTitle}
                 cloudMeta={cloudMeta}
@@ -553,6 +571,19 @@ function RiskMatrixCanvas({ workspace: ws, cloud, remoteApplyRef }: CanvasProps)
                 onAddOther={m.addOtherAction}
                 onOtherKeyDown={m.handleOtherKeyDown}
                 onOtherBlur={m.handleOtherBlur}
+              />
+              <SaveReminder
+                className="mt-5"
+                exportMenu={
+                  <MatrixExportMenu
+                    title={ws.activeTitle}
+                    getSnapshot={m.getSnapshot}
+                    hasContent={hasAnyCopyableContent}
+                    onCopyPlain={handleCopyAll}
+                    onCopyRich={handleCopyRich}
+                    placement="callout"
+                  />
+                }
               />
               <NotesEditor
                 className="mt-5"

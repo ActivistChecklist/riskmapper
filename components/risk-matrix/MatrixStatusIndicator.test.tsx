@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -32,6 +32,41 @@ describe("MatrixStatusIndicator", () => {
     expect(
       screen.getByRole("link", { name: /protects your data/i }).getAttribute("href"),
     ).toBe("/security/");
+  });
+
+  it("urges keeping another copy, with Export and Share right there", async () => {
+    const user = userEvent.setup();
+    const onShare = vi.fn();
+    renderPill({
+      shared: false,
+      syncState: { kind: "idle" },
+      exportMenu: <button type="button">Export</button>,
+      onShare,
+    });
+    await user.click(screen.getByRole("button", { name: /saved locally/i }));
+
+    const callout = screen.getByRole("region", { name: "Keep another copy" });
+    expect(callout.textContent).toContain("only in this browser");
+    expect(callout.textContent).toContain("end-to-end encrypted copy");
+    expect(within(callout).getByRole("button", { name: "Export" })).toBeTruthy();
+
+    // Share closes this dialog, then opens the share dialog.
+    await user.click(within(callout).getByRole("button", { name: "Share" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    await waitFor(() => expect(onShare).toHaveBeenCalledTimes(1));
+  });
+
+  it("offers only Export where sharing isn't available", async () => {
+    const user = userEvent.setup();
+    renderPill({
+      shared: false,
+      syncState: { kind: "idle" },
+      exportMenu: <button type="button">Export</button>,
+    });
+    await user.click(screen.getByRole("button", { name: /saved locally/i }));
+    const callout = screen.getByRole("region", { name: "Keep another copy" });
+    expect(within(callout).queryByRole("button", { name: "Share" })).toBeNull();
+    expect(callout.textContent).not.toContain("share it");
   });
 
   it("shows a lock on the local-only pill, as the encrypted one does", () => {

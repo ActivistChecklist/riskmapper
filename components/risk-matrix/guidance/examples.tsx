@@ -514,7 +514,9 @@ export function PlanExample({ note, toggle }: ExampleBoxProps) {
   return (
     <section
       aria-label="Example plan"
-      className="min-w-0 border-t border-rm-border bg-rm-well p-3 last:rounded-b-md"
+      // No top border: it always follows step 4's instructions, whose
+      // bottom edge already separates them.
+      className="min-w-0 bg-rm-well p-3 last:rounded-b-md"
     >
       {/* One dashed box around the whole example, like steps 1 and 3. */}
       <div className="rm-dashed rounded-lg pb-1 pt-2.5">
@@ -551,6 +553,6 @@ export function PlanExampleArea({
     return <MitigationsTablePlaceholder embeddedInStepSection action={toggle} />;
   }
   return (
-    <div className="border-t border-rm-border bg-rm-well px-3 py-3">{toggle}</div>
+    <div className="bg-rm-well px-3 py-3">{toggle}</div>
   );
 }

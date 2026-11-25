@@ -314,6 +314,18 @@ describe("safety planning guidance", () => {
     ).toHaveLength(2);
   });
 
+  it("keeps the save reminder and its Export menu with guidance off", () => {
+    window.localStorage.setItem(GUIDANCE_STORAGE_KEY, "off");
+    render(<RiskMatrix />);
+    // Not guidance: losing the plan matters either way.
+    const block = screen.getByRole("region", { name: "Save your plan" });
+    expect(block.textContent).toContain("Make sure to save a copy somewhere safe.");
+    expect(within(block).getByRole("button", { name: "Export" }).textContent).toContain(
+      "Export",
+    );
+    expect(screen.queryByText("That's it!")).toBeNull();
+  });
+
   it("turns all of it off with one switch, and remembers", () => {
     const { unmount } = render(<RiskMatrix />);
     const toggle = screen.getByRole("switch", { name: "Guidance" });
