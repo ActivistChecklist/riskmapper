@@ -7,11 +7,11 @@ import {
 } from "@/lib/offlineAge";
 import { isOfflineBuild, LIVE_SITE_ORIGIN } from "@/lib/offlineBuild";
 import { builtOnLabel, builtOnMs } from "@/lib/releaseDate";
-import { OFFLINE_SECTION_PATH } from "@/lib/offlinePaths.mts";
+import { OFFLINE_PAGE_PATH } from "@/lib/offlinePaths.mts";
 
 /**
  * A slim notice across the top of the offline file once its build is more
- * than a month old. It names the build date, which the Security page's
+ * than a month old. It names the build date, which the offline page's
  * "latest offline copy" box also shows, and links there. The file
  * cannot check for updates itself (its CSP blocks every request), so this
  * only nudges; following the link is the user's choice. Dismissing hides it
@@ -55,7 +55,7 @@ export function OfflineUpdateNotice() {
           This offline copy was built on {builtOnLabel()}, more than a month
           ago. A newer version may be available.{" "}
           <a
-            href={`${LIVE_SITE_ORIGIN}${OFFLINE_SECTION_PATH}`}
+            href={`${LIVE_SITE_ORIGIN}${OFFLINE_PAGE_PATH}`}
             target="_blank"
             rel="noopener noreferrer"
             className="font-medium underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rm-ring"

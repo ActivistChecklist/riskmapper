@@ -38,6 +38,13 @@ describe("PrivacyPage", () => {
     ).toBe("/security/");
   });
 
+  it("sends readers to the offline page for how the download differs", () => {
+    render(<PrivacyPage />);
+    expect(
+      screen.getByRole("link", { name: "offline page" }).getAttribute("href"),
+    ).toBe("/offline/");
+  });
+
   it("shows a last-updated date", () => {
     render(<PrivacyPage />);
     expect(screen.getByText(/last updated/i)).toBeTruthy();

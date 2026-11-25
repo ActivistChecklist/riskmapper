@@ -15,7 +15,7 @@ export const LIVE_SITE_ORIGIN = "https://riskmapper.app";
 
 /**
  * Anchor props for a link to one of the site's own documents (`/security/`,
- * `/privacy/`). On the web it is a relative path in the same tab. In the
+ * `/privacy/`, `/offline/`). On the web it is a relative path in the same tab. In the
  * offline file a relative path would resolve against the user's disk, so it
  * goes to the live site, in a new tab so the app stays open. Following it is
  * the user's choice; the file itself never contacts the site.

@@ -35,6 +35,7 @@ const ENTRIES = [
   { label: "index.html", file: "index.html" },
   { label: "privacy/index.html", file: "privacy/index.html" },
   { label: "security/index.html", file: "security/index.html" },
+  { label: "offline/index.html", file: "offline/index.html" },
 ] as const;
 
 describe("index.html", () => {
@@ -67,6 +68,18 @@ describe("security/index.html", () => {
   it("declares a description covering the security stance", () => {
     expect(meta(doc("security/index.html"), "description")).toMatch(
       /end-to-end encrypted/i,
+    );
+  });
+});
+
+describe("offline/index.html", () => {
+  it("declares a page-specific title", () => {
+    expect(doc("offline/index.html").title).toBe("Use offline - Risk Mapper");
+  });
+
+  it("declares a description covering what the download is for", () => {
+    expect(meta(doc("offline/index.html"), "description")).toMatch(
+      /no internet/i,
     );
   });
 });

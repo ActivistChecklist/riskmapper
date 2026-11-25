@@ -130,8 +130,9 @@ loudly.
 index.html                     SPA entry document (hand-written head)
 privacy/index.html             Privacy page, its own static document
 security/index.html            Security page, its own static document
+offline/index.html             Offline download page, its own static document
 client/                        Entries, app shell, router-less path dispatch
-client/Prose.tsx               Markdown renderer behind both static documents
+client/Prose.tsx               Markdown renderer behind the static documents
 components/risk-matrix/        SPA components, hooks, local repo
 lib/cloud/                     Server-side: SQLite store, route helpers, rate limit
 lib/e2ee/                      Client-side: XChaCha20-Poly1305 envelope
