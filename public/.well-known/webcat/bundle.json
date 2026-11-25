@@ -15,12 +15,13 @@
   },
   "manifest": {
     "app": "https://github.com/ActivistChecklist/riskmapper",
-    "version": "0.1.10",
+    "version": "0.1.11",
     "default_csp": "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self'; font-src 'self'; connect-src 'self' data:; worker-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
     "files": {
       "/apple-icon.png": "aGylUEzSZ-Z6voqD5HvLMw-N5FH7Z4glboNHFnnWM0E",
+      "/assets/button-6V4HKZIo.js": "GQRB8WHn8I3I3vGJ1wCs5axNambhBu6mVz_W6yKDy9c",
       "/assets/cloudConfig-WreVG-Jx.js": "lvj_1frvOvN_xzcRe1pTCyGcJmFZiu-7sFWVcDa6DEI",
-      "/assets/DocPage-J4rEa0XN.js": "Tmxuwtlq-yQGr5m2GNnsRjE7fch4H01osdgf7OmHyYw",
+      "/assets/DocPage-uJANKh9w.js": "kFEFQqNNTQCXFG8UxoL9aM15OBSQSK0RlLC2MWHfT_8",
       "/assets/geist-mono-latin-400-normal-B2yvC1Cq.woff": "7H7NOTJ8OaKyeSyLQC0JRhm2weUXp0Qgzej9Z6ce0IM",
       "/assets/geist-mono-latin-400-normal-DTRLJnHl.woff2": "P5g4OxIv4BWkhTbNShzahVogFxiSP_50kxoBWXEHubU",
       "/assets/geist-sans-latin-400-normal-BOaIZNA2.woff": "svWTHxqQO8xkr5buQbP-1TqM506SYRgZMaaApQVgSFs",
@@ -29,21 +30,22 @@
       "/assets/geist-sans-latin-500-normal-uokXdC-Q.woff2": "QAc-kIFjFckuT0OBvVC2_clQsisN0BCkF5BGz1iNTxI",
       "/assets/geist-sans-latin-600-normal-CA1yjETN.woff": "OQPtdjPVY940u79gnoaah45LQIGiUBGhlbeoAEPsr-k",
       "/assets/geist-sans-latin-600-normal-DFOURf8L.woff2": "nZn715GWhJP6UHrIRt5WHO5HsA-BAMI8rTM7PLeDktY",
-      "/assets/globals-By8fbGHw.css": "3lqgjbcwz2cqP_qVlEnvs_T6zPyGlPZBRth8rUgo3v4",
-      "/assets/globals-uE0DzA6V.js": "Tb-Fx-qqo6_M5F81smpMm8W9UsckAwWLueKkog12STs",
+      "/assets/globals-BlxKGXG_.js": "UJD0_RObVIIRj3XpHRYn5dKqA0T942MSEr0XvOw1A7Q",
+      "/assets/globals-WPERsLR0.css": "cPa9lSJMGqFF5XO8U1gskFq38UOBUiVYmRYpNO-cLdE",
       "/assets/libsodium-wrappers-B9l1tvwM.js": "Gvjzs7Zq8DBZ30D_391AZ8KU4gwmoRFgc5PJ8Dxpa_A",
-      "/assets/main-B--q-UDP.js": "YAmGIvNNjwXxZI2gDUxeeTTJNnr2mOTekLqx19CTXlk",
-      "/assets/MatrixPdfDocument-CUbxQ-bG.js": "QpIJ3oQNzxFdj93SkYskwH8bWAAzGNELo8UvqQoLTfc",
-      "/assets/privacy-DiLo05lj.js": "-T_SAhf1Wzp3gJHx8SbaRzZYqzK8oyKPMLEueho4fVg",
-      "/assets/react-pdf.browser-CoO3ngWc.js": "yUpPCx66XgsIQOq-yi_DmSPXzNfRgIUbMVl84hE4GYc",
+      "/assets/main-YyuJc3KV.js": "LR39iO-uMZ6A0f6TbK--tyIKRB4CPbwJGq3dj_gXvRA",
+      "/assets/MatrixPdfDocument-1YGTXibL.js": "ZnpOPV3e8JdN_pOaj_HfFvZGWnZWieNf0yfj43L5eE4",
+      "/assets/offline-CUI6Zpr8.js": "1EcnNrZUeTXQ7uQYnMfeC7zTAMU0r1mvfrIfev-j5GE",
+      "/assets/privacy-Brxrmu7v.js": "G9UNNboZhHDMwTSNjGWWtZ2YZvhF5-F4Ew-arldsMw8",
+      "/assets/react-pdf.browser-B5905EbI.js": "e4hPI3qYBfCf3i1r5rWb6BWUbof3sCMJeBsPp4Pms5I",
       "/assets/roboto-latin-400-italic-BpsFK_tr.woff": "uSb3uX0va_GhLL_GWgOUEgrkAdX_XMOkhPr93wYY_Ws",
       "/assets/roboto-latin-400-normal-D27F5sTu.woff": "bP8SEWuDMhIwNH23XQch5wwnxuxp7MypPKSxVW6q9n8",
       "/assets/roboto-latin-500-normal-fsTFPL3E.woff": "j6jlYuGimXtELNcc4KpcGBSxGagDMdnP3Q9OsDLooL0",
       "/assets/roboto-latin-700-normal-YuyVweIx.woff": "GeeLHF8saDwogA-E3W1FPdtnmHsAeQYKTL5Qx73e0Ug",
       "/assets/rolldown-runtime-XKyaHtl9.js": "VI0dvzIefSroBPzBWLWIcGp8UvjKF13hSQxsy02-Vbc",
-      "/assets/security-QNGCq1F9.js": "bzfFol-wotwkZVQBeM7jtH1FGZ222MttiuU3mUH9hAs",
-      "/download/riskmapper-offline.html": "CeuF-YwwizOaEbkQ0fMg_LeaCNwpb_xio5qBWg7bxIU",
-      "/download/riskmapper-offline.html.sha256": "8miJnNwG4XsxL_nxkDPAvbQt-5sJbnO9U9eqiP1rkMo",
+      "/assets/security-Bs3YjBIy.js": "BSQDuf1ul1bItOnwVODGojYDOwsly_ExSbTvyT7gGmc",
+      "/download/riskmapper-offline.html": "N5UdsuoCIJuPvdpmJhaaKUJHLOmiPRr3wR0j88eIeQ8",
+      "/download/riskmapper-offline.html.sha256": "UPdMbF1KnzqpkU8F4qk4yXDM00NND1wnRvyBJqagdhA",
       "/favicon.ico": "SdhFlQsKjwKQ2b2zpvRSuBmJaPWZpM4404i67K8M4ls",
       "/file.svg": "K2eBLDJcGZoCU2zb7qDFk6cvcH0yO3LuPgjbqwZ1O9Q",
       "/globe.svg": "thS5vxg5JZV2YayFFJj-HYAp_UOmL7_thvniYkpX588",
@@ -53,10 +55,11 @@
       "/icon-48.png": "gvPB3YIYP3971ujn38Z_HlbNRGl3G42jbuaU_nnsgYc",
       "/icon-512.png": "oukurKb9km1fAlsVoJ5mswR4h4lbnkBG-KzbXsNeFJo",
       "/icon.svg": "g2SiedkWG96M_UY6xCAPcrQ3IW1nPBxY08-lJZmm1Ac",
-      "/index.html": "-ETi7Z6Xqxuk7X97UM4s90y_-CPJxRA_vnsZBYSUqLg",
+      "/index.html": "Ot0sO2X6pc7-NkAlj-72-k3qYyBSiYd2OnAwOk0YSEM",
       "/next.svg": "VZld-tbstJRaHoVt3KA8XhaqW_E_0htN9qdK55NXvPw",
-      "/privacy/index.html": "FZi9Ykl1yN9-3JN3DMDkRGSt2jTJdnwFAC4wMfGx5y0",
-      "/security/index.html": "jQ6ji9zZ8diOvLecJyce2n7deg5U3cBWdvqhfJrWqn0",
+      "/offline/index.html": "dZeWe2sLuH7vja7iEWx3Zh2JFMLk_Jmw0AYXkkgIVyU",
+      "/privacy/index.html": "3L6wX0tuydYlZaNYunEV7gV65gvB9dFiuwyAVIGeDEI",
+      "/security/index.html": "Ngy6-xnsGjleduodZG3J2mv2f73GFPN80tSoWJErq-0",
       "/theme-boot.js": "bJLHCgjpkWvF0l9ATZnKCosIr7qmizEHtPzgz5IDTV0",
       "/vercel.svg": "8IEzey_uY1tFW2MnVAaj5_OdagFOJa2Q2rWmfmKhKsQ",
       "/window.svg": "ZEdoxKrrR2e84pM0TusMEl-4BKlNgBRAQkByIC2F46E"
@@ -68,9 +71,9 @@
       "e6nJSDyMOKRo6a70qV7XL62KQ1lL6OUSPrO9tkee31s"
     ],
     "extra_csp": {},
-    "timestamp": "size=83787\nroot_hash=35d322e9b5527e06eca7174518d3e98cf099615510c5238a42d625d9b69aafdf\nsignature=62aba9ac96df3cadb341002c9ea42fc2a41c65b932c8e504d026ee98a9ac00b6175b866deb5e7976a102faa770c65e3c06b448a39959c2c1904e9c421f459708\ncosignature=6d6a78191e59815eff9131941fc3e08dd716a281c8b886dd67880d552e587a23 1795572839 3b4f7fd8b6d00cf5433584e6371a9872ab2d589418a56f37809f719f55a9a6f7cb8999a105f49a803bff6d9dc3b50dccd560d780115f7e211dab7bdfba22920e\ncosignature=774fafee07d3b0d9399d669676440a6301db9fa8fe2140d7d352418da25144c5 1795572839 9e1ac2f084afb3d45e66c67cba8ee8cb98b9ffcbc7cc52c6ebcacf780eaafe33463e8f59caa00af1ecfb11080c005dd00372053c8a9b3d0095a7ca2d30b8e00a\ncosignature=0b00d26b3bf3e0ded29f82803abd34c972cb62752305b0e718cf7b8ec1bf99f6 1795572839 319d38de88ab93175d7b1a63d2c4b00089e46480cc0413136dabc87ccf563e347b92b0b8cf42f1d25c0031e83e0854cfd9d4930939ee29573dd32a86bbf24d09\ncosignature=0dad9d849c57687454f100d87fa729b54cb69f7af97346613348defcba9c361c 1795572839 c260b5d99baa8ff2e8172d074c83aa50debe71a11a7b74032c1e04e1eb6b659c6135cbe6f8f319e4b34a6ee2aed6295dc297dc73948abb35f14ae5097b059c06\ncosignature=5da2b3803c2f802eed9744b74e3e4a3d31e1e77ed994ef56730d57fa52f698a5 1795572839 ebb7c08f817bbb713a37e10425cd7e11232a449b4b8e53d691962bedbef5017a6e76162802cd3dc0beb59d96e9763b12574bbcc4c1eb5d93df579c9a807b420c\ncosignature=f7a8e45707ef65b294a899fd6a8f463b663e843f68c829bc00447171a582de24 1795572839 80be1e77c2b303345d374e86b7b8a1136d8227b2f5378a3c660714453df1b06b936a141ed3fb5dbc0e501129d8beb2bc96f3168a2c7cbd97583551d4b2f36804\ncosignature=3573fb7fdab7434cd0dad9fd6460abf420388055db8aaaec177c248f03a990cc 1795572839 fc48b2aee29fb6c290500bdf0c6e648853b6811195ee3d0bb059520bb81a06b0da933fdffe6e2a5a9396d103882dfad0e5fa4b7226665c6ec0c388311e011e00\ncosignature=ff2f237a707a2d3a6adfb1600d3375cafe4527ba4fcec793e6093b9b1a4bd79a 1795572839 9bbb03fff73e735ecb787747c1791615753427e904b89c915a51ab48feada614602caccb0fb194d0f01369fe15edeb914a9d06079d496391d437f2b8bdcccf02\ncosignature=d59098d686f47ec1d4d1984c8ac0ab97a3d8a65c7ba8cb6422ada0fae927e194 1795572839 ce256ad9aba5745a1c75e6b4ed81d52ee454c22d269600ad94078ab98c71f9788efd97abd5b380c95405aae64404ff83a2c6e978ac26a0cf2b43a6364df39601\ncosignature=f6f91669f7955f542718af9edb6a1276d88a0f8822cba9046e549d0b3796f394 1795572839 586c86824d817e2fc68d96d98ccb8a67f3ef94ab73cc289e1ffd8e371d3f6b68c0b6d2007856954eb3b32146d85d846d647057e92c17f07c4e470e6f0032fe01\ncosignature=cd02db1cc0488c28245d7c3ff50b3e214334c067f2571e849425146bb6bd173d 1795572839 169a48b21ed1d391ac8c58a2e562d6b4e1c9f666ed43329067b467dc60c6a124a6e9433a389781805d4c96c8a9ce62c92929441fd32877ee779ba6f655472902\ncosignature=6bdf03b285fce48e00ff9b199cb2b77472dcc4a112f067fa5b274929cb9504e3 1795572839 e43733f976b577b66e4fa3fda83293fcda70af3c1212724d524f1a4a15a0b32f3c6b943876fff64a5007768b9fbaa84991f6cb5aabbac17421fcba07ba6c910d\ncosignature=9a0dcddbd96f6d6d404227b5ff23de7a43f25cdde9790af5ace332d347fac49a 1795572839 f8eb2fc9e83ea46e4bc0e0f192c2fa17dc2a4f76e029e5d7fcef9010a57a90e1c054f5044c26e1a1b8f45341685cac3d9ac5db899067e9155d43c66b10ac2707"
+    "timestamp": "size=6955\nroot_hash=56d0c16aa7f266ca4c615635f74c86f789cea2834e622c8329d8a2bf346121f7\nsignature=e7624cfac6747ac2d1737635f976a45ffffe7d377235e99a611c467cf3858c7007ce8551cc44b1c49a5c7de067e8d33d9e9a21b9965683c036cf678a94f8730f\ncosignature=5da2b3803c2f802eed9744b74e3e4a3d31e1e77ed994ef56730d57fa52f698a5 1795623498 31b447c8cef8d055d58b65f0a6556a9c8a3e1f56e0e97fca582d3ebb7bb65e3bca0944c40acd3c98f2287a9e61999f40a3f13ec378729101538dd66959019206\ncosignature=6bdf03b285fce48e00ff9b199cb2b77472dcc4a112f067fa5b274929cb9504e3 1795623498 fc0f890ba4d220d0d858ba9e12e099d9df803cbde8b266270629f19b1f0844eed3bec7364cc8eac2a2afb04b2d6c16d834a2ba7dc7c99235e27c3f473336500c\ncosignature=774fafee07d3b0d9399d669676440a6301db9fa8fe2140d7d352418da25144c5 1795623498 d117a26df7892fd05be17fb007d05227613aad41423f063383952c9df3dcbfda2e44de30e5ed5c3b2806f68c408b98ed0e7420fed7f8a96665fc740d48463f0b"
   },
   "signatures": {
-    "wzRAXpRuYr5CHZmCAdK1Jh2widMU8GOwCNhONOHkV8k": "version=2\nlog=c03f05182be9341e33b9edd5f3f8675b08332164640203e743f4285359cace47\nleaf=59994242b50d3a68d7f85c2cc0583f7395238fb346bb69b3eb8174b3f1578fcb b9b067b5308d914cce3fe785df8372ab2fc9ae15db15d602a5981648b01c08a6aa6ea2cadbadb362397c2f19a8ac89025a7daf71953a1dfa9c076c3ad17dd306\n\nsize=6909\nroot_hash=29acbdfd0527854fe9ae385559725fde314d8ff7e42c7f7b4c54c592a4cedc03\nsignature=c71a84f02110aeccf9d8e00c5f860bacfd1bc8e0f7f244cef3a6c705a440b5c48327be4648bdb68f75cf369f78afe2885d05ab05cb14eaf4b5490386fbdc3401\ncosignature=5da2b3803c2f802eed9744b74e3e4a3d31e1e77ed994ef56730d57fa52f698a5 1795572873 e15a96d6ced273ba317c11332b688f3d658b886fc413ba6a5f41fa180b6a67317a4c382c5ed4a340aac8957f423ae2c1aa811ff8e4693c4514242f7fa2905a0b\ncosignature=6bdf03b285fce48e00ff9b199cb2b77472dcc4a112f067fa5b274929cb9504e3 1795572873 23accaaddbaf7c1c52e8b3a5116673dd03103a131c3c97564184c35ba92799d8c99c5c03b0a0f3cdf344e21dff9760ca74f8b17ffec21e1c54b53ee42033a30f\ncosignature=774fafee07d3b0d9399d669676440a6301db9fa8fe2140d7d352418da25144c5 1795572873 8e07ef825db6f51763487f1daa31ec65a30fc6d33d0b1ecc1c579651cc5d36f03bf09dbdd08d5733985819410ef5ab24cdde1bd44df1bd3c1761d2f427fb120b\n\nleaf_index=6908\nnode_hash=d15a0b988ea6dc3ce66c4d8edd7477480f7148c5a6667c717a1736fb9436a464\nnode_hash=d58877a8fac36a831f05b9fc0011916cb3b24e0be8ca60f72408483a219b52a1\nnode_hash=fea85ec279d68009bfc1e38a04cb684ce9f5b3f34f4e1c7c4fed1430e7167c87\nnode_hash=7aeb8b04d8f16838ff51b5420ac3aa2617d102b7185f013b17cae9fedc608280\nnode_hash=d9d95da042ecf84299c55bba30b91bf1ee4f3d221ce45740eb551e4554d8a303\nnode_hash=1bfeadca6b19dd0e961570b697790e3899c5ed0fd0ce6350d9bbf7640bd92cb7\nnode_hash=ccad64c54f075b3bb5c4778b6b624468a3c71f95831d56254f8e51509f48da16\nnode_hash=7908f7efc9be9db4068bcd0b51131f24f0171c1fc17c186eb384b15695a62c13\nnode_hash=10a472e685cb0b0af790f2d5068bb0d0ebc928dbe9c0d1e5bbe1a0f0e3c051ae"
+    "wzRAXpRuYr5CHZmCAdK1Jh2widMU8GOwCNhONOHkV8k": "version=2\nlog=c03f05182be9341e33b9edd5f3f8675b08332164640203e743f4285359cace47\nleaf=59994242b50d3a68d7f85c2cc0583f7395238fb346bb69b3eb8174b3f1578fcb a9aae93147e498cea58f5e6c434cc8bbb484ad2023d05ff912a4b7d1841da172eccc06ee301919a3ede061f61f1aae002d5262f3fd00e5ae8deb60b4ff658e0f\n\nsize=6956\nroot_hash=5d1cca0e51b0e666758b12f3d0299aaedafa2b693bbd681cda72dd76881c889d\nsignature=de277e7f7d4b9c199c047f2a49672b53a6d926bb8ac2201965d515692056400de42992c6014ce6d8e7252f470f2f115c4653dd686ac172574677846f24f1380f\ncosignature=5da2b3803c2f802eed9744b74e3e4a3d31e1e77ed994ef56730d57fa52f698a5 1795623528 dd3292c30e5099ce1f41cd92161bc701fe89f73cc993b2c4b3709af776895f0509bb3c570f564110774feff6d644dfd19494ae35c3e75ef7a21ae74c951b710a\ncosignature=6bdf03b285fce48e00ff9b199cb2b77472dcc4a112f067fa5b274929cb9504e3 1795623528 b70d8149e8800cf3eeba2cbbd70b2abd1a073a8ee992a271baee3186fdeca1e89b30f567416862b25dc1a1dccf6a0933a37f0326bb34e18b1ee3d0a9ae808503\ncosignature=774fafee07d3b0d9399d669676440a6301db9fa8fe2140d7d352418da25144c5 1795623528 45f0e70bbd3e6429a136d49d64157f419e69af5924fe122a00dfb9f623dcca65393416e8a7f3b64f793c235a8530e1971bd3d401da7ce7ebd64784f461d76c07\n\nleaf_index=6955\nnode_hash=59b51538a8a256c9bdd06595dab6e2ed6e5385d72895076cd6517f2ed25db35f\nnode_hash=4a6d3a50b4299b4f8f5c84a5670cf45ae46a2113e0855c85a4100d68c73d5fd7\nnode_hash=76d7e144e6c7cfc958a109c819a42c263dfe01309a8bac23ffcbd266ed4a0f29\nnode_hash=60f9d662bb138cd24a089aa51a24b487f5290cdf8697cb1a7168cb75eaaf480b\nnode_hash=4bf8bf97ebb55ab5667058407e7b981a8ae50db034235048d8b53be13ae46bc4\nnode_hash=ccad64c54f075b3bb5c4778b6b624468a3c71f95831d56254f8e51509f48da16\nnode_hash=7908f7efc9be9db4068bcd0b51131f24f0171c1fc17c186eb384b15695a62c13\nnode_hash=10a472e685cb0b0af790f2d5068bb0d0ebc928dbe9c0d1e5bbe1a0f0e3c051ae"
   }
 }
