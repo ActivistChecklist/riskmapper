@@ -119,15 +119,14 @@ environment from the platform, and a stray `.env.local` on the host must never
 override it. Local runs use `start:local`.
 
 Node is pinned to major 24 in three places that must move together:
-`engines` in `package.json`, `.nvmrc` (CI reads it), and `target` in
-`vite.config.server.mts`. Railway builds with Railpack, which reads `engines`;
-its older Nixpacks builder stops at Node 23.
+`engines` in `package.json`, `.nvmrc`, and `target` in
+`vite.config.server.mts`. CI and the deploy both run the version `.nvmrc`
+names, and `engines` makes yarn refuse any other.
 
 `engines` and `.nvmrc` also carry a patch floor, `24.22.1`, the first 24.x with
-the October 2026 TLS hostname-verification fixes. A bare `24` let Railway keep
-serving whatever 24.x it built with last. Raise the floor with each Node
-security release that touches the server; drop back to a bare `24` once
-Railway's build logs show Railpack resolving a bare major to the newest patch.
+the October 2026 TLS hostname-verification fixes. Raise both with each Node
+security release that touches the server; bumping `.nvmrc` is what upgrades
+the deploy.
 
 `yarn build` is safe to run now: it writes `dist/` and `dist-server/` and does
 not disturb the dev server.

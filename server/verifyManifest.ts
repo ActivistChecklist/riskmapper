@@ -13,9 +13,9 @@ import path from "node:path";
  * blocks the site, and it is invisible to everyone else — so the server checks
  * itself at boot rather than waiting for a user to discover it.
  *
- * Wired into `/api/healthz`, which Railway uses to decide whether to promote a
- * deploy. A mismatch fails the healthcheck, Railway keeps the previous good
- * deployment, and the drifting build never serves traffic. That is nearly the
+ * Wired into `/api/healthz`, which the deploy uses to decide whether to promote a
+ * release. A mismatch fails the healthcheck, the deploy keeps the previous good
+ * release, and the drifting build never serves traffic. That is nearly the
  * guarantee of deploying a prebuilt artifact, without changing the deploy
  * pipeline. See MIGRATION.md.
  *

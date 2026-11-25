@@ -12,7 +12,7 @@
  *   1. Anyone running the WEBCAT extension is refused the site outright, and
  *      the failure is invisible to everyone who is not running it.
  *   2. The deploy does not promote: server/verifyManifest.ts fails
- *      /api/healthz on a mismatch, so Railway keeps the previous version.
+ *      /api/healthz on a mismatch, so the server keeps the previous version.
  *
  * Saying yes runs scripts/webcat-sign.mjs right here (YubiKey, PIN, tap),
  * commits the refreshed artifacts, and pushes them, because the ref list git
@@ -338,7 +338,7 @@ function unsignedWarning() {
   say("      manifest, and the breakage is invisible to everyone who is");
   say("      not running it, including you.");
   say(`    ${yellow("•")} The deploy will not promote either: /api/healthz returns 503`);
-  say("      on a manifest mismatch, so Railway keeps the previous version");
+  say("      on a manifest mismatch, so the server keeps the previous version");
   say("      and the change never ships.");
   say();
   say(dim("  When you are ready:  yarn webcat:sign"));

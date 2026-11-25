@@ -61,5 +61,3 @@ next-env.d.ts
 # Local SQLite database (SQLITE_PATH default)
 /.data/
 
-# The one-time Mongo copy tool installs its own dependencies
-/scripts/mongo-to-sqlite/node_modules/

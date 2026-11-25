@@ -232,7 +232,7 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
 
 // Before accepting traffic: confirm the build matches the signed WEBCAT
 // manifest. With WEBCAT_VERIFY=enforce a mismatch fails /api/healthz, so
-// Railway keeps the previous deployment rather than promoting a build the
+// the deploy keeps the previous release rather than promoting a build the
 // extension would block. See server/verifyManifest.ts.
 runManifestCheck(DIST);
 

@@ -122,8 +122,7 @@ tree with `node`, no build step, and print counts only:
   itself is deleted.
 
 Both refuse to create a database, so a job pointed at the wrong path fails
-loudly. `scripts/mongo-to-sqlite/` holds the one-time copy from the old
-MongoDB.
+loudly.
 
 ## Project layout
 

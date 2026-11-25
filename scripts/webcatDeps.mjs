@@ -1,5 +1,5 @@
 /**
- * Refuse to sign a build made from dependencies Railway will not use.
+ * Refuse to sign a build made from dependencies the deploy will not use.
  *
  * The manifest is a list of hashes of the files `yarn build` writes, and the
  * deploy rebuilds those files from scratch with `yarn install` against
@@ -10,7 +10,7 @@
  *
  * This happened: a checkout last installed before a dependency bump (Vite
  * 8.2.1 against a lockfile pinning 8.3.4) signed a build that differed from
- * Railway's in every chunk name. Running `pnpm` in the repo makes the same
+ * the deploy's in every chunk name. Running `pnpm` in the repo makes the same
  * mess a different way, by restructuring `node_modules` into its own layout.
  *
  * Kept free of process exits and output so it can be tested without signing.
