@@ -142,11 +142,12 @@ signature. `WEBCAT_SIGN_REMINDER=off` turns it off for one command.
 
 ## Architecture
 
-- **Static SPA.** `index.html` is the app; `privacy/index.html` and
-  `security/index.html` are separate documents. Entries and the app shell live
-  in `client/`. Adding another standalone document means a new HTML entry, a
-  new `client/*.tsx` entry, and a new `rollupOptions.input` in
-  `vite.config.mts`. Miss the last one and the page builds to nothing.
+- **Static SPA.** `index.html` is the app; `privacy/index.html`,
+  `security/index.html` and `offline/index.html` are separate documents.
+  Entries and the app shell live in `client/`. Adding another standalone
+  document means a new HTML entry, a new `client/*.tsx` entry, and a new
+  `rollupOptions.input` in `vite.config.mts`. Miss the last one and the page
+  builds to nothing.
 - **No router library.** `client/routes.ts` maps the pathname to a view. The
   server serves `index.html` for anything it cannot match to a file, so the SPA
   renders its own not-found view. See `MIGRATION.md` D2 and D3.
@@ -170,14 +171,14 @@ signature. `WEBCAT_SIGN_REMINDER=off` turns it off for one command.
   `.mts` files by their full name, and whole-statement `import type`. The
   script tests spawn `node` on the real files to catch a slip.
 - **The standalone document URLs keep their trailing slash** (`/privacy/`,
-  `/security/`). A slashless path resolves to the SPA, and WEBCAT applies
-  `default_index` only to paths ending in `/`.
-- **Privacy and Security are written in Markdown**, not JSX. `client/Prose.tsx`
-  renders a Markdown string into styled React elements, and passes any
-  non-string child straight through for the things Markdown can't express (the
-  analytics event list). Edit the copy, not the markup. Values that must stay
-  true as the code changes get interpolated from the constant rather than
-  retyped, as `RETENTION_DAYS` is in `client/SecurityPage.tsx`.
+  `/security/`, `/offline/`). A slashless path resolves to the SPA, and WEBCAT
+  applies `default_index` only to paths ending in `/`.
+- **Privacy, Security and Offline are written in Markdown**, not JSX.
+  `client/Prose.tsx` renders a Markdown string into styled React elements, and
+  passes any non-string child straight through for the things Markdown can't
+  express (the analytics event list). Edit the copy, not the markup. Values
+  that must stay true as the code changes get interpolated from the constant
+  rather than retyped, as `RETENTION_DAYS` is in `client/SecurityPage.tsx`.
 
 ## Server vs. client — when to use each
 

@@ -6,7 +6,7 @@ import {
 } from "@/components/risk-matrix/notesMarkdown";
 
 /**
- * Renders the static documents (Privacy, Security) from Markdown.
+ * Renders the static documents (Privacy, Security, Offline) from Markdown.
  *
  * Those pages are prose that changes far more often than it changes shape,
  * and hand-maintaining a wall of `<p className="mt-4 leading-relaxed">` made

@@ -16,6 +16,7 @@ const FILES = new Set([
   "/index.html",
   "/privacy/index.html",
   "/security/index.html",
+  "/offline/index.html",
   "/theme-boot.js",
   "/favicon.ico",
   "/icon.svg",
@@ -96,6 +97,10 @@ describe("directory and index resolution", () => {
       kind: "file",
       path: "/security/index.html",
     });
+    expect(resolve("/offline/")).toEqual({
+      kind: "file",
+      path: "/offline/index.html",
+    });
   });
 
   it("redirects a slashless directory to its canonical trailing-slash form", () => {
@@ -107,6 +112,10 @@ describe("directory and index resolution", () => {
     expect(resolve("/security")).toEqual({
       kind: "redirect",
       location: "/security/",
+    });
+    expect(resolve("/offline")).toEqual({
+      kind: "redirect",
+      location: "/offline/",
     });
   });
 

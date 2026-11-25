@@ -1,4 +1,5 @@
 import { isOfflineBuild, sitePageLinkProps } from "@/lib/offlineBuild";
+import { OFFLINE_PAGE_PATH } from "@/lib/offlinePaths.mts";
 import { builtOnLabel } from "@/lib/releaseDate";
 
 const GITHUB_URL = "https://github.com/ActivistChecklist/riskmapper";
@@ -20,7 +21,7 @@ function GithubIcon({ className }: { className?: string }) {
 export function Footer() {
   return (
     <footer className="border-t border-rm-border bg-rm-canvas">
-      <div className="mx-auto flex w-full max-w-[1320px] flex-col items-center gap-3 px-4 py-5 text-sm text-rm-muted sm:flex-row sm:justify-between sm:px-6 sm:py-4 lg:px-8">
+      <div className="mx-auto flex w-full max-w-[1320px] flex-col items-center gap-3 px-4 py-5 text-sm text-rm-muted sm:px-6 md:flex-row md:justify-between md:py-4 lg:px-8">
         <p>
           Created by{" "}
           <a
@@ -41,12 +42,21 @@ export function Footer() {
         </p>
         <nav
           aria-label="Site"
-          className="flex items-center gap-5"
+          className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2"
         >
           {/* Plain anchors, not router links: these are their own static
               documents. The trailing slash is canonical and load-bearing.
               See MIGRATION.md decisions D2 and D7. In the offline file they
-              point at the live site; see lib/offlineBuild.ts. */}
+              point at the live site; see lib/offlineBuild.ts. The offline
+              file is already offline, so it leaves out the offline link. */}
+          {!isOfflineBuild() && (
+            <a
+              href={OFFLINE_PAGE_PATH}
+              className="hover:text-rm-ink hover:underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rm-ring"
+            >
+              Use this site fully offline
+            </a>
+          )}
           <a
             {...sitePageLinkProps("/security/")}
             className="hover:text-rm-ink hover:underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rm-ring"

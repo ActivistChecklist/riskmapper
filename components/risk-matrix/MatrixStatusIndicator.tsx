@@ -24,7 +24,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { isOfflineBuild, sitePageLinkProps } from "@/lib/offlineBuild";
-import { OFFLINE_DOWNLOAD_PATH } from "@/lib/offlinePaths.mts";
+import { OFFLINE_PAGE_PATH } from "@/lib/offlinePaths.mts";
 import { cn } from "@/lib/utils";
 import type { SyncState } from "./CloudSyncIndicator";
 
@@ -86,21 +86,22 @@ function SecurityPageLink() {
 }
 
 /**
- * Points at the single-file offline download, served from our own origin so
- * getting it reveals nothing to a third party. Not shown inside the offline
- * file itself, which is already that version.
+ * Points at the offline page rather than straight at the file, so people
+ * read how the single-file version differs (no sharing, per-browser storage
+ * risks, no automatic updates) before they rely on it. Not shown inside the
+ * offline file itself, which is already that version, so it needs no
+ * live-site link like `sitePageLinkProps`.
  */
-function OfflineDownloadLink() {
+function OfflinePageLink() {
   if (isOfflineBuild()) return null;
   return (
     <p>
       To use Risk Mapper fully offline, with nothing sent to any server,{" "}
       <a
-        href={OFFLINE_DOWNLOAD_PATH}
-        download
+        href={OFFLINE_PAGE_PATH}
         className="font-medium text-rm-ink underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rm-ring"
       >
-        download the single-file version
+        get the single-file version
       </a>
       .
     </p>
@@ -159,7 +160,7 @@ function StatusInfoDialog({
           <DialogDescription asChild>
             <div className="space-y-3 pt-1 text-sm leading-relaxed text-rm-ink opacity-90">
               {children}
-              <OfflineDownloadLink />
+              <OfflinePageLink />
               <SecurityPageLink />
             </div>
           </DialogDescription>

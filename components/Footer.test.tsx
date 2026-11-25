@@ -29,6 +29,14 @@ describe("Footer", () => {
     ).toBe("/security/");
   });
 
+  it("links to the offline page, in the same tab", () => {
+    render(<Footer />);
+    const offline = screen.getByRole("link", { name: "Use this site fully offline" });
+    // Directory-index document, so the trailing slash matters here too.
+    expect(offline.getAttribute("href")).toBe("/offline/");
+    expect(offline.getAttribute("target")).toBeNull();
+  });
+
   it("keeps the privacy link in-app (no new tab, no rel)", () => {
     render(<Footer />);
     const privacy = screen.getByRole("link", { name: /privacy/i });
@@ -85,6 +93,12 @@ describe("Footer in the offline file", () => {
       expect(link.getAttribute("target")).toBe("_blank");
       expect(link.getAttribute("rel")).toBe("noopener noreferrer");
     }
+  });
+
+  it("leaves out the offline link, since the file is already offline", () => {
+    vi.stubEnv("VITE_OFFLINE_BUILD", "true");
+    render(<Footer />);
+    expect(screen.queryByRole("link", { name: /fully offline/i })).toBe(null);
   });
 
   it("shows no offline label on the website", () => {

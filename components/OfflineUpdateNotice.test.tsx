@@ -35,11 +35,9 @@ describe("OfflineUpdateNotice", () => {
 
     expect(notice()?.textContent).toContain(`built on ${builtOnLabel()}, more than a month`);
     const link = screen.getByRole("link", { name: /check for a newer version/i });
-    // The Security page section showing the latest build date, on the live
+    // The offline page, which shows the latest build date, on the live
     // site, in a new tab so the app stays open.
-    expect(link.getAttribute("href")).toBe(
-      "https://riskmapper.app/security/#use-risk-mapper-with-no-internet",
-    );
+    expect(link.getAttribute("href")).toBe("https://riskmapper.app/offline/");
     expect(link.getAttribute("target")).toBe("_blank");
     expect(link.getAttribute("rel")).toBe("noopener noreferrer");
   });

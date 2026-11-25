@@ -34,7 +34,9 @@ describe("MatrixStatusIndicator", () => {
     ).toBe("/security/");
   });
 
-  it("offers the offline download from this site in both explainers", async () => {
+  it("sends people to the offline page in both explainers, not straight to the file", async () => {
+    // The page explains how the single-file version differs before anyone
+    // relies on it, so the explainers link there instead of downloading.
     const user = userEvent.setup();
     for (const props of [
       { shared: false, label: /saved locally/i },
@@ -42,9 +44,10 @@ describe("MatrixStatusIndicator", () => {
     ]) {
       const { unmount } = renderPill({ shared: props.shared, syncState: { kind: "idle" } });
       await user.click(screen.getByRole("button", { name: props.label }));
-      const link = screen.getByRole("link", { name: /download the single-file version/i });
-      expect(link.getAttribute("href")).toBe("/download/riskmapper-offline.html");
-      expect(link.hasAttribute("download")).toBe(true);
+      const link = screen.getByRole("link", { name: /get the single-file version/i });
+      expect(link.getAttribute("href")).toBe("/offline/");
+      expect(link.hasAttribute("download")).toBe(false);
+      expect(link.getAttribute("target")).toBeNull();
       unmount();
     }
   });
@@ -127,7 +130,7 @@ describe("MatrixStatusIndicator in the offline file", () => {
     expect(link.getAttribute("target")).toBe("_blank");
   });
 
-  it("does not offer the download inside the offline file itself", async () => {
+  it("does not point to the offline page inside the offline file itself", async () => {
     vi.stubEnv("VITE_OFFLINE_BUILD", "true");
     const user = userEvent.setup();
     renderPill({ shared: false, syncState: { kind: "idle" } });
