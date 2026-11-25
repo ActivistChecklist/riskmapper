@@ -11,6 +11,10 @@ export type AddFieldProps = {
   placeholder: string;
   /** Adds the entries. Pasting several lines adds one per line. */
   onAdd: (texts: string[]) => void;
+  /** Something to pin to the field's corner, such as the start beacon. */
+  beacon?: React.ReactNode;
+  /** Called when the field, or its Add button, gets focus. */
+  onFocus?: () => void;
 };
 
 /**
@@ -19,7 +23,7 @@ export type AddFieldProps = {
  * is saved, shared or exported.
  */
 const AddField = forwardRef<HTMLTextAreaElement, AddFieldProps>(function AddField(
-  { label, placeholder, onAdd },
+  { label, placeholder, onAdd, beacon, onFocus },
   ref,
 ) {
   const [draft, setDraft] = useState("");
@@ -32,8 +36,9 @@ const AddField = forwardRef<HTMLTextAreaElement, AddFieldProps>(function AddFiel
   };
 
   return (
-    <div className="mt-2 flex w-full max-w-[46ch] items-start gap-2">
-      <div className="min-w-0 flex-1 rounded-md border border-rm-border-strong bg-rm-surface transition-[border-color,box-shadow] focus-within:border-rm-primary focus-within:ring-2 focus-within:ring-rm-primary/20">
+    <div className="mt-2 flex w-full max-w-[46ch] items-start gap-2" onFocus={onFocus}>
+      <div className="relative min-w-0 flex-1 rounded-md border border-rm-border-strong bg-rm-surface transition-[border-color,box-shadow] focus-within:border-rm-primary focus-within:ring-2 focus-within:ring-rm-primary/20">
+        {beacon}
         <AutoTextarea
           ref={ref}
           value={draft}

@@ -5,6 +5,7 @@ import AddField from "./AddField";
 import LineRow from "./LineRow";
 import GuidanceBrief from "./guidance/GuidanceBrief";
 import { useGuidance, useStepExample } from "./guidance/GuidanceContext";
+import StartBeacon from "./guidance/StartBeacon";
 import VagueRiskTip from "./guidance/VagueRiskTip";
 import {
   ExampleColumn,
@@ -94,6 +95,10 @@ export default function RiskPoolSection({
   const fieldRef = useRef<HTMLTextAreaElement>(null);
   const [focusedLineId, setFocusedLineId] = useState<string | null>(null);
   const [tipLineId, setTipLineId] = useState<string | null>(null);
+  // The beacon is for someone who hasn't begun, guidance or not: it goes
+  // once the field gets focus, and stays gone for this matrix even if the
+  // list empties again.
+  const [fieldTouched, setFieldTouched] = useState(false);
   // Only the first short entry gets the tip. After that it is a lesson
   // already given, so no later entry gets one, even once it is put away.
   const tipGiven = useRef(false);
@@ -111,6 +116,7 @@ export default function RiskPoolSection({
   const riskTextCount =
     pool.filter((l) => l.text.trim().length > 0).length + placedRiskCount;
   const example = useStepExample("risks", riskTextCount === 0);
+  const showBeacon = riskTextCount === 0 && !fieldTouched;
 
   // The tip follows its entry: it goes if the entry is edited to something
   // specific, dragged out of the pool, or deleted.
@@ -165,6 +171,9 @@ export default function RiskPoolSection({
       step={1}
       actions={step1Actions}
       readingWidth={false}
+      // No clipping, so the start beacon's ping can spread past the card's
+      // edge instead of being cut off by it.
+      allowOverflow
       className="mb-6"
       title={STEP_TITLES[1]}
       guidance={
@@ -175,7 +184,16 @@ export default function RiskPoolSection({
         />
       }
     >
-      <div className={guidance ? exampleColumnGridClass(example.shown) : undefined}>
+      {/* Gray body, white rows: the same as step 4 and the Actions
+          panel, where the person's own entries are the white objects. */}
+      <div
+        // Rounded here because the card no longer clips its corners.
+        className={
+          guidance
+            ? `rounded-b-md bg-rm-well ${exampleColumnGridClass(example.shown)}`
+            : "rounded-b-md bg-rm-well"
+        }
+      >
         {/* First in the page, so on phones the example sits above the
             list and the list stays next to the matrix for dragging. From
             md up it moves beside the list. */}
@@ -237,6 +255,12 @@ export default function RiskPoolSection({
               label="Add a risk"
               placeholder={ADD_RISK_PLACEHOLDER}
               onAdd={handleAdd}
+              onFocus={() => setFieldTouched(true)}
+              beacon={
+                showBeacon ? (
+                  <StartBeacon onClick={() => fieldRef.current?.focus()} />
+                ) : null
+              }
             />
             <p role="status" className="sr-only">
               {tipText ? `Tip: ${vagueRiskTipText(tipText)}` : ""}

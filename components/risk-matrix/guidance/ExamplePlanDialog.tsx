@@ -54,7 +54,9 @@ export default function ExamplePlanDialog({
           <h3 className="mb-2 text-sm font-semibold text-rm-ink">On the matrix</h3>
           <ExampleMatrix cells={EXAMPLE_CELLS} />
           <h3 className="mb-2 mt-5 text-sm font-semibold text-rm-ink">Resources</h3>
-          <ExampleResourceList />
+          <div className="-mx-3 rounded-md bg-rm-well px-3 py-3">
+            <ExampleResourceList />
+          </div>
           <h3 className="mb-1 mt-5 text-sm font-semibold text-rm-ink">The plan</h3>
           <div className="-mx-3 rounded-md bg-rm-well">
             <ExampleTiers risks={EXAMPLE_PLAN} />

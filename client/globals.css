@@ -71,6 +71,9 @@
   --rm-muted-2: #71717a;
   --rm-overlay: rgba(0, 0, 0, 0.35);
   --rm-ring: rgba(0, 0, 0, 0.20);
+  /* The "start here" beacon on a blank step 1: coral, apart from the teal
+     controls, so it reads as a pointer. */
+  --rm-beacon: #e8590c;
   --rm-shadow-1: 0 1px 2px rgba(0, 0, 0, 0.05);
   --rm-shadow-2: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
@@ -133,6 +136,7 @@
   --rm-muted-2: #8a8780;
   --rm-overlay: rgba(0, 0, 0, 0.55);
   --rm-ring: rgba(255, 255, 255, 0.25);
+  --rm-beacon: #ff8a5b;
   --rm-shadow-1: 0 1px 2px rgba(0, 0, 0, 0.40);
   --rm-shadow-2: 0 1px 2px rgba(0, 0, 0, 0.35);
 }
@@ -196,6 +200,7 @@
   --color-rm-muted-2: var(--rm-muted-2);
   --color-rm-overlay: var(--rm-overlay);
   --color-rm-ring: var(--rm-ring);
+  --color-rm-beacon: var(--rm-beacon);
 }
 
 body {
@@ -245,3 +250,27 @@ body {
   background-position: left top, left bottom, left top, right top;
 }
 
+
+/* The beacon's ping: a quick ring outward, then a rest before the next, so
+   it catches the eye without nagging. No motion at all for people who ask
+   for less. */
+@keyframes rm-beacon-ping {
+  0% {
+    transform: scale(1);
+    opacity: 0.65;
+  }
+  35%,
+  100% {
+    transform: scale(3.2);
+    opacity: 0;
+  }
+}
+.rm-beacon-ping {
+  animation: rm-beacon-ping 3.6s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .rm-beacon-ping {
+    animation: none;
+    opacity: 0;
+  }
+}

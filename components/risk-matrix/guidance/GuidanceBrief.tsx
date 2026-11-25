@@ -83,10 +83,10 @@ export default function GuidanceBrief({
   return (
     <div
       className={cn(
-        // The same gray as the example boxes, so the instructions read as
-        // guidance set apart from the person's own work. The strong edge
-        // is also the top of step 2's grid.
-        "border-b border-rm-border-strong bg-rm-surface-2 px-3 py-2.5 text-sm leading-relaxed text-rm-ink sm:px-4 sm:py-3",
+        // The same gray as the example areas and the step bodies, so only
+        // the person's own entries are white. The strong edge separates the
+        // instructions from the body, and is also the top of step 2's grid.
+        "border-b border-rm-border-strong bg-rm-well px-3 py-2.5 text-sm leading-relaxed text-rm-ink sm:px-4 sm:py-3",
         className,
       )}
     >

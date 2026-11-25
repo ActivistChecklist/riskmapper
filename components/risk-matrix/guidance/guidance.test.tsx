@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it } from "vitest";
 import RiskMatrix from "../RiskMatrix";
 import { GUIDANCE_STORAGE_KEY } from "./GuidanceContext";
 import { DEFINITIONS, RUCKUS_URL } from "./guidanceCopy";
+import { RESOURCES_EMPTY } from "../ResourcesSection";
+import { CELL_RISK_CARD_CLASS } from "../constants";
 
 function enterInto(label: string, text: string) {
   const field = screen.getByRole("textbox", { name: label });
@@ -71,6 +73,36 @@ describe("safety planning guidance", () => {
     expect(within(box).getByText("Be specific")).toBeTruthy();
   });
 
+  it("marks where to start on a blank matrix until the field is used", () => {
+    render(<RiskMatrix />);
+    expect(screen.getByTestId("start-beacon")).toBeTruthy();
+    fireEvent.focus(screen.getByRole("textbox", { name: "Add a risk" }));
+    expect(screen.queryByTestId("start-beacon")).toBeNull();
+  });
+
+  it("puts the caret in the field when the beacon is clicked", () => {
+    render(<RiskMatrix />);
+    fireEvent.click(screen.getByTestId("start-beacon"));
+    expect(document.activeElement).toBe(screen.getByRole("textbox", { name: "Add a risk" }));
+    expect(screen.queryByTestId("start-beacon")).toBeNull();
+  });
+
+  it("keeps the beacon with guidance off, and drops it once there's a risk", () => {
+    // Not guidance: a blank page needs a starting point either way.
+    window.localStorage.setItem(GUIDANCE_STORAGE_KEY, "off");
+    const { unmount } = render(<RiskMatrix />);
+    expect(screen.getByTestId("start-beacon")).toBeTruthy();
+    unmount();
+    window.localStorage.clear();
+    render(<RiskMatrix />);
+    // "hi/hl" places the risk on the matrix without focusing the field
+    // through a click, so only the risk itself can hide the beacon here.
+    const field = screen.getByRole("textbox", { name: "Add a risk" });
+    fireEvent.change(field, { target: { value: "Police arrest blockaders hi/hl" } });
+    fireEvent.keyDown(field, { key: "Enter" });
+    expect(screen.queryByTestId("start-beacon")).toBeNull();
+  });
+
   it("takes step 1's example away once a risk is entered", () => {
     render(<RiskMatrix />);
     enterRisk("Police arrest blockaders for trespassing at the gate");
@@ -117,11 +149,46 @@ describe("safety planning guidance", () => {
     expect(screen.queryByRole("region", { name: "Example actions" })).toBeNull();
     // Nothing is starred, so the panel says what goes there, with the way
     // back in that same box.
-    const placeholder = document.querySelector(
-      '[aria-label^="Placeholder: starred"]',
-    ) as HTMLElement;
+    const placeholder = screen
+      .getByText(/Star a mitigation or preparation item/)
+      .closest("[data-empty-slot]") as HTMLElement;
     const show = within(placeholder).getByRole("button", { name: "Show examples" });
     expect(document.activeElement).toBe(show);
+  });
+
+  it("still says where your own entries go while an example shows", () => {
+    // An example alone reads as if the step were already filled in, so
+    // steps 3 and 4 and the Actions panel keep their empty slot under it.
+    const after = (a: Element, b: Element) =>
+      Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+    render(<RiskMatrix />);
+    const slot = (text: RegExp) =>
+      screen.getByText(text).closest("[data-empty-slot]") as HTMLElement;
+
+    const resources = slot(/Your resources will show up here/);
+    expect(resources.textContent).toBe(RESOURCES_EMPTY);
+    expect(
+      after(screen.getByRole("region", { name: "Example resources" }), resources),
+    ).toBe(true);
+    const plan = slot(/Your risks will show up here/);
+    expect(after(screen.getByRole("region", { name: "Example plan" }), plan)).toBe(true);
+    const actions = slot(/Star a mitigation or preparation item/);
+    expect(after(screen.getByRole("region", { name: "Example actions" }), actions)).toBe(
+      true,
+    );
+
+    // Each goes once there's something of the person's own to show.
+    enterInto("Add a resource", "Two people with lockbox experience");
+    expect(screen.queryByText(RESOURCES_EMPTY)).toBeNull();
+    enterRisk("Police arrest blockaders for trespassing hi/hl");
+    expect(screen.queryByText(/Your risks will show up here/)).toBeNull();
+    expect(screen.getByRole("region", { name: "Example plan" })).toBeTruthy();
+  });
+
+  it("says where resources go with guidance off too", () => {
+    window.localStorage.setItem(GUIDANCE_STORAGE_KEY, "off");
+    render(<RiskMatrix />);
+    expect(screen.getByText(RESOURCES_EMPTY)).toBeTruthy();
   });
 
   it("shows the infiltration and site-access risks in step 4's example", () => {
@@ -151,7 +218,7 @@ describe("safety planning guidance", () => {
     const show = screen.getByRole("button", { name: "Show examples" });
     expect(document.activeElement).toBe(show);
     // It sits inside that placeholder box, where people are already looking.
-    expect(show.closest('[aria-label^="Placeholder"]')).toBeTruthy();
+    expect(show.closest("[data-empty-slot]")).toBeTruthy();
     fireEvent.click(show);
     expect(screen.getByRole("region", { name: "Example plan" })).toBeTruthy();
   });
@@ -295,6 +362,20 @@ describe("safety planning guidance", () => {
     expect(within(dialog).getByRole("link", { name: "Ruckus Society" })).toBeTruthy();
   });
 
+  it("tints the example matrix's cards by their cell, as real ones are", () => {
+    render(<RiskMatrix />);
+    fireEvent.click(
+      screen.getAllByRole("button", { name: "Show an example finished plan" })[0],
+    );
+    const table = within(screen.getByRole("dialog", { name: "Example safety plan" })).getByRole(
+      "table",
+    );
+    const card = within(table).getByText("Cops or feds infiltrate as a participant");
+    for (const c of CELL_RISK_CARD_CLASS.split(" ")) {
+      expect(card.classList.contains(c)).toBe(true);
+    }
+  });
+
   it("includes the resources and actions in the example finished plan", () => {
     render(<RiskMatrix />);
     fireEvent.click(
@@ -337,7 +418,7 @@ describe("safety planning guidance", () => {
     expect(screen.queryByRole("button", { name: "More instructions" })).toBeNull();
     expect(screen.queryByRole("region", { name: "Example risks" })).toBeNull();
     expect(screen.queryByText("Cops or feds infiltrate as a participant")).toBeNull();
-    // Without the example, step 3 falls back to saying what goes there.
+    // Without the example, step 4 falls back to saying what goes there.
     expect(screen.getByText(/Your risks will show up here/)).toBeTruthy();
     expect(window.localStorage.getItem(GUIDANCE_STORAGE_KEY)).toBe("off");
 

@@ -75,6 +75,9 @@ export const STEP_TITLES = {
   4: "Write your safety plan. Star the items you intend to act on.",
 } as const;
 
+/** The beacon's tooltip on a blank step 1. */
+export const START_HERE = "Start here. Enter a risk in this text box";
+
 /** Placeholders for the two add fields. */
 export const ADD_RISK_PLACEHOLDER = "Type a risk, then press Enter";
 export const ADD_RESOURCE_PLACEHOLDER = "Type a resource, then press Enter";

@@ -2,6 +2,7 @@
 
 import React, { useRef } from "react";
 import AddField from "./AddField";
+import EmptySlot from "./EmptySlot";
 import LineShell from "./LineShell";
 import StepSection from "./StepSection";
 import GuidanceBrief from "./guidance/GuidanceBrief";
@@ -17,6 +18,10 @@ import {
   STEP_TITLES,
 } from "./guidance/guidanceCopy";
 import type { ResourceLine } from "./types";
+
+/** What step 3 says while it has no resources, example or not. */
+export const RESOURCES_EMPTY =
+  "Add a resource in the box below. Your resources will show up here.";
 
 export type ResourcesSectionProps = {
   resources: ResourceLine[];
@@ -62,7 +67,13 @@ export default function ResourcesSection({
         <GuidanceBrief lead={STEP_3.lead} more={STEP_3.more} />
       }
     >
-      <div className={guidance ? exampleColumnGridClass(example.shown) : undefined}>
+      {/* Gray body, white rows: the same as step 4 and the Actions
+          panel, where the person's own entries are the white objects. */}
+      <div
+        className={
+          guidance ? `bg-rm-well ${exampleColumnGridClass(example.shown)}` : "bg-rm-well"
+        }
+      >
         {/* First in the page so phones show it above the list, as step 1
             does; from md up it sits beside the list. */}
         {guidance ? (
@@ -75,7 +86,11 @@ export default function ResourcesSection({
           }}
         >
           <div className="w-full max-w-[46ch]">
-            {resources.length > 0 ? (
+            {resources.length === 0 ? (
+              // Where the list will be, as step 4 and the Actions panel
+              // have, so an example beside it isn't mistaken for theirs.
+              <EmptySlot className="mt-1">{RESOURCES_EMPTY}</EmptySlot>
+            ) : (
               <ul aria-label="Resources">
                 {resources.map((r) => (
                   <li key={r.id}>
@@ -83,7 +98,7 @@ export default function ResourcesSection({
                       className={
                         r.text === ""
                           ? "my-1 border-transparent bg-transparent"
-                          : "my-1 border-rm-border bg-rm-line"
+                          : "my-1 border-rm-border bg-rm-surface shadow-[var(--rm-shadow-1)]"
                       }
                       leftAffordance={
                         <span
@@ -108,7 +123,7 @@ export default function ResourcesSection({
                   </li>
                 ))}
               </ul>
-            ) : null}
+            )}
             <AddField
               ref={fieldRef}
               label="Add a resource"

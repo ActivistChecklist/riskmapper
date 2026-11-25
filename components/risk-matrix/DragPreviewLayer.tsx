@@ -46,7 +46,7 @@ export default function DragPreviewLayer({ dragState }: DragPreviewLayerProps) {
             ? "bg-white/55 dark:bg-white/[0.05]"
             : dragState.variant === "mitigation"
               ? "bg-rm-surface"
-              : "bg-rm-line",
+              : "bg-rm-surface",
         )}
       >
         <span

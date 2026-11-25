@@ -4,6 +4,7 @@ import React, { useMemo } from "react";
 import { Copy, Star } from "lucide-react";
 import ActionRow from "./ActionRow";
 import CountBadge from "./CountBadge";
+import EmptySlot from "./EmptySlot";
 import OtherActionRow from "./OtherActionRow";
 import { groupActionsByTier, OTHER_ACTIONS_LABEL } from "./actionGroups";
 import {
@@ -84,6 +85,17 @@ export default function ActionsAside({
     void copyStarredActions(allActions, otherActions);
   };
 
+  const emptyText = (
+    <>
+      Star a mitigation or preparation item to also show it here as a
+      prioritized action, or use{" "}
+      <span className="font-medium not-italic text-rm-muted">
+        Add other action
+      </span>{" "}
+      below for anything else.
+    </>
+  );
+
   const addOtherActionControl = (
     <div className="mt-1.5 flex justify-stretch sm:justify-start">
       <Button
@@ -105,7 +117,7 @@ export default function ActionsAside({
             other steps. */}
         {guidance ? (
           example.shown ? (
-            <ExampleActions note={false} toggle={exampleToggle} onGray />
+            <ExampleActions note={false} toggle={exampleToggle} />
           ) : (
             <div className="px-1">{exampleToggle}</div>
           )
@@ -148,27 +160,24 @@ export default function ActionsAside({
       </div>
     ) : example.shown ? (
       // Until something is starred, the worksheet's example shows what
-      // this panel collects.
-      <div className="bg-rm-surface px-3 pb-2 pt-2.5">
+      // this panel collects, and the empty slot under it still says how to
+      // add the person's own.
+      <div className="bg-rm-well px-3 pb-2 pt-2.5">
         <ExampleActions note toggle={exampleToggle} />
+        <EmptySlot className="mt-3" textClassName="max-w-[17rem]">
+          {emptyText}
+        </EmptySlot>
         {addOtherActionControl}
       </div>
     ) : (
-      <div className="flex min-h-[12.5rem] flex-col bg-rm-surface px-3 pb-2 pt-2.5 sm:min-h-[14rem]">
-        <div
-          className="flex min-h-[10.5rem] flex-1 flex-col items-center justify-center rm-dashed rounded-lg bg-rm-surface-2 px-4 py-8 sm:min-h-[11.5rem]"
-          aria-label="Placeholder: starred mitigations and preparations also list here."
+      <div className="flex min-h-[12.5rem] flex-col bg-rm-well px-3 pb-2 pt-2.5 sm:min-h-[14rem]">
+        <EmptySlot
+          action={guidance ? exampleToggle : null}
+          className="min-h-[10.5rem] flex-1 py-8 sm:min-h-[11.5rem]"
+          textClassName="max-w-[17rem]"
         >
-          <p className="max-w-[17rem] text-center text-[13px] leading-snug font-normal italic text-rm-muted-2 sm:text-sm sm:leading-relaxed">
-            Star a mitigation or preparation item to also show it here as a
-            prioritized action, or use{" "}
-            <span className="font-medium not-italic text-rm-muted">
-              Add other action
-            </span>{" "}
-            below for anything else.
-          </p>
-          {guidance ? <div className="mt-3">{exampleToggle}</div> : null}
-        </div>
+          {emptyText}
+        </EmptySlot>
         {addOtherActionControl}
       </div>
     );

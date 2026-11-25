@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import {
   ACTION_GROUP_LABEL,
   CELL_BG_CLASSES,
+  CELL_RISK_CARD_CLASS,
   COLOR_GROUPS,
   COL_LABELS,
   GROUP_LABEL_TEXT_CLASS,
@@ -41,10 +42,10 @@ import { GUIDANCE_LINK_BUTTON_CLASS, GUIDANCE_SMALL_BUTTON_CLASS } from "./linkB
 const EXAMPLE_BORDER_CLASS = "rounded-lg rm-dashed";
 
 /**
- * An example box on a white step body: gray, so it reads as set aside from
- * the person's own work rather than as part of it.
+ * An example box on a gray step body. No fill of its own, so only the
+ * person's own entries are white: the dashed edge sets it apart.
  */
-const EXAMPLE_BOX_CLASS = `${EXAMPLE_BORDER_CLASS} bg-rm-surface-2 px-3 pb-3 pt-2`;
+const EXAMPLE_BOX_CLASS = `${EXAMPLE_BORDER_CLASS} px-3 pb-3 pt-2`;
 
 /** The small "Example" label under each example. */
 export function ExampleLabel({ className }: { className?: string }) {
@@ -396,7 +397,10 @@ export function ExampleMatrix({
                   {(cells[key] ?? []).map((t) => (
                     <div
                       key={t}
-                      className="mb-1 rounded-md border border-rm-border bg-rm-line px-2 py-1 leading-snug text-rm-ink"
+                      className={cn(
+                        "mb-1 rounded-md border px-2 py-1 leading-snug text-rm-ink",
+                        CELL_RISK_CARD_CLASS,
+                      )}
                     >
                       {t}
                     </div>
@@ -466,19 +470,12 @@ export function ExampleActionGroups({
  * The Actions panel's example: starred items from the risks step 4's
  * example shows, so the two examples tell one story.
  */
-export function ExampleActions({
-  note,
-  toggle,
-  onGray = false,
-}: ExampleBoxProps & {
-  /** Sits on the panel's gray already, under starred actions. */
-  onGray?: boolean;
-}) {
+export function ExampleActions({ note, toggle }: ExampleBoxProps) {
   const shown: readonly string[] = PLAN_EXAMPLE_RISKS;
   return (
     <section
       aria-label="Example actions"
-      className={cn(EXAMPLE_BORDER_CLASS, "px-2.5 pb-2.5 pt-2", !onGray && "bg-rm-surface-2")}
+      className={cn(EXAMPLE_BORDER_CLASS, "px-2.5 pb-2.5 pt-2")}
     >
       <ExampleHeading note={note} toggle={toggle} />
       <ExampleActionGroups
@@ -496,7 +493,7 @@ export function ExampleResourceList() {
       {EXAMPLE_RESOURCES.map((r) => (
         <li
           key={r}
-          className="flex items-center gap-2 rounded-[5px] border border-rm-border bg-rm-line px-2 py-1.5 text-[14px] leading-snug text-rm-ink"
+          className="flex items-center gap-2 rounded-[5px] border border-rm-border bg-rm-surface px-2 py-1.5 text-[14px] leading-snug text-rm-ink shadow-[var(--rm-shadow-1)]"
         >
           <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-rm-muted-2" />
           {r}
@@ -530,11 +527,13 @@ export function PlanExample({ note, toggle }: ExampleBoxProps) {
 }
 
 /**
- * The plan step's example: two cards after the person's own, or in their
- * place, with the box's own Hide examples button. Step 4 is wide and busy,
- * so its toggle is a bordered button rather than a text link. Once hidden,
- * Show examples goes where the eye already is: inside the "your risks will
- * show up here" box while nothing is placed, or under the cards after.
+ * The plan step's example: two cards ahead of the person's own, with the
+ * box's own Hide examples button. Step 4 is wide and busy, so its toggle is
+ * a bordered button rather than a text link. While nothing is placed, the
+ * "your risks will show up here" slot follows the example, so the step
+ * still says where the person's own cards go. Once hidden, Show examples
+ * goes where the eye already is: inside that slot while nothing is placed,
+ * or above the cards after.
  */
 export function PlanExampleArea({
   example,
@@ -548,7 +547,14 @@ export function PlanExampleArea({
   nothingPlaced: boolean;
 }) {
   const toggle = useExampleToggle(example, "button");
-  if (example.shown) return <PlanExample note={empty} toggle={toggle} />;
+  if (example.shown) {
+    return (
+      <>
+        <PlanExample note={empty} toggle={toggle} />
+        {nothingPlaced ? <MitigationsTablePlaceholder afterExample /> : null}
+      </>
+    );
+  }
   if (nothingPlaced) {
     return <MitigationsTablePlaceholder embeddedInStepSection action={toggle} />;
   }
