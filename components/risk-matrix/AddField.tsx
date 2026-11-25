@@ -39,7 +39,11 @@ const AddField = forwardRef<HTMLTextAreaElement, AddFieldProps>(function AddFiel
           value={draft}
           ariaLabel={label}
           placeholder={placeholder}
-          className="px-2.5 py-1.5 placeholder:text-rm-muted-2"
+          // `block` drops the baseline gap an inline textarea leaves under
+          // itself. The left padding puts typed text where it lands once
+          // added: past a list row's grip column (18px, or 22px plus a 2px
+          // gap from sm) and its 6px text inset (none below sm).
+          className="block pr-1.5 pl-[18px] placeholder:text-rm-muted-2 sm:pl-[30px]"
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
@@ -66,7 +70,7 @@ const AddField = forwardRef<HTMLTextAreaElement, AddFieldProps>(function AddFiel
       <Button
         type="button"
         variant="outline"
-        className="h-[38px] shrink-0 px-3"
+        className="h-[37px] shrink-0 px-3"
         onClick={() => {
           add();
           if (ref && typeof ref !== "function") ref.current?.focus();

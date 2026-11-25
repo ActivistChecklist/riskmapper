@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useId, useState } from "react";
-import { ExamplePlanButton, GUIDANCE_LINK_BUTTON_CLASS, LeadLine } from "./GuidanceBrief";
+import { ExamplePlanButton, LeadLine } from "./GuidanceBrief";
+import { GUIDANCE_LINK_BUTTON_CLASS } from "./linkButton";
 import { useGuidance } from "./GuidanceContext";
 import { RuckusLink } from "./RuckusCredit";
 import { FEWER_INSTRUCTIONS, INTRO, MORE_INSTRUCTIONS } from "./guidanceCopy";

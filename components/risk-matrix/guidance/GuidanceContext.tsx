@@ -34,36 +34,64 @@ export function writeGuidancePreference(enabled: boolean): void {
   }
 }
 
+/** The places that show an inline example, each with its own link. */
+export type ExampleStep = "risks" | "matrix" | "resources" | "plan" | "actions";
+
 export type GuidanceApi = {
   enabled: boolean;
   setEnabled: (enabled: boolean) => void;
   showExamplePlan: () => void;
+  /** Steps whose examples someone showed (true) or hid (false) by hand. */
+  exampleChoices: Partial<Record<ExampleStep, boolean>>;
+  setExampleChoice: (step: ExampleStep, shown: boolean) => void;
 };
 
 const GuidanceContext = createContext<GuidanceApi>({
   enabled: true,
   setEnabled: () => {},
   showExamplePlan: () => {},
+  exampleChoices: {},
+  setExampleChoice: () => {},
 });
 
 export function useGuidance(): GuidanceApi {
   return useContext(GuidanceContext);
 }
 
+export type StepExample = { shown: boolean; toggle: () => void };
+
+/**
+ * Whether a step's example shows. On its own it shows while the step is
+ * empty (`whenEmpty`) and leaves once the step has your entries; the step's
+ * "Show examples" / "Hide examples" link overrides that until the page is
+ * reloaded. Always hidden while guidance is off.
+ */
+export function useStepExample(step: ExampleStep, whenEmpty: boolean): StepExample {
+  const { enabled, exampleChoices, setExampleChoice } = useGuidance();
+  const shown = enabled && (exampleChoices[step] ?? whenEmpty);
+  return { shown, toggle: () => setExampleChoice(step, !shown) };
+}
+
 /** Holds the Guidance switch and the one example plan dialog every step opens. */
 export function GuidanceProvider({ children }: { children: React.ReactNode }) {
   const [enabled, setEnabledState] = useState(readGuidancePreference);
   const [exampleOpen, setExampleOpen] = useState(false);
+  const [exampleChoices, setExampleChoices] = useState<
+    Partial<Record<ExampleStep, boolean>>
+  >({});
 
   const setEnabled = useCallback((next: boolean) => {
     setEnabledState(next);
     writeGuidancePreference(next);
   }, []);
   const showExamplePlan = useCallback(() => setExampleOpen(true), []);
+  const setExampleChoice = useCallback((step: ExampleStep, shown: boolean) => {
+    setExampleChoices((prev) => ({ ...prev, [step]: shown }));
+  }, []);
 
   const api = useMemo(
-    () => ({ enabled, setEnabled, showExamplePlan }),
-    [enabled, setEnabled, showExamplePlan],
+    () => ({ enabled, setEnabled, showExamplePlan, exampleChoices, setExampleChoice }),
+    [enabled, setEnabled, showExamplePlan, exampleChoices, setExampleChoice],
   );
 
   return (

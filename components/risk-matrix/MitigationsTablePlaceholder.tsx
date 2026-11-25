@@ -5,6 +5,8 @@ import { cn } from "@/lib/utils";
 
 type Props = {
   embeddedInStepSection?: boolean;
+  /** A control under the text, such as the guidance's Show examples. */
+  action?: React.ReactNode;
 };
 
 /**
@@ -13,6 +15,7 @@ type Props = {
  */
 export default function MitigationsTablePlaceholder({
   embeddedInStepSection = false,
+  action,
 }: Props) {
   return (
     <div
@@ -32,6 +35,7 @@ export default function MitigationsTablePlaceholder({
             Drag a risk from the pool into a cell in the risk matrix table above.
             Your risks will show up here.
           </p>
+          {action ? <div className="mt-3">{action}</div> : null}
         </div>
       </div>
     </div>

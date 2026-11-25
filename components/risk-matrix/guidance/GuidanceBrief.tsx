@@ -3,10 +3,13 @@
 import React, { useId, useState } from "react";
 import { cn } from "@/lib/utils";
 import DefinitionTerm from "./DefinitionTerm";
-import { useGuidance } from "./GuidanceContext";
+import { useGuidance, type StepExample } from "./GuidanceContext";
+import { GUIDANCE_LINK_BUTTON_CLASS, GUIDANCE_SMALL_BUTTON_CLASS } from "./linkButton";
 import {
   FEWER_INSTRUCTIONS,
+  HIDE_EXAMPLES,
   MORE_INSTRUCTIONS,
+  SHOW_EXAMPLES,
   SHOW_EXAMPLE_PLAN,
   type Lead,
 } from "./guidanceCopy";
@@ -30,8 +33,6 @@ export function LeadLine({ lead }: { lead: Lead }) {
   );
 }
 
-export const GUIDANCE_LINK_BUTTON_CLASS =
-  "rounded-sm text-[13px] text-rm-ink underline decoration-rm-muted-2 underline-offset-2 outline-none hover:decoration-rm-ink focus-visible:ring-2 focus-visible:ring-rm-ring";
 
 /** Opens the example finished plan. */
 export function ExamplePlanButton() {
@@ -40,7 +41,7 @@ export function ExamplePlanButton() {
     <button
       type="button"
       onClick={showExamplePlan}
-      className="inline-flex h-7 items-center rounded-md border border-rm-border-strong bg-rm-surface px-2.5 text-[13px] font-medium text-rm-ink outline-none transition-colors hover:bg-rm-surface-hover focus-visible:ring-2 focus-visible:ring-rm-ring"
+      className={GUIDANCE_SMALL_BUTTON_CLASS}
     >
       {SHOW_EXAMPLE_PLAN}
     </button>
@@ -55,6 +56,11 @@ export type GuidanceBriefProps = {
   extra?: React.ReactNode;
   /** Show the "Show an example finished plan" button beside the toggle. */
   examplePlan?: boolean;
+  /**
+   * The step's inline example, for a "Show examples" / "Hide examples" link
+   * here. Steps 1 and 3 put that link in their example box instead.
+   */
+  example?: StepExample;
   className?: string;
 };
 
@@ -67,6 +73,7 @@ export default function GuidanceBrief({
   more,
   extra,
   examplePlan = false,
+  example,
   className,
 }: GuidanceBriefProps) {
   const { enabled } = useGuidance();
@@ -103,6 +110,15 @@ export default function GuidanceBrief({
         >
           {open ? FEWER_INSTRUCTIONS : MORE_INSTRUCTIONS}
         </button>
+        {example ? (
+          <button
+            type="button"
+            onClick={example.toggle}
+            className={GUIDANCE_LINK_BUTTON_CLASS}
+          >
+            {example.shown ? HIDE_EXAMPLES : SHOW_EXAMPLES}
+          </button>
+        ) : null}
         {examplePlan ? <ExamplePlanButton /> : null}
       </div>
     </div>

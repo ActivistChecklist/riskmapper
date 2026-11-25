@@ -45,6 +45,53 @@ describe("safety planning guidance", () => {
     expect(screen.getByRole("region", { name: "Example plan" })).toBeTruthy();
   });
 
+  it("brings a step's examples back, or hides them, from its own link", () => {
+    render(<RiskMatrix />);
+    // Every step with an example has the link: steps 1 to 4 and Actions.
+    expect(screen.getAllByRole("button", { name: "Hide examples" })).toHaveLength(5);
+
+    // Steps 1 and 3 keep the link in the example box itself.
+    const box = screen.getByRole("region", { name: "Example risks" });
+    const hide = within(box).getByRole("button", { name: "Hide examples" });
+    fireEvent.click(hide);
+    expect(screen.queryByRole("region", { name: "Example risks" })).toBeNull();
+    // The link that takes its place gets focus.
+    const show = screen.getByRole("button", { name: "Show examples" });
+    expect(document.activeElement).toBe(show);
+    fireEvent.click(show);
+    expect(document.activeElement).toBe(
+      within(screen.getByRole("region", { name: "Example risks" })).getByRole("button", {
+        name: "Hide examples",
+      }),
+    );
+
+    enterRisk("Police arrest blockaders for trespassing at the gate");
+    expect(screen.getByRole("region", { name: "Example risks" })).toBeTruthy();
+
+    // Hiding one step's example leaves the others alone.
+    const resourcesLink = screen.getAllByRole("button", { name: "Hide examples" })[2];
+    fireEvent.click(resourcesLink);
+    expect(screen.queryByRole("region", { name: "Example resources" })).toBeNull();
+    expect(screen.getByRole("region", { name: "Example risks" })).toBeTruthy();
+    expect(screen.getByRole("region", { name: "Example plan" })).toBeTruthy();
+  });
+
+  it("keeps step 4's link in its example box too", () => {
+    render(<RiskMatrix />);
+    const plan = screen.getByRole("region", { name: "Example plan" });
+    fireEvent.click(within(plan).getByRole("button", { name: "Hide examples" }));
+    expect(screen.queryByRole("region", { name: "Example plan" })).toBeNull();
+    // With nothing placed, step 4 falls back to saying what goes there,
+    // and the link to bring the example back takes focus.
+    expect(screen.getByText(/Your risks will show up here/)).toBeTruthy();
+    const show = screen.getByRole("button", { name: "Show examples" });
+    expect(document.activeElement).toBe(show);
+    // It sits inside that placeholder box, where people are already looking.
+    expect(show.closest('[aria-label^="Placeholder"]')).toBeTruthy();
+    fireEvent.click(show);
+    expect(screen.getByRole("region", { name: "Example plan" })).toBeTruthy();
+  });
+
   it("keeps the plan's example until the first idea is written", () => {
     render(<RiskMatrix />);
     // "hi/hl" (high impact, high likelihood) is the typing shortcut that
@@ -95,13 +142,32 @@ describe("safety planning guidance", () => {
     );
   });
 
-  it("nudges once about a vague risk, until dismissed", () => {
+  it("nudges about a short risk right under it, until dismissed", () => {
     render(<RiskMatrix />);
     enterRisk("bad deployment");
-    const tip = screen.getByRole("status");
-    expect(tip.textContent).toContain('Be thorough - "bad deployment" is not specific.');
+    expect(screen.getByRole("status").textContent).toContain(
+      'Be thorough - "bad deployment" is not very specific.',
+    );
+    const tip = screen.getByTestId("vague-risk-tip");
+    const row = tip.previousElementSibling as HTMLElement;
+    expect(row.querySelector("textarea")?.value).toBe("bad deployment");
+
     fireEvent.click(within(tip).getByRole("button", { name: "Got it" }));
+    expect(screen.queryByTestId("vague-risk-tip")).toBeNull();
     expect(screen.getByRole("status").textContent).toBe("");
+  });
+
+  it("gives the tip to the first short risk only", () => {
+    render(<RiskMatrix />);
+    enterRisk("bad deployment");
+    enterRisk("Infiltrators");
+    const tips = screen.getAllByTestId("vague-risk-tip");
+    expect(tips).toHaveLength(1);
+    expect(tips[0].textContent).toContain('"bad deployment"');
+
+    fireEvent.click(within(tips[0]).getByRole("button", { name: "Got it" }));
+    enterRisk("Torrential rain");
+    expect(screen.queryByTestId("vague-risk-tip")).toBeNull();
   });
 
   it("says nothing about a specific risk", () => {

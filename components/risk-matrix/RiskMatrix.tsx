@@ -27,9 +27,13 @@ import RiskPoolSection from "./RiskPoolSection";
 import ResourcesSection from "./ResourcesSection";
 import StepSection from "./StepSection";
 import GuidanceBrief from "./guidance/GuidanceBrief";
-import { GuidanceProvider, useGuidance } from "./guidance/GuidanceContext";
+import {
+  GuidanceProvider,
+  useGuidance,
+  useStepExample,
+} from "./guidance/GuidanceContext";
 import SafetyPlanningIntro from "./guidance/SafetyPlanningIntro";
-import { PlanExample } from "./guidance/examples";
+import { PlanExampleArea } from "./guidance/examples";
 import {
   EXAMPLE_CELLS,
   STEP_2,
@@ -324,7 +328,6 @@ function RiskMatrixCanvas({ workspace: ws, cloud, remoteApplyRef }: CanvasProps)
 
   const dragging = Boolean(m.dragState || m.mitigationDragState);
 
-  const { enabled: guidance } = useGuidance();
   // The plan's example stays until the first idea is written in it, rather
   // than going when the first risk lands on the matrix, so it is still
   // there when someone scrolls down to the plan.
@@ -339,7 +342,9 @@ function RiskMatrixCanvas({ workspace: ws, cloud, remoteApplyRef }: CanvasProps)
       ),
     [m.grid],
   );
-  const showPlanExample = guidance && !anyIdea;
+  const { enabled: guidance } = useGuidance();
+  const matrixExample = useStepExample("matrix", !m.anyRisks);
+  const planExample = useStepExample("plan", !anyIdea);
   const placedRiskCount = useMemo(
     () =>
       Object.values(m.grid).reduce(
@@ -427,7 +432,12 @@ function RiskMatrixCanvas({ workspace: ws, cloud, remoteApplyRef }: CanvasProps)
             actions={step2Copy}
             title={STEP_TITLES[2]}
             guidance={
-              <GuidanceBrief lead={STEP_2.lead} more={STEP_2.more} examplePlan />
+              <GuidanceBrief
+                lead={STEP_2.lead}
+                more={STEP_2.more}
+                example={matrixExample}
+                examplePlan
+              />
             }
           >
             <LikelihoodImpactMatrix
@@ -442,7 +452,7 @@ function RiskMatrixCanvas({ workspace: ws, cloud, remoteApplyRef }: CanvasProps)
               onBlur={m.handleLineBlur}
               onGripPointerDown={m.onGripPointerDown}
               stepSectionFrame
-              exampleCells={guidance && !m.anyRisks ? EXAMPLE_CELLS : null}
+              exampleCells={matrixExample.shown ? EXAMPLE_CELLS : null}
             />
           </StepSection>
         </div>
@@ -498,10 +508,16 @@ function RiskMatrixCanvas({ workspace: ws, cloud, remoteApplyRef }: CanvasProps)
                     onMitigationGripPointerDown={m.onMitigationGripPointerDown}
                     embeddedInStepSection
                   />
-                  {showPlanExample ? <PlanExample /> : null}
+                  {guidance ? (
+                    <PlanExampleArea
+                      example={planExample}
+                      empty={!anyIdea}
+                      nothingPlaced={false}
+                    />
+                  ) : null}
                 </>
-              ) : showPlanExample ? (
-                <PlanExample />
+              ) : guidance ? (
+                <PlanExampleArea example={planExample} empty={!anyIdea} nothingPlaced />
               ) : (
                 <MitigationsTablePlaceholder embeddedInStepSection />
               )}

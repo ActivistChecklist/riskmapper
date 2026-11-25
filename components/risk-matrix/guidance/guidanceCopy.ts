@@ -83,10 +83,20 @@ export const SPECIFIC_EXAMPLES = [
   "marshals can't reach each other when cell service drops",
 ] as const;
 
-/** The "Be thorough" sentence, built around whichever entry is too vague. */
+/** The worksheet's "Be thorough" sentence, as step 1's instructions quote it. */
 export function beThoroughText(vague: string): string {
   const [a, b, c] = SPECIFIC_EXAMPLES;
   return `Be thorough - "${vague}" is not specific. Consider separate entries to your list for distinct possibilities, like "${a}", "${b}", and "${c}".`;
+}
+
+/**
+ * The tip under a short entry: the worksheet's sentence, softened to "not
+ * very specific" since a short entry can still be a fine one, and cut to
+ * two examples so it stays a quick read.
+ */
+export function vagueRiskTipText(vague: string): string {
+  const [a, b] = SPECIFIC_EXAMPLES;
+  return `Be thorough - "${vague}" is not very specific. Consider separate entries to your list for distinct possibilities, like "${a}" and "${b}".`;
 }
 
 export const STEP_1 = {
@@ -195,6 +205,8 @@ export const SHOW_EXAMPLE_PLAN = "Show an example finished plan";
 export const EXAMPLE_PLAN_TITLE = "Example safety plan";
 export const MORE_INSTRUCTIONS = "More instructions";
 export const FEWER_INSTRUCTIONS = "Fewer instructions";
+export const SHOW_EXAMPLES = "Show examples";
+export const HIDE_EXAMPLES = "Hide examples";
 
 export type ExampleMitigation = { text: string; starred?: boolean };
 

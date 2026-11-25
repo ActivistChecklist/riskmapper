@@ -34,6 +34,15 @@ describe("MatrixStatusIndicator", () => {
     ).toBe("/security/");
   });
 
+  it("shows a lock on the local-only pill, as the encrypted one does", () => {
+    // A lock reads as "about safety, click for details"; a checkmark read
+    // as "done" and gave no reason to open it.
+    renderPill({ shared: false, syncState: { kind: "idle" } });
+    const pill = screen.getByRole("button", { name: /saved locally/i });
+    expect(pill.querySelector("svg.lucide-lock-keyhole")).toBeTruthy();
+    expect(pill.querySelector("svg.lucide-circle-check")).toBeNull();
+  });
+
   it("sends people to the offline page in both explainers, not straight to the file", async () => {
     // The page explains how the single-file version differs before anyone
     // relies on it, so the explainers link there instead of downloading.

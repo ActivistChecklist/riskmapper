@@ -5,8 +5,12 @@ import AddField from "./AddField";
 import LineShell from "./LineShell";
 import StepSection from "./StepSection";
 import GuidanceBrief from "./guidance/GuidanceBrief";
-import { useGuidance } from "./guidance/GuidanceContext";
-import { ResourcesExample } from "./guidance/examples";
+import { useGuidance, useStepExample } from "./guidance/GuidanceContext";
+import {
+  ExampleColumn,
+  ResourcesExample,
+  exampleColumnGridClass,
+} from "./guidance/examples";
 import {
   ADD_RESOURCE_PLACEHOLDER,
   STEP_3,
@@ -44,8 +48,8 @@ export default function ResourcesSection({
 }: ResourcesSectionProps) {
   const { enabled: guidance } = useGuidance();
   const fieldRef = useRef<HTMLTextAreaElement>(null);
-  const showExample =
-    guidance && !resources.some((r) => r.text.trim().length > 0);
+  const empty = !resources.some((r) => r.text.trim().length > 0);
+  const example = useStepExample("resources", empty);
 
   return (
     <StepSection
@@ -54,15 +58,11 @@ export default function ResourcesSection({
       readingWidth={false}
       className={className}
       title={STEP_TITLES[3]}
-      guidance={<GuidanceBrief lead={STEP_3.lead} more={STEP_3.more} />}
+      guidance={
+        <GuidanceBrief lead={STEP_3.lead} more={STEP_3.more} />
+      }
     >
-      <div
-        className={
-          showExample
-            ? "grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(220px,300px)] md:gap-x-7"
-            : undefined
-        }
-      >
+      <div className={guidance ? exampleColumnGridClass(example.shown) : undefined}>
         <div
           className="flex w-full cursor-text flex-col px-3 py-2.5 sm:px-4 sm:py-3"
           onClick={(e) => {
@@ -112,10 +112,8 @@ export default function ResourcesSection({
             />
           </div>
         </div>
-        {showExample ? (
-          <div className="px-3 pb-3 sm:px-4 md:pl-0 md:pt-3">
-            <ResourcesExample />
-          </div>
+        {guidance ? (
+          <ExampleColumn example={example} empty={empty} box={ResourcesExample} />
         ) : null}
       </div>
     </StepSection>

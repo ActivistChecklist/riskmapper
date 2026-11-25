@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Check, Star, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -19,6 +19,8 @@ import {
   EXAMPLE_LABEL,
   EXAMPLE_PLAN,
   EXAMPLE_RESOURCES,
+  HIDE_EXAMPLES,
+  SHOW_EXAMPLES,
   SPECIFIC_EXAMPLES,
   PLAN_EXAMPLE_RISKS,
   VAGUE_EXAMPLE,
@@ -26,6 +28,9 @@ import {
   type ExampleMitigation,
   type ExampleRisk,
 } from "./guidanceCopy";
+import type { StepExample } from "./GuidanceContext";
+import MitigationsTablePlaceholder from "../MitigationsTablePlaceholder";
+import { GUIDANCE_LINK_BUTTON_CLASS, GUIDANCE_SMALL_BUTTON_CLASS } from "./linkButton";
 
 /** The small "Example" label under each example. */
 export function ExampleLabel({ className }: { className?: string }) {
@@ -36,24 +41,135 @@ export function ExampleLabel({ className }: { className?: string }) {
   );
 }
 
-/** Heading of an example block: the tag, and that it leaves on its own. */
-export function ExampleHeading({ note = true }: { note?: boolean }) {
+/**
+ * Heading of an example block: the tag, that it leaves on its own (while
+ * that is still true), and the box's own Hide examples link if it has one.
+ */
+export function ExampleHeading({
+  note = true,
+  toggle,
+}: {
+  note?: boolean;
+  toggle?: React.ReactNode;
+}) {
   return (
-    <p className="mb-1.5 flex flex-wrap items-baseline gap-x-2 text-xs text-rm-muted">
-      <span className="font-semibold text-rm-ink">{EXAMPLE_LABEL}</span>
-      {note ? <span>{EXAMPLE_GOES_AWAY}</span> : null}
-    </p>
+    <div className="mb-1.5 flex items-start gap-x-3 text-xs text-rm-muted">
+      <p className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2">
+        <span className="font-semibold text-rm-ink">{EXAMPLE_LABEL}</span>
+        {note ? <span>{EXAMPLE_GOES_AWAY}</span> : null}
+      </p>
+      {toggle ? <span className="shrink-0">{toggle}</span> : null}
+    </div>
   );
 }
 
+/** What a list step's example box needs from its column. */
+export type ExampleBoxProps = {
+  /** Say the box leaves on its own: true while the step is still empty. */
+  note: boolean;
+  /** The box's Hide examples link. */
+  toggle: React.ReactNode;
+};
+
+/**
+ * "Show examples" or "Hide examples". The one that replaces the link just
+ * clicked takes focus, so a keyboard user stays where they were.
+ */
+type ToggleLook = "link" | "button";
+
+function ExampleToggle({
+  shown,
+  onToggle,
+  focusOnMount,
+  onFocused,
+  look,
+}: {
+  shown: boolean;
+  onToggle: () => void;
+  focusOnMount: boolean;
+  onFocused: () => void;
+  look: ToggleLook;
+}) {
+  const ref = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!focusOnMount) return;
+    ref.current?.focus();
+    onFocused();
+  }, [focusOnMount, onFocused]);
+  return (
+    <button
+      ref={ref}
+      type="button"
+      onClick={onToggle}
+      className={look === "button" ? GUIDANCE_SMALL_BUTTON_CLASS : GUIDANCE_LINK_BUTTON_CLASS}
+    >
+      {shown ? HIDE_EXAMPLES : SHOW_EXAMPLES}
+    </button>
+  );
+}
+
+/**
+ * The step's examples link, for its box or the spot the box left. Moving
+ * between the two remounts it, which is when it takes focus.
+ */
+function useExampleToggle(
+  example: StepExample,
+  look: ToggleLook = "link",
+): React.ReactNode {
+  const [moveFocus, setMoveFocus] = useState(false);
+  return (
+    <ExampleToggle
+      look={look}
+      shown={example.shown}
+      onToggle={() => {
+        setMoveFocus(true);
+        example.toggle();
+      }}
+      focusOnMount={moveFocus}
+      onFocused={() => setMoveFocus(false)}
+    />
+  );
+}
+
+/**
+ * The example column beside a list step. The box carries its own Hide
+ * examples link; once it is hidden, a Show examples link stays in its place.
+ */
+export function ExampleColumn({
+  example,
+  empty,
+  box: Box,
+}: {
+  example: StepExample;
+  /** True while the step has none of the person's own entries. */
+  empty: boolean;
+  box: React.ComponentType<ExampleBoxProps>;
+}) {
+  const toggle = useExampleToggle(example);
+  return example.shown ? (
+    <div className="px-3 pb-3 sm:px-4 md:pl-0 md:pt-3">
+      <Box note={empty} toggle={toggle} />
+    </div>
+  ) : (
+    <div className="px-3 pb-3 sm:px-4 md:pl-0 md:pt-4">{toggle}</div>
+  );
+}
+
+/** Grid for a list step: the list, then its example column. */
+export function exampleColumnGridClass(boxShown: boolean): string {
+  return boxShown
+    ? "grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(220px,300px)] md:gap-x-7"
+    : "grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_auto] md:gap-x-7";
+}
+
 /** The worksheet's example list for step 1, with its specificity examples. */
-export function Step1Example() {
+export function Step1Example({ note, toggle }: ExampleBoxProps) {
   return (
     <section
       aria-label="Example risks"
       className="rounded-lg border border-dashed border-rm-border-strong px-3 pb-3 pt-2"
     >
-      <ExampleHeading />
+      <ExampleHeading note={note} toggle={toggle} />
       <ul className="text-[13.5px] italic text-rm-muted">
         {EXAMPLE_PLAN.map((r) => (
           <li key={r.text} className="py-0.5">
@@ -87,13 +203,13 @@ export function Step1Example() {
 }
 
 /** Example resources for step 3, beside its add field. */
-export function ResourcesExample() {
+export function ResourcesExample({ note, toggle }: ExampleBoxProps) {
   return (
     <section
       aria-label="Example resources"
       className="rounded-lg border border-dashed border-rm-border-strong px-3 pb-3 pt-2"
     >
-      <ExampleHeading />
+      <ExampleHeading note={note} toggle={toggle} />
       <ul className="text-[13.5px] italic text-rm-muted">
         {EXAMPLE_RESOURCES.map((r) => (
           <li key={r} className="py-0.5">
@@ -315,7 +431,7 @@ export function ExampleActions() {
 }
 
 /** The plan step before your first idea: two example cards. */
-export function PlanExample() {
+export function PlanExample({ note, toggle }: ExampleBoxProps) {
   const risks = EXAMPLE_PLAN.filter((r) =>
     (PLAN_EXAMPLE_RISKS as readonly string[]).includes(r.text),
   );
@@ -325,9 +441,37 @@ export function PlanExample() {
       className="min-w-0 rounded-b-md border-t border-rm-border bg-rm-well pb-1 pt-2.5"
     >
       <div className="px-3">
-        <ExampleHeading />
+        <ExampleHeading note={note} toggle={toggle} />
       </div>
       <ExampleTiers risks={risks} ghost />
     </section>
+  );
+}
+
+/**
+ * The plan step's example: two cards after the person's own, or in their
+ * place, with the box's own Hide examples button. Step 4 is wide and busy,
+ * so its toggle is a bordered button rather than a text link. Once hidden,
+ * Show examples goes where the eye already is: inside the "your risks will
+ * show up here" box while nothing is placed, or under the cards after.
+ */
+export function PlanExampleArea({
+  example,
+  empty,
+  nothingPlaced,
+}: {
+  example: StepExample;
+  /** True until the first idea is written. */
+  empty: boolean;
+  /** No risk is on the matrix yet, so there are no cards to sit under. */
+  nothingPlaced: boolean;
+}) {
+  const toggle = useExampleToggle(example, "button");
+  if (example.shown) return <PlanExample note={empty} toggle={toggle} />;
+  if (nothingPlaced) {
+    return <MitigationsTablePlaceholder embeddedInStepSection action={toggle} />;
+  }
+  return (
+    <div className="border-t border-rm-border bg-rm-well px-3 py-3">{toggle}</div>
   );
 }

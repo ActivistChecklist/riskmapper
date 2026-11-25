@@ -3,7 +3,6 @@
 import React, { useState } from "react";
 import {
   AlertTriangle,
-  CircleCheck,
   CloudOff,
   Loader2,
   LockKeyhole,
@@ -96,7 +95,7 @@ function OfflinePageLink() {
   if (isOfflineBuild()) return null;
   return (
     <p>
-      To use Risk Mapper fully offline, with nothing sent to any server,{" "}
+      To use Risk Mapper fully offline,{" "}
       <a
         href={OFFLINE_PAGE_PATH}
         className="font-medium text-rm-ink underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rm-ring"
@@ -200,7 +199,9 @@ export default function MatrixStatusIndicator({
                 className,
               )}
             >
-              <CircleCheck className="size-3.5 text-emerald-600 dark:text-emerald-400" aria-hidden />
+              {/* A lock, like the encrypted shared state: it says this is
+                  about safety, and that clicking it explains how. */}
+              <LockKeyhole className="size-3.5 text-emerald-600 dark:text-emerald-400" aria-hidden />
               {/* Label collapses to icon-only below lg so the title row
                   keeps the right cluster on a single line on narrower
                   screens. */}

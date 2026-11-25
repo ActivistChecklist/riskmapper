@@ -4,14 +4,19 @@ import React, { useRef, useState } from "react";
 import AddField from "./AddField";
 import LineRow from "./LineRow";
 import GuidanceBrief from "./guidance/GuidanceBrief";
-import { useGuidance } from "./guidance/GuidanceContext";
+import { useGuidance, useStepExample } from "./guidance/GuidanceContext";
 import VagueRiskTip from "./guidance/VagueRiskTip";
-import { Step1Example } from "./guidance/examples";
+import {
+  ExampleColumn,
+  Step1Example,
+  exampleColumnGridClass,
+} from "./guidance/examples";
 import {
   ADD_RISK_PLACEHOLDER,
   STEP_1,
   STEP_TITLES,
   isVagueRisk,
+  vagueRiskTipText,
 } from "./guidance/guidanceCopy";
 import { DROP_TARGET_OUTLINE_CLASSES } from "./constants";
 import StepSection from "./StepSection";
@@ -89,7 +94,9 @@ export default function RiskPoolSection({
   const fieldRef = useRef<HTMLTextAreaElement>(null);
   const [focusedLineId, setFocusedLineId] = useState<string | null>(null);
   const [tipLineId, setTipLineId] = useState<string | null>(null);
-  const dismissedTips = useRef(new Set<string>());
+  // Only the first short entry gets the tip. After that it is a lesson
+  // already given, so no later entry gets one, even once it is put away.
+  const tipGiven = useRef(false);
 
   // The pool keeps a blank entry at its end for the older type-here line.
   // The add field took over that job, so a blank entry shows only while
@@ -103,7 +110,7 @@ export default function RiskPoolSection({
 
   const riskTextCount =
     pool.filter((l) => l.text.trim().length > 0).length + placedRiskCount;
-  const showExample = guidance && riskTextCount === 0;
+  const example = useStepExample("risks", riskTextCount === 0);
 
   // The tip follows its entry: it goes if the entry is edited to something
   // specific, dragged out of the pool, or deleted.
@@ -112,16 +119,15 @@ export default function RiskPoolSection({
     guidance && tipLine && isVagueRisk(tipLine.text) ? tipLine.text.trim() : null;
 
   const considerTip = (line: PoolLine) => {
+    if (tipGiven.current || !guidance) return;
     const text = line.text.trim();
-    if (text && isVagueRisk(text) && !dismissedTips.current.has(line.id)) {
+    if (text && isVagueRisk(text)) {
+      tipGiven.current = true;
       setTipLineId(line.id);
-    } else if (tipLineId === line.id) {
-      setTipLineId(null);
     }
   };
 
   const dismissTip = () => {
-    if (tipLineId) dismissedTips.current.add(tipLineId);
     setTipLineId(null);
     fieldRef.current?.focus();
   };
@@ -162,16 +168,14 @@ export default function RiskPoolSection({
       className="mb-6"
       title={STEP_TITLES[1]}
       guidance={
-        <GuidanceBrief lead={STEP_1.lead} more={STEP_1.more} extra={<CloseLook />} />
+        <GuidanceBrief
+          lead={STEP_1.lead}
+          more={STEP_1.more}
+          extra={<CloseLook />}
+        />
       }
     >
-      <div
-        className={
-          showExample
-            ? "grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(220px,300px)] md:gap-x-7"
-            : undefined
-        }
-      >
+      <div className={guidance ? exampleColumnGridClass(example.shown) : undefined}>
         <div
           data-drop-target="pool"
           onClick={(e) => {
@@ -197,20 +201,24 @@ export default function RiskPoolSection({
               }}
             >
               {visible.map((line) => (
-                <LineRow
-                  key={line.id}
-                  line={line}
-                  loc="pool"
-                  isDragging={!!dragState && dragState.id === line.id}
-                  dropEdge={
-                    poolIndicator?.rowId === line.id ? poolIndicator.edge : null
-                  }
-                  onChange={onChange}
-                  onKeyDown={handleKeyDown}
-                  onBlur={handleBlur}
-                  onGripPointerDown={onGripPointerDown}
-                  inCell={false}
-                />
+                <React.Fragment key={line.id}>
+                  <LineRow
+                    line={line}
+                    loc="pool"
+                    isDragging={!!dragState && dragState.id === line.id}
+                    dropEdge={
+                      poolIndicator?.rowId === line.id ? poolIndicator.edge : null
+                    }
+                    onChange={onChange}
+                    onKeyDown={handleKeyDown}
+                    onBlur={handleBlur}
+                    onGripPointerDown={onGripPointerDown}
+                    inCell={false}
+                  />
+                  {tipText && line.id === tipLineId ? (
+                    <VagueRiskTip text={tipText} onDismiss={dismissTip} />
+                  ) : null}
+                </React.Fragment>
               ))}
               {dropAtEnd ? <EndDropLine /> : null}
             </div>
@@ -220,13 +228,17 @@ export default function RiskPoolSection({
               placeholder={ADD_RISK_PLACEHOLDER}
               onAdd={handleAdd}
             />
-            <VagueRiskTip text={tipText} onDismiss={dismissTip} />
+            <p role="status" className="sr-only">
+              {tipText ? `Tip: ${vagueRiskTipText(tipText)}` : ""}
+            </p>
           </div>
         </div>
-        {showExample ? (
-          <div className="px-3 pb-3 sm:px-4 md:pl-0 md:pt-3">
-            <Step1Example />
-          </div>
+        {guidance ? (
+          <ExampleColumn
+            example={example}
+            empty={riskTextCount === 0}
+            box={Step1Example}
+          />
         ) : null}
       </div>
     </StepSection>

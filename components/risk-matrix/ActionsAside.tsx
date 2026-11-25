@@ -11,7 +11,7 @@ import {
   STEP_SECTION_ACTION_BUTTON_CLASS,
 } from "./constants";
 import GuidanceBrief from "./guidance/GuidanceBrief";
-import { useGuidance } from "./guidance/GuidanceContext";
+import { useStepExample } from "./guidance/GuidanceContext";
 import { ExampleActions } from "./guidance/examples";
 import { FINISHED } from "./guidance/guidanceCopy";
 import { copyStarredActions } from "./matrixClipboard";
@@ -57,8 +57,8 @@ export default function ActionsAside({
   onOtherKeyDown,
   onOtherBlur,
 }: ActionsAsideProps) {
-  const { enabled: guidance } = useGuidance();
   const totalCount = allActions.length + otherActions.length;
+  const example = useStepExample("actions", totalCount === 0);
 
   const hasCopyableText = useMemo(() => {
     const starredOk = allActions.some(
@@ -130,9 +130,10 @@ export default function ActionsAside({
             ))}
           </ActionGroup>
         ) : null}
+        {example.shown ? <ExampleActions /> : null}
         {addOtherActionControl}
       </div>
-    ) : guidance ? (
+    ) : example.shown ? (
       // Until something is starred, the worksheet's example shows what
       // this panel collects.
       <div className="bg-rm-surface px-3 pb-2 pt-2.5">
@@ -190,6 +191,7 @@ export default function ActionsAside({
         <GuidanceBrief
           lead={FINISHED.lead}
           more={FINISHED.more}
+          example={example}
           className="border-b-0 border-t"
         />
       </div>

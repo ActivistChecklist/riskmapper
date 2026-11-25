@@ -13,6 +13,7 @@ import {
   STEP_TITLES,
   EXAMPLE_RESOURCES,
   beThoroughText,
+  vagueRiskTipText,
   exampleTier,
   isVagueRisk,
   leadText,
@@ -41,6 +42,7 @@ const ALL_COPY = allStrings([
   STEP_TITLES,
   EXAMPLE_RESOURCES,
   beThoroughText("bad deployment"),
+  vagueRiskTipText("bad deployment"),
 ]).join("\n");
 
 describe("guidance copy", () => {
@@ -63,6 +65,12 @@ describe("guidance copy", () => {
 
   it("drops the sticky notes line, since the app replaces the wall", () => {
     expect(ALL_COPY).not.toMatch(/sticky notes/i);
+  });
+
+  it("softens the tip and gives it two examples", () => {
+    expect(vagueRiskTipText("bad deployment")).toBe(
+      'Be thorough - "bad deployment" is not very specific. Consider separate entries to your list for distinct possibilities, like "cannot access the site on the day of the action" and "blockaders don\'t successfully latch gear".',
+    );
   });
 
   it("reads a lead line as plain text for formats without popovers", () => {
