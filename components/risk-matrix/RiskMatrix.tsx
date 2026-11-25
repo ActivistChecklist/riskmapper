@@ -489,6 +489,15 @@ function RiskMatrixCanvas({ workspace: ws, cloud, remoteApplyRef }: CanvasProps)
             >
               {m.anyRisks ? (
                 <>
+                  {/* Examples come before the person's own cards, as they do
+                      above the list in steps 1 and 3 on phones. */}
+                  {guidance ? (
+                    <PlanExampleArea
+                      example={planExample}
+                      empty={!anyIdea}
+                      nothingPlaced={false}
+                    />
+                  ) : null}
                   <CategorizedRiskGroups
                     anyRisks={m.anyRisks}
                     risksByColor={m.risksByColor}
@@ -509,13 +518,6 @@ function RiskMatrixCanvas({ workspace: ws, cloud, remoteApplyRef }: CanvasProps)
                     onMitigationGripPointerDown={m.onMitigationGripPointerDown}
                     embeddedInStepSection
                   />
-                  {guidance ? (
-                    <PlanExampleArea
-                      example={planExample}
-                      empty={!anyIdea}
-                      nothingPlaced={false}
-                    />
-                  ) : null}
                 </>
               ) : guidance ? (
                 <PlanExampleArea example={planExample} empty={!anyIdea} nothingPlaced />

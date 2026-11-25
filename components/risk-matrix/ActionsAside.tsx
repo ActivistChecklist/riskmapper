@@ -100,6 +100,15 @@ export default function ActionsAside({
   const listBody =
     allActions.length > 0 || otherActions.length > 0 ? (
       <div className="min-h-0 space-y-3 bg-rm-well px-2 pb-2 pt-2.5 sm:px-3">
+        {/* Examples first, above the person's own actions, matching the
+            other steps. */}
+        {guidance ? (
+          example.shown ? (
+            <ExampleActions note={false} toggle={exampleToggle} onGray />
+          ) : (
+            <div className="px-1">{exampleToggle}</div>
+          )
+        ) : null}
         {actionsByTier.map(({ tone, label, actions }) => (
           <ActionGroup
             key={tone}
@@ -133,13 +142,6 @@ export default function ActionsAside({
               />
             ))}
           </ActionGroup>
-        ) : null}
-        {guidance ? (
-          example.shown ? (
-            <ExampleActions note={false} toggle={exampleToggle} onGray />
-          ) : (
-            <div className="px-1">{exampleToggle}</div>
-          )
         ) : null}
         {addOtherActionControl}
       </div>

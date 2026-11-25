@@ -37,6 +37,40 @@ describe("safety planning guidance", () => {
     expect(screen.getAllByText("Cops or feds infiltrate as a participant").length).toBeGreaterThanOrEqual(3);
   });
 
+  it("puts each example ahead of the person's own entries", () => {
+    // On phones the column stacks, so whatever comes first shows on top:
+    // the example, which keeps step 1's list next to the matrix.
+    const before = (a: Element, b: Element) =>
+      Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+    render(<RiskMatrix />);
+    expect(
+      before(
+        screen.getByRole("region", { name: "Example risks" }),
+        screen.getByRole("textbox", { name: "Add a risk" }),
+      ),
+    ).toBe(true);
+    expect(
+      before(
+        screen.getByRole("region", { name: "Example resources" }),
+        screen.getByRole("textbox", { name: "Add a resource" }),
+      ),
+    ).toBe(true);
+
+    // "hi/hl" places the risk straight on the matrix, so step 4 has a card.
+    enterRisk("Police arrest blockaders for trespassing hi/hl");
+    const card = document.querySelector('textarea[data-risk-line-id]')!;
+    expect(before(screen.getByRole("region", { name: "Example plan" }), card)).toBe(true);
+  });
+
+  it("doesn't repeat the access example in step 1's example box", () => {
+    render(<RiskMatrix />);
+    const box = screen.getByRole("region", { name: "Example risks" });
+    expect(box.textContent).toContain("Can't access site day-of");
+    expect(box.textContent).not.toContain("cannot access the site on the day of the action");
+    expect(box.textContent).toContain("blockaders don't successfully latch gear");
+    expect(within(box).getByText("Be specific")).toBeTruthy();
+  });
+
   it("takes step 1's example away once a risk is entered", () => {
     render(<RiskMatrix />);
     enterRisk("Police arrest blockaders for trespassing at the gate");
@@ -88,6 +122,22 @@ describe("safety planning guidance", () => {
     ) as HTMLElement;
     const show = within(placeholder).getByRole("button", { name: "Show examples" });
     expect(document.activeElement).toBe(show);
+  });
+
+  it("shows the infiltration and site-access risks in step 4's example", () => {
+    render(<RiskMatrix />);
+    const plan = screen.getByRole("region", { name: "Example plan" });
+    expect(within(plan).getByText("Cops or feds infiltrate as a participant")).toBeTruthy();
+    expect(within(plan).getByText("Can't access site day-of")).toBeTruthy();
+    expect(within(plan).queryByText("Torrential rain")).toBeNull();
+  });
+
+  it("lists starred items from step 4's example risks in the Actions example", () => {
+    render(<RiskMatrix />);
+    const actions = screen.getByRole("region", { name: "Example actions" });
+    expect(within(actions).getByText("Strengthen vetting process for new members")).toBeTruthy();
+    expect(within(actions).getByText("Scout night before and early morning of action")).toBeTruthy();
+    expect(within(actions).queryByText("Bring extra ponchos and hand warmers")).toBeNull();
   });
 
   it("keeps step 4's link in its example box too", () => {

@@ -176,6 +176,16 @@ export default function RiskPoolSection({
       }
     >
       <div className={guidance ? exampleColumnGridClass(example.shown) : undefined}>
+        {/* First in the page, so on phones the example sits above the
+            list and the list stays next to the matrix for dragging. From
+            md up it moves beside the list. */}
+        {guidance ? (
+          <ExampleColumn
+            example={example}
+            empty={riskTextCount === 0}
+            box={Step1Example}
+          />
+        ) : null}
         <div
           data-drop-target="pool"
           onClick={(e) => {
@@ -233,13 +243,6 @@ export default function RiskPoolSection({
             </p>
           </div>
         </div>
-        {guidance ? (
-          <ExampleColumn
-            example={example}
-            empty={riskTextCount === 0}
-            box={Step1Example}
-          />
-        ) : null}
       </div>
     </StepSection>
   );

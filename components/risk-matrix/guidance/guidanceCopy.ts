@@ -87,6 +87,18 @@ export const SPECIFIC_EXAMPLES = [
   "marshals can't reach each other when cell service drops",
 ] as const;
 
+/** Heading over the specific examples in step 1's example box. */
+export const BE_SPECIFIC_HEADING = "Be specific";
+
+/**
+ * The specific examples step 1's example box lists. It leaves out "cannot
+ * access the site on the day of the action": the box's own list already
+ * has "Can't access site day-of".
+ */
+export const BOX_SPECIFIC_EXAMPLES = SPECIFIC_EXAMPLES.filter(
+  (s) => s !== "cannot access the site on the day of the action",
+);
+
 /** The worksheet's "Be thorough" sentence, as step 1's instructions quote it. */
 export function beThoroughText(vague: string): string {
   const [a, b, c] = SPECIFIC_EXAMPLES;
@@ -230,7 +242,9 @@ export const EXAMPLE_PLAN: ExampleRisk[] = [
   {
     text: "Can't access site day-of",
     cellKey: "1-1",
-    reduce: [{ text: "Scout night before and early morning of action" }],
+    reduce: [
+      { text: "Scout night before and early morning of action", starred: true },
+    ],
     prepare: [
       {
         text: "If site is open-able without changing our risk model, we open it",
@@ -317,10 +331,13 @@ export const EXAMPLE_CELLS: Readonly<Record<CellKey, string[]>> = (() => {
   return cells;
 })();
 
-/** The example cards the plan step shows before your first idea. */
+/**
+ * The example cards the plan step shows before your first idea. The Actions
+ * panel's example lists these risks' starred items, so the two agree.
+ */
 export const PLAN_EXAMPLE_RISKS = [
   "Cops or feds infiltrate as a participant",
-  "Torrential rain",
+  "Can't access site day-of",
 ] as const;
 
 /**

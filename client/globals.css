@@ -227,10 +227,8 @@ body {
 /* Dashed edges for examples and placeholders. A `dashed` border can't set
    dash length or gap, and an SVG image would need `img-src data:`, which
    the site's CSP refuses (server/csp.ts), so each side is a repeating
-   gradient instead. Set --rm-dash-color on the element to recolor it.
-   `rm-dashed-open-left` leaves the left side to a colored stripe. */
-.rm-dashed,
-.rm-dashed-open-left {
+   gradient instead. Set --rm-dash-color on the element to recolor it. */
+.rm-dashed {
   --rm-dash-x: repeating-linear-gradient(
     90deg,
     var(--rm-dash-color, var(--rm-muted-2)) 0 6px,
@@ -242,14 +240,8 @@ body {
     transparent 6px 10px
   );
   background-repeat: no-repeat;
-}
-.rm-dashed {
   background-image: var(--rm-dash-x), var(--rm-dash-x), var(--rm-dash-y), var(--rm-dash-y);
   background-size: 100% 2px, 100% 2px, 2px 100%, 2px 100%;
   background-position: left top, left bottom, left top, right top;
 }
-.rm-dashed-open-left {
-  background-image: var(--rm-dash-x), var(--rm-dash-x), var(--rm-dash-y);
-  background-size: 100% 2px, 100% 2px, 2px 100%;
-  background-position: left top, left bottom, right top;
-}
+

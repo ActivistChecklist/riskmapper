@@ -63,6 +63,11 @@ export default function ResourcesSection({
       }
     >
       <div className={guidance ? exampleColumnGridClass(example.shown) : undefined}>
+        {/* First in the page so phones show it above the list, as step 1
+            does; from md up it sits beside the list. */}
+        {guidance ? (
+          <ExampleColumn example={example} empty={empty} box={ResourcesExample} />
+        ) : null}
         <div
           className="flex w-full cursor-text flex-col px-3 py-2.5 sm:px-4 sm:py-3"
           onClick={(e) => {
@@ -112,9 +117,6 @@ export default function ResourcesSection({
             />
           </div>
         </div>
-        {guidance ? (
-          <ExampleColumn example={example} empty={empty} box={ResourcesExample} />
-        ) : null}
       </div>
     </StepSection>
   );

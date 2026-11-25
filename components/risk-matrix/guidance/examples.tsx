@@ -21,7 +21,8 @@ import {
   EXAMPLE_RESOURCES,
   HIDE_EXAMPLES,
   SHOW_EXAMPLES,
-  SPECIFIC_EXAMPLES,
+  BE_SPECIFIC_HEADING,
+  BOX_SPECIFIC_EXAMPLES,
   PLAN_EXAMPLE_RISKS,
   VAGUE_EXAMPLE,
   exampleTier,
@@ -158,12 +159,14 @@ export function ExampleColumn({
   box: React.ComponentType<ExampleBoxProps>;
 }) {
   const toggle = useExampleToggle(example);
+  // It comes first in the page: above the list on phones, and moved to the
+  // right-hand column from md up.
   return example.shown ? (
-    <div className="px-3 pb-3 sm:px-4 md:pl-0 md:pt-3">
+    <div className="px-3 pt-3 sm:px-4 md:order-last md:pb-3 md:pl-0">
       <Box note={empty} toggle={toggle} />
     </div>
   ) : (
-    <div className="px-3 pb-3 sm:px-4 md:pl-0 md:pt-4">{toggle}</div>
+    <div className="px-3 pt-3 sm:px-4 md:order-last md:pb-3 md:pl-0 md:pt-4">{toggle}</div>
   );
 }
 
@@ -190,7 +193,7 @@ export function Step1Example({ note, toggle }: ExampleBoxProps) {
         ))}
       </ul>
       <div className="mt-2 border-t border-rm-divider pt-2 text-[12.5px] leading-snug">
-        <p className="mb-1 font-semibold text-rm-ink">Be thorough</p>
+        <p className="mb-1 font-semibold text-rm-ink">{BE_SPECIFIC_HEADING}</p>
         <ul className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-2 gap-y-1">
           <li className="contents">
             <X size={14} strokeWidth={2.5} className="mt-px text-rm-red-text" aria-hidden />
@@ -199,7 +202,7 @@ export function Step1Example({ note, toggle }: ExampleBoxProps) {
               {`"${VAGUE_EXAMPLE}" is not specific`}
             </span>
           </li>
-          {SPECIFIC_EXAMPLES.map((s) => (
+          {BOX_SPECIFIC_EXAMPLES.map((s) => (
             <li key={s} className="contents">
               <Check size={14} strokeWidth={2.5} className="mt-px text-rm-green-text" aria-hidden />
               <span>
@@ -268,8 +271,8 @@ function ExampleMitigationList({ items }: { items: readonly ExampleMitigation[] 
 }
 
 /**
- * A read-only risk card laid out like step 3's. `ghost` draws it dashed and
- * gray, for an example sitting where the person's own cards will go.
+ * A read-only risk card laid out like step 4's. `ghost` draws it without a
+ * fill, in gray text, for the example inside step 4's dashed example box.
  */
 export function ExampleRiskCard({
   risk,
@@ -288,7 +291,8 @@ export function ExampleRiskCard({
           ghost
             ? // No fill of its own: the gray behind it shows through, so
               // the person's own white cards stand out from the example.
-              "rm-dashed-open-left text-rm-muted"
+              // The dashed box around the whole example marks it.
+              "text-rm-muted"
             : "bg-rm-surface text-rm-ink shadow-[var(--rm-shadow-1)]",
         )}
       >
@@ -306,7 +310,6 @@ export function ExampleRiskCard({
           ))}
         </div>
       </div>
-      {ghost ? <ExampleLabel className="mt-0.5 pl-2" /> : null}
     </div>
   );
 }
@@ -405,7 +408,10 @@ export function ExampleMatrix({
   );
 }
 
-/** Starred example items, grouped the way the Actions panel groups them. */
+/**
+ * Starred items from the risks step 4's example shows, grouped the way the
+ * Actions panel groups them, so the two examples tell one story.
+ */
 export function ExampleActions({
   note,
   toggle,
@@ -415,7 +421,8 @@ export function ExampleActions({
   onGray?: boolean;
 }) {
   const byTier = new Map<ColorGroupKey, string[]>();
-  for (const r of EXAMPLE_PLAN) {
+  const shown: readonly string[] = PLAN_EXAMPLE_RISKS;
+  for (const r of EXAMPLE_PLAN.filter((p) => shown.includes(p.text))) {
     for (const m of [...r.reduce, ...r.prepare]) {
       if (!m.starred) continue;
       const tier = exampleTier(r.cellKey);
@@ -459,12 +466,15 @@ export function PlanExample({ note, toggle }: ExampleBoxProps) {
   return (
     <section
       aria-label="Example plan"
-      className="min-w-0 rounded-b-md border-t border-rm-border bg-rm-well pb-1 pt-2.5"
+      className="min-w-0 border-t border-rm-border bg-rm-well p-3 last:rounded-b-md"
     >
-      <div className="px-3">
-        <ExampleHeading note={note} toggle={toggle} />
+      {/* One dashed box around the whole example, like steps 1 and 3. */}
+      <div className="rm-dashed rounded-lg pb-1 pt-2.5">
+        <div className="px-3">
+          <ExampleHeading note={note} toggle={toggle} />
+        </div>
+        <ExampleTiers risks={risks} ghost />
       </div>
-      <ExampleTiers risks={risks} ghost />
     </section>
   );
 }
