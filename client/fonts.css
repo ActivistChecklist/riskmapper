@@ -11,20 +11,73 @@
  * `font-bold` or similar shows up, otherwise the browser will synthesize
  * it and the text will look subtly wrong.
  *
- * `latin-*.css` rather than the full `*.css` to skip the Cyrillic and Greek
- * subsets we have no copy for.
+ * Sans is `@fontsource/geist`, the Google Fonts build, and not
+ * `@fontsource/geist-sans`. The latter has CFF (PostScript) outlines, and
+ * iOS Lockdown Mode only loads web fonts that pass WebKit's Safe Font
+ * Parser, which rejects CFF. Every iPhone in Lockdown Mode saw the fallback
+ * instead. This build has TrueType outlines and passes. `fonts.test.ts`
+ * fails if a CFF font comes back.
+ *
+ * Latin and Latin Extended only, to skip the Cyrillic and Vietnamese
+ * subsets we have no copy for. Latin Extended keeps letters like the ones
+ * in a Polish or Turkish name in Geist, as the old font did.
  */
-@import "@fontsource/geist-sans/latin-400.css";
-@import "@fontsource/geist-sans/latin-500.css";
-@import "@fontsource/geist-sans/latin-600.css";
+@import "@fontsource/geist/latin-400.css";
+@import "@fontsource/geist/latin-500.css";
+@import "@fontsource/geist/latin-600.css";
 @import "@fontsource/geist-mono/latin-400.css";
 
 /*
+ * Latin Extended is declared here rather than imported, because fontsource's
+ * per-subset files (`latin-ext-400.css`) carry no `unicode-range`. Without
+ * one, every page downloads all three files whether it has an accented
+ * letter or not. The range is copied from fontsource's `400.css`, which
+ * uses the same one for every weight.
+ */
+@font-face {
+  font-family: "Geist";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url("@fontsource/geist/files/geist-latin-ext-400-normal.woff2") format("woff2"),
+    url("@fontsource/geist/files/geist-latin-ext-400-normal.woff") format("woff");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308,
+    U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113,
+    U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: "Geist";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 500;
+  src: url("@fontsource/geist/files/geist-latin-ext-500-normal.woff2") format("woff2"),
+    url("@fontsource/geist/files/geist-latin-ext-500-normal.woff") format("woff");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308,
+    U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113,
+    U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: "Geist";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 600;
+  src: url("@fontsource/geist/files/geist-latin-ext-600-normal.woff2") format("woff2"),
+    url("@fontsource/geist/files/geist-latin-ext-600-normal.woff") format("woff");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308,
+    U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113,
+    U+2C60-2C7F, U+A720-A7FF;
+}
+
+/*
  * `next/font` used to inject these as generated class names on <html>.
- * Defining them at :root instead keeps app/globals.css unchanged, since it
- * already reads `var(--font-geist-sans)` / `var(--font-geist-mono)`.
+ * Defining them at :root instead keeps the names globals.css reads.
+ *
+ * Just the family names. globals.css appends the system fallbacks when it
+ * builds `--font-sans` and `--font-mono` from these.
  */
 :root {
-  --font-geist-sans: "Geist Sans";
+  --font-geist-sans: "Geist";
   --font-geist-mono: "Geist Mono";
 }

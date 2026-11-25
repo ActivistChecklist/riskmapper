@@ -392,10 +392,10 @@
   resolved "https://registry.yarnpkg.com/@fontsource/geist-mono/-/geist-mono-5.3.0.tgz#3b1823d8c2d64366575015fd4e7a7f07b05cf926"
   integrity sha512-UtJ1BBBCVpMYdIcW7nEB45UAoAw5M53ZXs2t0ciPW+IokuAAIc56M8+kW5tXbRJCTpDw4XTtU7proT6NdQAHTg==
 
-"@fontsource/geist-sans@^5":
+"@fontsource/geist@^5.3.0":
   version "5.3.0"
-  resolved "https://registry.yarnpkg.com/@fontsource/geist-sans/-/geist-sans-5.3.0.tgz#75d82b14e9df6bdf2a85b958d6447fc7a50a00c7"
-  integrity sha512-AmG7cE1AvE4NHROPaOl1sN+a02cB5xy6pA/ZV76HXqWTCsJTV2SCBc9DTFHfJqnVOODm7HhXIYtUIb75NP5QXQ==
+  resolved "https://registry.yarnpkg.com/@fontsource/geist/-/geist-5.3.0.tgz#309379f1654fe357be21ea1964e3042dcf9f0b08"
+  integrity sha512-u03ftlfVwb05uijq2jGDJ03/HKGqMKaNFk7KOhkpBUex8+BhrAOfMs/XciJ2UUNUX9fEsZbZQld/RWMA2oFU7g==
 
 "@fontsource/roboto@^5.3.0":
   version "5.3.0"

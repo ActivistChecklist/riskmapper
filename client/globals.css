@@ -140,8 +140,17 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /*
+   * Geist, then the system font. The fallbacks are what people see when a
+   * browser declines web fonts: iOS Lockdown Mode before iOS 26, Tor
+   * Browser at its Safest level, or uBlock Origin's remote-fonts switch.
+   * Without them `font-sans`
+   * and `font-mono` name Geist alone, and the browser drops to its default
+   * serif (Times on iOS). The lists after Geist are Tailwind's own defaults.
+   * fonts.test.ts checks both end in a generic family.
+   */
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 
   /* Risk matrix palette */
   --color-rm-canvas: var(--rm-canvas);
@@ -192,7 +201,7 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-sans);
 }
 
 /* Pool/matrix line drag: "closed hand" under the pointer (overrides nested cursor-text). */
