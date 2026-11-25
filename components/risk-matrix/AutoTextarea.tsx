@@ -8,7 +8,10 @@ export type AutoTextareaProps = {
   onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
   onKeyDown?: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
   onBlur?: (e: React.FocusEvent<HTMLTextAreaElement>) => void;
+  onPaste?: (e: React.ClipboardEvent<HTMLTextAreaElement>) => void;
   placeholder?: string;
+  /** Accessible name, for a field with no visible label of its own. */
+  ariaLabel?: string;
   lineId?: string;
   subLineId?: string;
   riskLineId?: string;
@@ -26,7 +29,9 @@ const AutoTextarea = React.forwardRef<HTMLTextAreaElement, AutoTextareaProps>(
       onChange,
       onKeyDown,
       onBlur,
+      onPaste,
       placeholder,
+      ariaLabel,
       lineId,
       subLineId,
       riskLineId,
@@ -89,7 +94,9 @@ const AutoTextarea = React.forwardRef<HTMLTextAreaElement, AutoTextareaProps>(
         onChange={onChange}
         onKeyDown={onKeyDown}
         onBlur={onBlur}
+        onPaste={onPaste}
         placeholder={placeholder}
+        aria-label={ariaLabel}
         rows={1}
         className={cn(baseTextareaClass, className)}
       />

@@ -2,6 +2,7 @@
 
 import React from "react";
 import LineRow from "./LineRow";
+import { ExampleChip } from "./guidance/examples";
 import PointerAddLineButton from "./PointerAddLineButton";
 import {
   CELL_BG_CLASSES,
@@ -40,6 +41,8 @@ export type LikelihoodImpactMatrixProps = {
   onGripPointerDown: (e: React.PointerEvent, id: string) => void;
   /** Sits under a {@link StepSection} header — flat top, rounded bottom. */
   stepSectionFrame?: boolean;
+  /** Example risks to draw in their cells while the matrix is empty. */
+  exampleCells?: Record<CellKey, string[]> | null;
 };
 
 export default function LikelihoodImpactMatrix({
@@ -54,6 +57,7 @@ export default function LikelihoodImpactMatrix({
   onBlur,
   onGripPointerDown,
   stepSectionFrame = false,
+  exampleCells = null,
 }: LikelihoodImpactMatrixProps) {
   return (
     <div
@@ -136,6 +140,9 @@ export default function LikelihoodImpactMatrix({
                       onGripPointerDown={onGripPointerDown}
                       inCell
                     />
+                  ))}
+                  {(exampleCells?.[key] ?? []).map((text) => (
+                    <ExampleChip key={text} text={text} />
                   ))}
                 </div>
                 <div

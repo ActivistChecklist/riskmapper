@@ -22,9 +22,10 @@ describe("Duplicate", () => {
     const titleInput = screen.getByLabelText("Matrix title");
     await user.clear(titleInput);
     await user.type(titleInput, "Mine");
-    const first = document.querySelector("textarea");
-    if (!first) throw new Error("no pool line rendered");
-    await user.type(first, "Infiltrator");
+    await user.type(
+      screen.getByRole("textbox", { name: "Add a risk" }),
+      "Infiltrator{Enter}",
+    );
 
     await user.click(screen.getByRole("button", { name: /duplicate/i }));
 

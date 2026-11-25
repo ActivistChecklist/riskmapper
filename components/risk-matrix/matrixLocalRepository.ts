@@ -39,6 +39,11 @@ function isRiskMatrixSnapshot(x: unknown): x is RiskMatrixSnapshot {
       return false;
     }
   }
+  if (x.resources !== undefined) {
+    if (!Array.isArray(x.resources) || !x.resources.every(isOtherAction)) {
+      return false;
+    }
+  }
   if (x.hiddenCategorizedRiskKeys !== undefined) {
     if (
       !Array.isArray(x.hiddenCategorizedRiskKeys) ||

@@ -10,6 +10,10 @@ import {
   GROUP_STRIPE_CLASS,
   STEP_SECTION_ACTION_BUTTON_CLASS,
 } from "./constants";
+import GuidanceBrief from "./guidance/GuidanceBrief";
+import { useGuidance } from "./guidance/GuidanceContext";
+import { ExampleActions } from "./guidance/examples";
+import { FINISHED } from "./guidance/guidanceCopy";
 import { copyStarredActions } from "./matrixClipboard";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -53,6 +57,7 @@ export default function ActionsAside({
   onOtherKeyDown,
   onOtherBlur,
 }: ActionsAsideProps) {
+  const { enabled: guidance } = useGuidance();
   const totalCount = allActions.length + otherActions.length;
 
   const hasCopyableText = useMemo(() => {
@@ -127,6 +132,13 @@ export default function ActionsAside({
         ) : null}
         {addOtherActionControl}
       </div>
+    ) : guidance ? (
+      // Until something is starred, the worksheet's example shows what
+      // this panel collects.
+      <div className="bg-rm-surface px-3 pb-2 pt-2.5">
+        <ExampleActions />
+        {addOtherActionControl}
+      </div>
     ) : (
       <div className="flex min-h-[12.5rem] flex-col bg-rm-surface px-3 pb-2 pt-2.5 sm:min-h-[14rem]">
         <div
@@ -175,6 +187,11 @@ export default function ActionsAside({
           </Button>
         </div>
         {listBody}
+        <GuidanceBrief
+          lead={FINISHED.lead}
+          more={FINISHED.more}
+          className="border-b-0 border-t"
+        />
       </div>
     </aside>
   );

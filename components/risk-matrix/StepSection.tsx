@@ -6,11 +6,13 @@ import StepBadge from "./StepBadge";
 import { cn } from "@/lib/utils";
 
 export type StepSectionProps = {
-  step: 1 | 2 | 3;
+  step: 1 | 2 | 3 | 4;
   /** Heading copy (step prompt). */
   title: React.ReactNode;
   /** Region under the primary header (pool, matrix, mitigations table, …). */
   children: React.ReactNode;
+  /** Safety planning guidance, between the header and the step's body. */
+  guidance?: React.ReactNode;
   actions?: React.ReactNode;
   /** When true (default), cap width to the reading column; step 2 matrix uses false. */
   readingWidth?: boolean;
@@ -35,6 +37,7 @@ export default function StepSection({
   step,
   title,
   children,
+  guidance,
   actions,
   readingWidth = true,
   allowOverflow = false,
@@ -75,6 +78,7 @@ export default function StepSection({
             </div>
           ) : null}
         </div>
+        {guidance}
         <div className="min-w-0 bg-rm-surface">{children}</div>
       </div>
     </div>

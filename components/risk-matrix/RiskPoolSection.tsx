@@ -1,22 +1,31 @@
 "use client";
 
-import React from "react";
+import React, { useRef, useState } from "react";
+import AddField from "./AddField";
 import LineRow from "./LineRow";
-import PointerAddLineButton from "./PointerAddLineButton";
+import GuidanceBrief from "./guidance/GuidanceBrief";
+import { useGuidance } from "./guidance/GuidanceContext";
+import VagueRiskTip from "./guidance/VagueRiskTip";
+import { Step1Example } from "./guidance/examples";
 import {
-  DROP_TARGET_OUTLINE_CLASSES,
-  POINTER_ADD_ROW_HOVER_CLASSES,
-} from "./constants";
+  ADD_RISK_PLACEHOLDER,
+  STEP_1,
+  STEP_TITLES,
+  isVagueRisk,
+} from "./guidance/guidanceCopy";
+import { DROP_TARGET_OUTLINE_CLASSES } from "./constants";
 import StepSection from "./StepSection";
 import type { DragState, DropIndicator, LineLocation, PoolLine } from "./types";
 
 export type RiskPoolSectionProps = {
   pool: PoolLine[];
+  /** How many risks with text sit in the matrix, for the step 1 example. */
+  placedRiskCount: number;
   dragState: DragState | null;
   dragOverTarget: string | null;
   dropIndicator: DropIndicator | null;
-  onAddPoolLine: () => void;
-  onPoolClick: (e: React.MouseEvent) => void;
+  /** Adds risks from the add field; returns the ones that stayed in the pool. */
+  onAddRisks: (texts: string[]) => PoolLine[];
   onChange: (loc: LineLocation, id: string, text: string) => void;
   onKeyDown: (
     e: React.KeyboardEvent<HTMLTextAreaElement>,
@@ -33,78 +42,192 @@ export type RiskPoolSectionProps = {
   step1Actions?: React.ReactNode;
 };
 
+function CloseLook() {
+  const { strong, text, questions } = STEP_1.closeLook;
+  return (
+    <div className="mt-3">
+      <p>
+        <strong className="font-semibold text-rm-ink">{strong}</strong> {text}
+      </p>
+      <dl className="mt-2 grid gap-x-5 gap-y-2 sm:grid-cols-2">
+        {questions.map((q) => (
+          <div key={q.label}>
+            <dt className="font-semibold text-rm-ink">{q.label}</dt>
+            <dd>{q.question}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  );
+}
+
+/** A drop line at the end of the list, where the add field begins. */
+function EndDropLine() {
+  return (
+    <div
+      data-testid="pool-drop-indicator-end"
+      aria-hidden
+      className="mx-px my-0.5 h-0.5 rounded-full bg-rm-ink"
+    />
+  );
+}
+
 export default function RiskPoolSection({
   pool,
+  placedRiskCount,
   dragState,
   dragOverTarget,
   dropIndicator,
-  onPoolClick,
-  onAddPoolLine,
+  onAddRisks,
   onChange,
   onKeyDown,
   onBlur,
   onGripPointerDown,
   step1Actions,
 }: RiskPoolSectionProps) {
+  const { enabled: guidance } = useGuidance();
+  const fieldRef = useRef<HTMLTextAreaElement>(null);
+  const [focusedLineId, setFocusedLineId] = useState<string | null>(null);
+  const [tipLineId, setTipLineId] = useState<string | null>(null);
+  const dismissedTips = useRef(new Set<string>());
+
+  // The pool keeps a blank entry at its end for the older type-here line.
+  // The add field took over that job, so a blank entry shows only while
+  // someone is typing in it (after clearing a risk's text, say).
+  const visible = pool.filter((l) => l.text !== "" || l.id === focusedLineId);
+  const visibleIds = new Set(visible.map((l) => l.id));
+  const poolIndicator = dropIndicator?.loc === "pool" ? dropIndicator : null;
+  const dropAtEnd =
+    poolIndicator !== null &&
+    (poolIndicator.rowId === null || !visibleIds.has(poolIndicator.rowId));
+
+  const riskTextCount =
+    pool.filter((l) => l.text.trim().length > 0).length + placedRiskCount;
+  const showExample = guidance && riskTextCount === 0;
+
+  // The tip follows its entry: it goes if the entry is edited to something
+  // specific, dragged out of the pool, or deleted.
+  const tipLine = tipLineId ? pool.find((l) => l.id === tipLineId) : undefined;
+  const tipText =
+    guidance && tipLine && isVagueRisk(tipLine.text) ? tipLine.text.trim() : null;
+
+  const considerTip = (line: PoolLine) => {
+    const text = line.text.trim();
+    if (text && isVagueRisk(text) && !dismissedTips.current.has(line.id)) {
+      setTipLineId(line.id);
+    } else if (tipLineId === line.id) {
+      setTipLineId(null);
+    }
+  };
+
+  const dismissTip = () => {
+    if (tipLineId) dismissedTips.current.add(tipLineId);
+    setTipLineId(null);
+    fieldRef.current?.focus();
+  };
+
+  const handleAdd = (texts: string[]) => {
+    const added = onAddRisks(texts);
+    if (added.length === 1) considerTip(added[0]);
+  };
+
+  const handleKeyDown: RiskPoolSectionProps["onKeyDown"] = (e, loc, line) => {
+    if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+      considerTip(line);
+      // Enter at the end of a risk moves on to the add field, the one place
+      // new risks start. Elsewhere in the text it still splits the risk.
+      const el = e.target as HTMLTextAreaElement;
+      const atEnd =
+        el.selectionStart === el.selectionEnd &&
+        (el.selectionStart ?? 0) >= line.text.length;
+      if (atEnd) {
+        e.preventDefault();
+        fieldRef.current?.focus();
+        return;
+      }
+    }
+    onKeyDown(e, loc, line);
+  };
+
+  const handleBlur: RiskPoolSectionProps["onBlur"] = (e, loc, line) => {
+    considerTip(line);
+    onBlur(e, loc, line);
+  };
+
   return (
     <StepSection
       step={1}
       actions={step1Actions}
       readingWidth={false}
       className="mb-6"
-      title="What risks concern you the most right now?"
+      title={STEP_TITLES[1]}
+      guidance={
+        <GuidanceBrief lead={STEP_1.lead} more={STEP_1.more} extra={<CloseLook />} />
+      }
     >
       <div
-        data-drop-target="pool"
-        onClick={onPoolClick}
-        className={[
-          "group flex min-h-[100px] w-full cursor-text flex-col px-3 py-2.5 sm:px-4 sm:py-3",
-          dragOverTarget === "pool" ? DROP_TARGET_OUTLINE_CLASSES : "",
-        ].join(" ")}
+        className={
+          showExample
+            ? "grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(220px,300px)] md:gap-x-7"
+            : undefined
+        }
       >
-        <div className="w-full max-w-[42ch]">
-          <div className="min-h-0 flex-1">
-            {pool.map((line) => (
-              <LineRow
-                key={line.id}
-                line={line}
-                loc="pool"
-                isDragging={!!dragState && dragState.id === line.id}
-                dropEdge={
-                  dropIndicator?.loc === "pool" &&
-                  dropIndicator.rowId === line.id
-                    ? dropIndicator.edge
-                    : null
+        <div
+          data-drop-target="pool"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) fieldRef.current?.focus();
+          }}
+          className={[
+            "flex w-full cursor-text flex-col px-3 py-2.5 sm:px-4 sm:py-3",
+            dragOverTarget === "pool" ? DROP_TARGET_OUTLINE_CLASSES : "",
+          ].join(" ")}
+        >
+          <div className="w-full max-w-[46ch]">
+            <div
+              className="min-h-0"
+              onFocus={(e) =>
+                setFocusedLineId(
+                  (e.target as HTMLElement).getAttribute("data-line-id"),
+                )
+              }
+              onBlur={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+                  setFocusedLineId(null);
                 }
-                placeholder={
-                  pool.length === 1 && line.text.length === 0
-                    ? "Add your first risk..."
-                    : pool.length > 1 &&
-                        line.id === pool[pool.length - 1]?.id &&
-                        line.text.length === 0
-                      ? "Press Enter to add another risk"
-                      : undefined
-                }
-                onChange={onChange}
-                onKeyDown={onKeyDown}
-                onBlur={onBlur}
-                onGripPointerDown={onGripPointerDown}
-                inCell={false}
-              />
-            ))}
-          </div>
-          <div
-            className={[
-              "mt-1 flex shrink-0 justify-start border-t border-rm-divider pt-1",
-              POINTER_ADD_ROW_HOVER_CLASSES,
-            ].join(" ")}
-          >
-            <PointerAddLineButton
-              ariaLabel="Add another risk to the pool"
-              onTrigger={onAddPoolLine}
+              }}
+            >
+              {visible.map((line) => (
+                <LineRow
+                  key={line.id}
+                  line={line}
+                  loc="pool"
+                  isDragging={!!dragState && dragState.id === line.id}
+                  dropEdge={
+                    poolIndicator?.rowId === line.id ? poolIndicator.edge : null
+                  }
+                  onChange={onChange}
+                  onKeyDown={handleKeyDown}
+                  onBlur={handleBlur}
+                  onGripPointerDown={onGripPointerDown}
+                  inCell={false}
+                />
+              ))}
+              {dropAtEnd ? <EndDropLine /> : null}
+            </div>
+            <AddField
+              ref={fieldRef}
+              label="Add a risk"
+              placeholder={ADD_RISK_PLACEHOLDER}
+              onAdd={handleAdd}
             />
+            <VagueRiskTip text={tipText} onDismiss={dismissTip} />
           </div>
         </div>
+        {showExample ? (
+          <div className="px-3 pb-3 sm:px-4 md:pl-0 md:pt-3">
+            <Step1Example />
+          </div>
+        ) : null}
       </div>
     </StepSection>
   );

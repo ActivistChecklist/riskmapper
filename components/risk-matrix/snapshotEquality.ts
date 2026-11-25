@@ -1,4 +1,4 @@
-import type { GridLine, OtherAction, PoolLine, SubLine } from "./types";
+import type { GridLine, OtherAction, PoolLine, ResourceLine, SubLine } from "./types";
 import type { RiskMatrixSnapshot } from "./matrixTypes";
 
 /**
@@ -14,16 +14,17 @@ import type { RiskMatrixSnapshot } from "./matrixTypes";
 export function sharedSnapshotFieldsEqual(
   a: Pick<
     RiskMatrixSnapshot,
-    "pool" | "grid" | "otherActions" | "hiddenCategorizedRiskKeys" | "notes"
+    "pool" | "grid" | "resources" | "otherActions" | "hiddenCategorizedRiskKeys" | "notes"
   >,
   b: Pick<
     RiskMatrixSnapshot,
-    "pool" | "grid" | "otherActions" | "hiddenCategorizedRiskKeys" | "notes"
+    "pool" | "grid" | "resources" | "otherActions" | "hiddenCategorizedRiskKeys" | "notes"
   >,
 ): boolean {
   if (!poolListsEqual(a.pool, b.pool)) return false;
   if (!gridsEqual(a.grid, b.grid)) return false;
   if (!otherActionsEqual(a.otherActions, b.otherActions)) return false;
+  if (!otherActionsEqual(a.resources ?? [], b.resources ?? [])) return false;
   if (!stringSetsEqual(a.hiddenCategorizedRiskKeys, b.hiddenCategorizedRiskKeys)) {
     return false;
   }
@@ -83,7 +84,11 @@ function subListsEqual(
   return true;
 }
 
-function otherActionsEqual(a: OtherAction[], b: OtherAction[]): boolean {
+/** Same `{ id, text }` shape for other actions and resources. */
+function otherActionsEqual(
+  a: (OtherAction | ResourceLine)[],
+  b: (OtherAction | ResourceLine)[],
+): boolean {
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) {
     if (a[i].id !== b[i].id) return false;

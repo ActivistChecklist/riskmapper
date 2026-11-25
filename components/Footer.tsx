@@ -1,3 +1,5 @@
+import { RUCKUS_NAME, RUCKUS_URL } from "@/components/risk-matrix/guidance/guidanceCopy";
+
 const GITHUB_URL = "https://github.com/ActivistChecklist/riskmapper";
 const ACTIVIST_CHECKLIST_URL = "https://activistchecklist.org/";
 
@@ -28,6 +30,16 @@ export function Footer() {
           >
             Activist Checklist
           </a>
+          . Safety planning worksheet adapted with permission from{" "}
+          <a
+            href={RUCKUS_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-rm-ink underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rm-ring"
+          >
+            {RUCKUS_NAME}
+          </a>
+          .
         </p>
         <nav
           aria-label="Site"

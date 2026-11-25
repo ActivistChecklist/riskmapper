@@ -47,6 +47,9 @@ export default function ImportMatrixDialog({
         summary.unplacedRisks > 0
           ? plural(summary.unplacedRisks, "unplaced risk", "unplaced risks")
           : null,
+        summary.resources > 0
+          ? plural(summary.resources, "resource", "resources")
+          : null,
         `${plural(summary.mitigations, "mitigation", "mitigations")}, ${summary.starred.toLocaleString("en-US")} starred`,
         summary.otherActions > 0
           ? plural(summary.otherActions, "other action", "other actions")

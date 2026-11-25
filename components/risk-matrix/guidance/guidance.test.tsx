@@ -1,0 +1,169 @@
+import { fireEvent, render, screen, within } from "@testing-library/react";
+import { beforeEach, describe, expect, it } from "vitest";
+import RiskMatrix from "../RiskMatrix";
+import { GUIDANCE_STORAGE_KEY } from "./GuidanceContext";
+import { DEFINITIONS, RUCKUS_URL } from "./guidanceCopy";
+
+function enterInto(label: string, text: string) {
+  const field = screen.getByRole("textbox", { name: label });
+  fireEvent.focus(field);
+  fireEvent.change(field, { target: { value: text } });
+  fireEvent.keyDown(field, { key: "Enter" });
+}
+
+const enterRisk = (text: string) => enterInto("Add a risk", text);
+
+describe("safety planning guidance", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
+
+  it("opens with the intro and its Ruckus Society credit", () => {
+    render(<RiskMatrix />);
+    const intro = screen.getByRole("region", { name: "Safety planning" });
+    const link = within(intro).getByRole("link", { name: "Ruckus Society" });
+    expect(link.getAttribute("href")).toBe(RUCKUS_URL);
+    expect(link.getAttribute("target")).toBe("_blank");
+    expect(link.getAttribute("rel")).toBe("noopener noreferrer");
+  });
+
+  it("shows an example in every empty step", () => {
+    render(<RiskMatrix />);
+    expect(screen.getByRole("region", { name: "Example risks" })).toBeTruthy();
+    expect(screen.getByRole("region", { name: "Example plan" })).toBeTruthy();
+    expect(screen.getByRole("region", { name: "Example actions" })).toBeTruthy();
+    expect(screen.getByRole("region", { name: "Example resources" })).toBeTruthy();
+    // Step 1's list, the matrix and step 3's card all carry this one.
+    expect(screen.getAllByText("Infiltrators").length).toBeGreaterThanOrEqual(3);
+  });
+
+  it("takes step 1's example away once a risk is entered", () => {
+    render(<RiskMatrix />);
+    enterRisk("Police arrest blockaders for trespassing at the gate");
+    expect(screen.queryByRole("region", { name: "Example risks" })).toBeNull();
+    // The matrix is still empty, so its example stays.
+    expect(screen.getByRole("region", { name: "Example plan" })).toBeTruthy();
+  });
+
+  it("keeps the plan's example until the first idea is written", () => {
+    render(<RiskMatrix />);
+    // "hi/hl" (high impact, high likelihood) is the typing shortcut that
+    // places a risk straight in its cell.
+    enterRisk("Police arrest blockaders for trespassing hi/hl");
+    expect(document.querySelector('[data-drop-target="0-2"] textarea')).toBeTruthy();
+    // The matrix's example goes with the first placed risk; the plan's stays.
+    expect(screen.queryAllByText("Infiltrators")).toHaveLength(1);
+    expect(screen.getByRole("region", { name: "Example plan" })).toBeTruthy();
+
+    const idea = document.querySelector<HTMLTextAreaElement>("[data-sub-line-id]");
+    expect(idea).toBeTruthy();
+    fireEvent.change(idea!, { target: { value: "Practice latching at two trainings" } });
+    expect(screen.queryByRole("region", { name: "Example plan" })).toBeNull();
+  });
+
+  it("adds a risk from the add field and clears it", () => {
+    render(<RiskMatrix />);
+    enterRisk("Counter-protesters block the driveway");
+    const pool = document.querySelector('[data-drop-target="pool"]')!;
+    const listed = Array.from(pool.querySelectorAll<HTMLTextAreaElement>("[data-line-id]"));
+    expect(listed.map((t) => t.value)).toEqual(["Counter-protesters block the driveway"]);
+    expect(
+      (screen.getByRole("textbox", { name: "Add a risk" }) as HTMLTextAreaElement).value,
+    ).toBe("");
+  });
+
+  it("adds one risk per line when a list is pasted into the add field", () => {
+    render(<RiskMatrix />);
+    const field = screen.getByRole("textbox", { name: "Add a risk" });
+    fireEvent.paste(field, {
+      clipboardData: { getData: () => "- Torrential rain\n- Infiltrators in the group chat" },
+    });
+    const pool = document.querySelector('[data-drop-target="pool"]')!;
+    expect(
+      Array.from(pool.querySelectorAll<HTMLTextAreaElement>("[data-line-id]")).map((t) => t.value),
+    ).toEqual(["Torrential rain", "Infiltrators in the group chat"]);
+  });
+
+  it("brainstorms resources in their own step", () => {
+    render(<RiskMatrix />);
+    enterInto("Add a resource", "Two people with lockbox experience");
+    expect(screen.queryByRole("region", { name: "Example resources" })).toBeNull();
+    const list = screen.getByRole("list", { name: "Resources" });
+    expect(within(list).getByRole("textbox", { name: "Resource" })).toHaveProperty(
+      "value",
+      "Two people with lockbox experience",
+    );
+  });
+
+  it("nudges once about a vague risk, until dismissed", () => {
+    render(<RiskMatrix />);
+    enterRisk("bad deployment");
+    const tip = screen.getByRole("status");
+    expect(tip.textContent).toContain('Be thorough - "bad deployment" is not specific.');
+    fireEvent.click(within(tip).getByRole("button", { name: "Got it" }));
+    expect(screen.getByRole("status").textContent).toBe("");
+  });
+
+  it("says nothing about a specific risk", () => {
+    render(<RiskMatrix />);
+    enterRisk("Blockaders don't successfully latch their gear");
+    expect(screen.getByRole("status").textContent).toBe("");
+  });
+
+  it("opens a step's full instructions on request", () => {
+    render(<RiskMatrix />);
+    const more = screen.getAllByRole("button", { name: "More instructions" });
+    // Intro, steps 1 to 4, and the Actions panel.
+    expect(more).toHaveLength(6);
+    fireEvent.click(more[1]);
+    expect(more[1].getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByText("Then look at each risk closely.")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Fewer instructions" })).toBe(more[1]);
+  });
+
+  it("defines a dotted word when it's clicked", () => {
+    render(<RiskMatrix />);
+    fireEvent.click(screen.getByRole("button", { name: "likelihood" }));
+    expect(screen.getByText(DEFINITIONS.likelihood.body)).toBeTruthy();
+  });
+
+  it("shows the example finished plan on the matrix and as cards", () => {
+    render(<RiskMatrix />);
+    fireEvent.click(
+      screen.getAllByRole("button", { name: "Show an example finished plan" })[0],
+    );
+    const dialog = screen.getByRole("dialog", { name: "Example safety plan" });
+    expect(within(dialog).getByRole("table")).toBeTruthy();
+    expect(within(dialog).getAllByText("Nuclear war")).toHaveLength(2);
+    expect(within(dialog).getByRole("link", { name: "Ruckus Society" })).toBeTruthy();
+  });
+
+  it("turns all of it off with one switch, and remembers", () => {
+    const { unmount } = render(<RiskMatrix />);
+    const toggle = screen.getByRole("switch", { name: "Guidance" });
+    expect(toggle.getAttribute("aria-checked")).toBe("true");
+    fireEvent.click(toggle);
+
+    expect(toggle.getAttribute("aria-checked")).toBe("false");
+    expect(screen.queryByRole("region", { name: "Safety planning" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "More instructions" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "Example risks" })).toBeNull();
+    expect(screen.queryByText("Infiltrators")).toBeNull();
+    // Without the example, step 3 falls back to saying what goes there.
+    expect(screen.getByText(/Your risks will show up here/)).toBeTruthy();
+    expect(window.localStorage.getItem(GUIDANCE_STORAGE_KEY)).toBe("off");
+
+    unmount();
+    render(<RiskMatrix />);
+    expect(
+      screen.getByRole("switch", { name: "Guidance" }).getAttribute("aria-checked"),
+    ).toBe("false");
+  });
+
+  it("gives no tip while guidance is off", () => {
+    window.localStorage.setItem(GUIDANCE_STORAGE_KEY, "off");
+    render(<RiskMatrix />);
+    enterRisk("bad deployment");
+    expect(screen.getByRole("status").textContent).toBe("");
+  });
+});

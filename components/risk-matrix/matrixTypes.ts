@@ -5,6 +5,7 @@ import type {
   GridLine,
   OtherAction,
   PoolLine,
+  ResourceLine,
 } from "./types";
 
 /** Default title for the draft matrix (`activeKind === "default"`) until the user sets one. */
@@ -14,6 +15,12 @@ export const DEFAULT_DRAFT_MATRIX_TITLE = "Untitled";
 export type RiskMatrixSnapshot = {
   pool: PoolLine[];
   grid: Record<CellKey, GridLine[]>;
+  /**
+   * The group's resources, brainstormed in their own step. Absent in
+   * matrices saved before that step existed, so read it as
+   * `snapshot.resources ?? []`.
+   */
+  resources?: ResourceLine[];
   collapsed: CollapsedState;
   /** Ad-hoc actions listed below starred items in the Actions panel. */
   otherActions: OtherAction[];

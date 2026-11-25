@@ -16,6 +16,12 @@ export type PoolLine = {
   text: string;
 };
 
+/** One entry in the resources list: something on the group's side. */
+export type ResourceLine = {
+  id: string;
+  text: string;
+};
+
 export type CellKey = string;
 
 export type LineLocation = "pool" | CellKey;

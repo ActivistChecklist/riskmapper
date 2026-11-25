@@ -28,14 +28,12 @@ async function renameMatrix(
   await user.type(input, title);
 }
 
-/** Type into the first pool line (the first textarea on the page). */
+/** Add a risk to the pool through step 1's add field. */
 async function addPoolRisk(
   user: ReturnType<typeof userEvent.setup>,
   text: string,
 ) {
-  const first = document.querySelector("textarea");
-  if (!first) throw new Error("no pool line rendered");
-  await user.type(first, text);
+  await user.type(screen.getByRole("textbox", { name: "Add a risk" }), `${text}{Enter}`);
 }
 
 function storedTitles(): string[] {

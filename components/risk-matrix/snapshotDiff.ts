@@ -6,16 +6,20 @@ import {
   type RiskLocation,
   type SubType,
   addOtherAction,
+  addResource,
   addRiskToCell,
   addRiskToPool,
   addSubLine,
   editOtherActionText,
+  editResourceText,
   editRiskText,
   editSubLineText,
+  getResources,
   getRoot,
   moveRisk,
   readMatrix,
   removeOtherAction,
+  removeResource,
   removeRisk,
   removeSubLine,
   setHiddenRiskKey,
@@ -26,6 +30,7 @@ import type {
   GridLine,
   OtherAction,
   PoolLine,
+  ResourceLine,
   SubLine,
 } from "./types";
 import type { RiskMatrixSnapshot } from "./matrixTypes";
@@ -56,6 +61,7 @@ const log = createLogger("rmsync");
 type SnapshotPart = {
   pool: PoolLine[];
   grid: Record<string, GridLine[]>;
+  resources?: ResourceLine[];
   otherActions: OtherAction[];
   hiddenCategorizedRiskKeys: string[];
   notes: string;
@@ -175,6 +181,9 @@ export function applySnapshotDiff(
       next.snapshot.otherActions,
     );
 
+    // --- resources diff ---
+    diffResources(doc, prev?.snapshot.resources ?? [], next.snapshot.resources ?? []);
+
     // --- hidden keys diff ---
     diffHiddenKeys(
       doc,
@@ -204,7 +213,7 @@ export function snapshotFromDoc(doc: Y.Doc): {
   title: string;
   snapshot: Pick<
     RiskMatrixSnapshot,
-    "pool" | "grid" | "otherActions" | "hiddenCategorizedRiskKeys" | "notes"
+    "pool" | "grid" | "resources" | "otherActions" | "hiddenCategorizedRiskKeys" | "notes"
   >;
 } {
   return readMatrix(doc);
@@ -380,6 +389,53 @@ function diffOtherActions(
     }
     addOtherAction(doc, a);
   }
+}
+
+/**
+ * Same id-keyed add/edit/remove as other actions, but a new resource is
+ * inserted after the entry that precedes it locally rather than appended,
+ * so splitting an entry with Enter keeps its place for everyone.
+ */
+function diffResources(
+  doc: Y.Doc,
+  prev: ResourceLine[],
+  next: ResourceLine[],
+): void {
+  const nextIds = new Set(next.map((r) => r.id));
+  for (const r of prev) {
+    if (!nextIds.has(r.id)) removeResource(doc, r.id);
+  }
+  const docText = new Map<string, string>();
+  getResources(doc).forEach((m) => {
+    const id = m.get("id") as string | undefined;
+    if (id) docText.set(id, (m.get("text") as string | undefined) ?? "");
+  });
+  for (let i = 0; i < next.length; i++) {
+    const r = next[i];
+    if (docText.has(r.id)) {
+      if (docText.get(r.id) !== r.text) editResourceText(doc, r.id, r.text);
+      continue;
+    }
+    // Place it after the nearest earlier entry the doc already holds.
+    let at = 0;
+    for (let j = i - 1; j >= 0; j--) {
+      const idx = indexOfResource(doc, next[j].id);
+      if (idx >= 0) {
+        at = idx + 1;
+        break;
+      }
+    }
+    addResource(doc, r, at);
+    docText.set(r.id, r.text);
+  }
+}
+
+function indexOfResource(doc: Y.Doc, id: string): number {
+  const arr = getResources(doc);
+  for (let i = 0; i < arr.length; i++) {
+    if (arr.get(i).get("id") === id) return i;
+  }
+  return -1;
 }
 
 function diffHiddenKeys(doc: Y.Doc, prev: string[], next: string[]): void {

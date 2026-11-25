@@ -80,6 +80,7 @@ function snapshotHasContent(snap: RiskMatrixSnapshot): boolean {
   return (
     snap.pool.some((p) => filled(p.text)) ||
     Object.values(snap.grid).some((lines) => lines.some((l) => filled(l.text))) ||
+    (snap.resources ?? []).some((r) => filled(r.text)) ||
     snap.otherActions.some((o) => filled(o.text)) ||
     filled(snap.notes)
   );

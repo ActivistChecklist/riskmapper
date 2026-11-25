@@ -21,11 +21,21 @@ import { SuppressTooltips } from "@/components/ui/tooltip";
 import KeyboardShortcutsDialog from "./KeyboardShortcutsDialog";
 import LikelihoodImpactMatrix from "./LikelihoodImpactMatrix";
 import MatrixExportMenu from "./MatrixExportMenu";
-import MatrixHelpSection from "./MatrixHelpSection";
 import MatrixTopBar from "./MatrixTopBar";
 import NotesEditor from "./NotesEditor";
 import RiskPoolSection from "./RiskPoolSection";
+import ResourcesSection from "./ResourcesSection";
 import StepSection from "./StepSection";
+import GuidanceBrief from "./guidance/GuidanceBrief";
+import { GuidanceProvider, useGuidance } from "./guidance/GuidanceContext";
+import SafetyPlanningIntro from "./guidance/SafetyPlanningIntro";
+import { PlanExample } from "./guidance/examples";
+import {
+  EXAMPLE_CELLS,
+  STEP_2,
+  STEP_4,
+  STEP_TITLES,
+} from "./guidance/guidanceCopy";
 import {
   MATRIX_READING_COLUMN_GRID_CHILD_CLASS,
   STEP_SECTION_ACTION_BUTTON_CLASS,
@@ -35,9 +45,10 @@ import {
   copyMatrixRisks,
   copyMitigationsMarkdown,
   copyRichWorksheet,
+  copyResources,
   copyRiskPool,
 } from "./matrixClipboard";
-import { canCopyMatrix, canCopyPool } from "./matrixExport";
+import { canCopyMatrix, canCopyPool, canCopyResources } from "./matrixExport";
 import { createLocalMatrixRepository } from "./matrixDataLayer";
 import { hasMitigationsMarkdownExport } from "./mitigationsMarkdown";
 import { useRiskMatrix } from "./useRiskMatrix";
@@ -234,10 +245,11 @@ function RiskMatrixCanvas({ workspace: ws, cloud, remoteApplyRef }: CanvasProps)
       title: ws.activeTitle,
       pool: m.pool,
       grid: m.grid,
+      resources: m.resources,
       allActions: m.allActions,
       otherActions: m.otherActions,
     }),
-    [ws.activeTitle, m.pool, m.grid, m.allActions, m.otherActions],
+    [ws.activeTitle, m.pool, m.grid, m.resources, m.allActions, m.otherActions],
   );
 
   const handleCopyAll = useCallback(() => {
@@ -250,7 +262,8 @@ function RiskMatrixCanvas({ workspace: ws, cloud, remoteApplyRef }: CanvasProps)
     void copyRichWorksheet({ ...copyArgs, notes: m.notes });
   }, [copyArgs, m.notes]);
 
-  const hasAnyCopyableContent = canPool || canMx || canMit || canAct;
+  const canRes = canCopyResources(m.resources);
+  const hasAnyCopyableContent = canPool || canMx || canRes || canMit || canAct;
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -297,12 +310,42 @@ function RiskMatrixCanvas({ workspace: ws, cloud, remoteApplyRef }: CanvasProps)
     onClick: () => void copyMatrixRisks(m.grid),
   });
 
+  const step3ResourcesCopy = stepCopyBtn({
+    disabled: !canRes,
+    onClick: () => void copyResources(m.resources),
+  });
+
   const step3Copy = stepCopyBtn({
     disabled: !canMit,
     onClick: () => void copyMitigationsMarkdown(m.grid),
   });
 
   const dragging = Boolean(m.dragState || m.mitigationDragState);
+
+  const { enabled: guidance } = useGuidance();
+  // The plan's example stays until the first idea is written in it, rather
+  // than going when the first risk lands on the matrix, so it is still
+  // there when someone scrolls down to the plan.
+  const anyIdea = useMemo(
+    () =>
+      Object.values(m.grid).some((lines) =>
+        lines.some((l) =>
+          [...(l.reduce ?? []), ...(l.prepare ?? [])].some(
+            (s) => s.text.trim().length > 0,
+          ),
+        ),
+      ),
+    [m.grid],
+  );
+  const showPlanExample = guidance && !anyIdea;
+  const placedRiskCount = useMemo(
+    () =>
+      Object.values(m.grid).reduce(
+        (n, lines) => n + lines.filter((l) => l.text.trim().length > 0).length,
+        0,
+      ),
+    [m.grid],
+  );
 
   return (
     <SuppressTooltips when={dragging}>
@@ -358,15 +401,15 @@ function RiskMatrixCanvas({ workspace: ws, cloud, remoteApplyRef }: CanvasProps)
           }
         />
 
-        <MatrixHelpSection />
+        <SafetyPlanningIntro />
 
         <RiskPoolSection
           pool={m.pool}
+          placedRiskCount={placedRiskCount}
           dragState={m.dragState}
           dragOverTarget={m.dragOverTarget}
           dropIndicator={m.dropIndicator}
-          onPoolClick={m.onPoolClick}
-          onAddPoolLine={m.requestAddPoolLine}
+          onAddRisks={m.addPoolRisks}
           onChange={m.updateText}
           onKeyDown={m.handleKeyDown}
           onBlur={m.handleLineBlur}
@@ -380,7 +423,10 @@ function RiskMatrixCanvas({ workspace: ws, cloud, remoteApplyRef }: CanvasProps)
             readingWidth={false}
             className="w-full max-w-none"
             actions={step2Copy}
-            title="Drag the risks into the matrix"
+            title={STEP_TITLES[2]}
+            guidance={
+              <GuidanceBrief lead={STEP_2.lead} more={STEP_2.more} examplePlan />
+            }
           >
             <LikelihoodImpactMatrix
               grid={m.grid}
@@ -394,9 +440,20 @@ function RiskMatrixCanvas({ workspace: ws, cloud, remoteApplyRef }: CanvasProps)
               onBlur={m.handleLineBlur}
               onGripPointerDown={m.onGripPointerDown}
               stepSectionFrame
+              exampleCells={guidance && !m.anyRisks ? EXAMPLE_CELLS : null}
             />
           </StepSection>
         </div>
+
+        <ResourcesSection
+          className="mt-9"
+          resources={m.resources}
+          onAdd={m.addResources}
+          onChange={m.updateResource}
+          onKeyDown={m.handleResourceKeyDown}
+          onBlur={m.handleResourceBlur}
+          actions={step3ResourcesCopy}
+        />
 
         <div
           className={[
@@ -404,37 +461,45 @@ function RiskMatrixCanvas({ workspace: ws, cloud, remoteApplyRef }: CanvasProps)
             "xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)] xl:gap-x-8 xl:gap-y-3",
           ].join(" ")}
         >
-          {/* Mitigations + step 3 header: one card spanning both grid rows (xl) */}
+          {/* Mitigations + step 4 header: one card spanning both grid rows (xl) */}
           <div className="min-w-0 max-xl:mt-5 xl:col-start-1 xl:row-span-2 xl:row-start-1 xl:mt-0">
             <StepSection
-              step={3}
+              step={4}
               readingWidth={false}
               allowOverflow
               className="w-full max-w-none"
               actions={step3Copy}
-              title="Brainstorm ways you can prepare for these risks. Star the items you intend to act on."
+              title={STEP_TITLES[4]}
+              guidance={
+                <GuidanceBrief lead={STEP_4.lead} more={STEP_4.more} examplePlan />
+              }
             >
               {m.anyRisks ? (
-                <CategorizedRiskGroups
-                  anyRisks={m.anyRisks}
-                  risksByColor={m.risksByColor}
-                  collapsed={m.collapsed}
-                  setCollapsed={m.setCollapsed}
-                  hiddenCategorizedRiskKeys={m.hiddenCategorizedRiskKeys}
-                  categorizedRevealHidden={m.categorizedRevealHidden}
-                  onToggleCategorizedRiskHidden={m.toggleCategorizedRiskHidden}
-                  onToggleCategorizedRevealHidden={m.toggleCategorizedRevealHidden}
-                  onChangeRisk={m.updateText}
-                  onRiskKeyDown={m.handleRiskKeyDown}
-                  onChangeSub={m.updateSubText}
-                  onSubKeyDown={m.handleSubKeyDown}
-                  onToggleStar={m.toggleStar}
-                  onPointerAddMitigationSubLine={m.requestAddMitigationSubLine}
-                  draggingSubId={m.draggingSubId}
-                  mitigationDropEdge={m.mitigationDropEdge}
-                  onMitigationGripPointerDown={m.onMitigationGripPointerDown}
-                  embeddedInStepSection
-                />
+                <>
+                  <CategorizedRiskGroups
+                    anyRisks={m.anyRisks}
+                    risksByColor={m.risksByColor}
+                    collapsed={m.collapsed}
+                    setCollapsed={m.setCollapsed}
+                    hiddenCategorizedRiskKeys={m.hiddenCategorizedRiskKeys}
+                    categorizedRevealHidden={m.categorizedRevealHidden}
+                    onToggleCategorizedRiskHidden={m.toggleCategorizedRiskHidden}
+                    onToggleCategorizedRevealHidden={m.toggleCategorizedRevealHidden}
+                    onChangeRisk={m.updateText}
+                    onRiskKeyDown={m.handleRiskKeyDown}
+                    onChangeSub={m.updateSubText}
+                    onSubKeyDown={m.handleSubKeyDown}
+                    onToggleStar={m.toggleStar}
+                    onPointerAddMitigationSubLine={m.requestAddMitigationSubLine}
+                    draggingSubId={m.draggingSubId}
+                    mitigationDropEdge={m.mitigationDropEdge}
+                    onMitigationGripPointerDown={m.onMitigationGripPointerDown}
+                    embeddedInStepSection
+                  />
+                  {showPlanExample ? <PlanExample /> : null}
+                </>
+              ) : showPlanExample ? (
+                <PlanExample />
               ) : (
                 <MitigationsTablePlaceholder embeddedInStepSection />
               )}
@@ -668,12 +733,14 @@ export default function RiskMatrix() {
     );
   }
   return (
-    <RiskMatrixCanvas
-      key={ws.surfaceId}
-      workspace={ws}
-      cloud={cloud}
-      remoteApplyRef={remoteApplyRef}
-    />
+    <GuidanceProvider>
+      <RiskMatrixCanvas
+        key={ws.surfaceId}
+        workspace={ws}
+        cloud={cloud}
+        remoteApplyRef={remoteApplyRef}
+      />
+    </GuidanceProvider>
   );
 }
 

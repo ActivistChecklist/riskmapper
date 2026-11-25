@@ -26,6 +26,7 @@ import type {
   GridLine,
   LineLocation,
   OtherAction,
+  ResourceLine,
   PoolLine,
   SubLine,
 } from "./types";
@@ -41,6 +42,7 @@ import {
   isMatrixCellEmptyBackgroundClick,
   mergeHydratedGrid,
   normalizePoolLines,
+  parseRiskCellShortcut,
   partitionStarred,
   splitInsertIndex,
 } from "./riskMatrixUtils";
@@ -64,7 +66,7 @@ const DEFAULT_EMPTY_POOL_LINE_ID = "rm-ln-i-0";
 /** The snapshot fields that sync between devices through the Y.Doc. */
 export type SyncedSnapshotFields = Pick<
   RiskMatrixSnapshot,
-  "pool" | "grid" | "otherActions" | "hiddenCategorizedRiskKeys" | "notes"
+  "pool" | "grid" | "resources" | "otherActions" | "hiddenCategorizedRiskKeys" | "notes"
 >;
 
 export type UseRiskMatrixOptions = {
@@ -94,6 +96,11 @@ export function useRiskMatrix(options: UseRiskMatrixOptions = {}) {
     otherSeq.current += 1;
     return `rm-other-o-${otherSeq.current}`;
   }, []);
+  const resourceSeq = useRef(0);
+  const newResourceId = useCallback(() => {
+    resourceSeq.current += 1;
+    return `rm-res-r-${resourceSeq.current}`;
+  }, []);
 
   const [pool, setPool] = useState<PoolLine[]>(() =>
     initialSnapshot?.pool?.length
@@ -119,6 +126,11 @@ export function useRiskMatrix(options: UseRiskMatrixOptions = {}) {
   );
   const [otherActions, setOtherActions] = useState<OtherAction[]>(
     () => initialSnapshot?.otherActions ?? [],
+  );
+  // Unlike the pool, the resources list holds no empty entry to type into:
+  // its add field is separate, so nothing blank is saved or synced.
+  const [resources, setResources] = useState<ResourceLine[]>(
+    () => initialSnapshot?.resources ?? [],
   );
   const [hiddenCategorizedRiskKeys, setHiddenCategorizedRiskKeys] = useState<
     string[]
@@ -146,6 +158,7 @@ export function useRiskMatrix(options: UseRiskMatrixOptions = {}) {
     let maxI = lineSeq.current;
     let maxS = subSeq.current;
     let maxO = otherSeq.current;
+    let maxR = resourceSeq.current;
     const scanIds = (ids: string[]) => {
       for (const id of ids) {
         const mi = /-i-(\d+)$/.exec(id);
@@ -154,6 +167,8 @@ export function useRiskMatrix(options: UseRiskMatrixOptions = {}) {
         if (ms) maxS = Math.max(maxS, Number(ms[1]));
         const mo = /-o-(\d+)$/.exec(id);
         if (mo) maxO = Math.max(maxO, Number(mo[1]));
+        const mr = /-r-(\d+)$/.exec(id);
+        if (mr) maxR = Math.max(maxR, Number(mr[1]));
       }
     };
     for (const p of snap.pool) scanIds([p.id]);
@@ -166,9 +181,11 @@ export function useRiskMatrix(options: UseRiskMatrixOptions = {}) {
       }
     }
     for (const o of snap.otherActions ?? []) scanIds([o.id]);
+    for (const r of snap.resources ?? []) scanIds([r.id]);
     lineSeq.current = maxI;
     subSeq.current = maxS;
     otherSeq.current = maxO;
+    resourceSeq.current = maxR;
   }, []);
 
   const hydratedSnapshotRef = useRef(initialSnapshot ?? null);
@@ -197,6 +214,7 @@ export function useRiskMatrix(options: UseRiskMatrixOptions = {}) {
       setPool(nextPool);
       setGrid(mergeHydratedGrid(snap.grid));
       setOtherActions(snap.otherActions);
+      setResources(snap.resources ?? []);
       setHiddenCategorizedRiskKeys(snap.hiddenCategorizedRiskKeys);
       setNotes(snap.notes);
     },
@@ -1153,6 +1171,50 @@ export function useRiskMatrix(options: UseRiskMatrixOptions = {}) {
     focusLine(nid, 0);
   }, [pool, newLineId, focusLine]);
 
+  /**
+   * Add risks from step 1's add field, one per text, after the existing
+   * ones. A text ending in the "impact / likelihood" shortcut goes straight
+   * to its matrix cell, as it does when typed into a list entry. Returns
+   * the new pool entries.
+   */
+  const addPoolRisks = useCallback(
+    (texts: string[]): PoolLine[] => {
+      const toPool: PoolLine[] = [];
+      const toGrid: { cell: CellKey; line: GridLine }[] = [];
+      for (const raw of texts) {
+        const text = raw.trim();
+        if (!text) continue;
+        const shortcut = parseRiskCellShortcut(text);
+        if (shortcut && shortcut.cleanedText) {
+          toGrid.push({
+            cell: shortcut.targetCell,
+            line: { id: newLineId(), text: shortcut.cleanedText },
+          });
+        } else {
+          toPool.push({ id: newLineId(), text });
+        }
+      }
+      if (toPool.length > 0) {
+        // Blank entries are only ever the old type-here line, which the add
+        // field replaces; one stays last because the paste and drag code
+        // still expect it.
+        const kept = poolRef.current.filter((l) => l.text !== "");
+        const next = [...kept, ...toPool, { id: newLineId(), text: "" }];
+        poolRef.current = next;
+        setPool(next);
+      }
+      if (toGrid.length > 0) {
+        setGrid((prev) => {
+          const g = { ...prev };
+          for (const { cell, line } of toGrid) g[cell] = [...(g[cell] || []), line];
+          return g;
+        });
+      }
+      return toPool;
+    },
+    [newLineId],
+  );
+
   /** Append a matrix cell line or focus the trailing empty line (pointer “+ add”). */
   const requestAddMatrixCellLine = useCallback(
     (cellKey: CellKey) => {
@@ -1342,6 +1404,97 @@ export function useRiskMatrix(options: UseRiskMatrixOptions = {}) {
     [newOtherId],
   );
 
+  /** Add one resource per text, after the existing ones. */
+  const addResources = useCallback(
+    (texts: string[]) => {
+      const items = texts
+        .map((t) => t.trim())
+        .filter((t) => t.length > 0)
+        .map((text) => ({ id: newResourceId(), text }));
+      if (items.length === 0) return;
+      setResources((prev) => [...prev, ...items]);
+    },
+    [newResourceId],
+  );
+
+  const updateResource = useCallback((id: string, text: string) => {
+    setResources((prev) => prev.map((r) => (r.id === id ? { ...r, text } : r)));
+  }, []);
+
+  /**
+   * Enter in the middle of a resource splits it at the caret, and Backspace
+   * at the start joins it to the one above, the same as the risk list.
+   * Returns false when the key should move focus to the add field instead
+   * (Enter at the end of an entry, or Backspace in an empty first entry),
+   * so the caller can do that.
+   */
+  const handleResourceKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLTextAreaElement>, resource: ResourceLine): boolean => {
+      const el = e.target as HTMLTextAreaElement;
+      const caret = el.selectionStart ?? 0;
+      const list = resources;
+      const idx = list.findIndex((r) => r.id === resource.id);
+      if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+        e.preventDefault();
+        if (caret >= resource.text.length && el.selectionEnd === el.selectionStart) {
+          return false;
+        }
+        const nid = newResourceId();
+        setResources((prev) => {
+          const i = prev.findIndex((r) => r.id === resource.id);
+          if (i < 0) return prev;
+          const orig = prev[i];
+          return [
+            ...prev.slice(0, i),
+            { ...orig, text: orig.text.slice(0, caret) },
+            { id: nid, text: orig.text.slice(caret) },
+            ...prev.slice(i + 1),
+          ];
+        });
+        focusLine(nid, 0);
+        return true;
+      }
+      if (e.key === "Backspace" && caret === 0 && el.selectionEnd === 0) {
+        if (idx > 0) {
+          e.preventDefault();
+          const prevLine = list[idx - 1];
+          setResources((prev) => {
+            const i = prev.findIndex((r) => r.id === resource.id);
+            if (i <= 0) return prev;
+            return [
+              ...prev.slice(0, i - 1),
+              { ...prev[i - 1], text: prev[i - 1].text + prev[i].text },
+              ...prev.slice(i + 1),
+            ];
+          });
+          focusLine(prevLine.id, prevLine.text.length);
+          return true;
+        }
+        if (resource.text === "") {
+          e.preventDefault();
+          setResources((prev) => prev.filter((r) => r.id !== resource.id));
+          return false;
+        }
+        return true;
+      }
+      if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+        const linesRef = list.map((r) => ({ id: r.id, text: r.text }));
+        handleListVerticalArrows(e, linesRef, resource.id, focusLine);
+      }
+      return true;
+    },
+    [resources, newResourceId, focusLine],
+  );
+
+  /** An entry left empty goes away, wherever it sits in the list. */
+  const handleResourceBlur = useCallback(
+    (_e: React.FocusEvent<HTMLTextAreaElement>, resource: ResourceLine) => {
+      if (resource.text.trim().length > 0) return;
+      setResources((prev) => prev.filter((r) => r.id !== resource.id));
+    },
+    [],
+  );
+
   /**
    * Pasting several lines into any entry box makes one entry per line.
    * Attached once on the matrix root: paste bubbles, and the data-* id on
@@ -1390,6 +1543,11 @@ export function useRiskMatrix(options: UseRiskMatrixOptions = {}) {
               text,
             })),
           }));
+        } else if (resources.some((r) => r.id === lineId)) {
+          ids = texts.slice(1).map(() => newResourceId());
+          setResources((prev) =>
+            spliceLines(prev, lineId, texts, (text, i) => ({ id: ids[i], text })),
+          );
         } else if (otherActions.some((o) => o.id === lineId)) {
           ids = texts.slice(1).map(() => newOtherId());
           setOtherActions((prev) =>
@@ -1448,7 +1606,17 @@ export function useRiskMatrix(options: UseRiskMatrixOptions = {}) {
       const lastId = ids[ids.length - 1];
       requestAnimationFrame(() => focusByAttr(attr, lastId, caret));
     },
-    [findLine, grid, otherActions, newLineId, newSubLineId, newOtherId, focusByAttr],
+    [
+      findLine,
+      grid,
+      resources,
+      otherActions,
+      newLineId,
+      newSubLineId,
+      newOtherId,
+      newResourceId,
+      focusByAttr,
+    ],
   );
 
   const toggleCategorizedRiskHidden = useCallback(
@@ -1487,6 +1655,7 @@ export function useRiskMatrix(options: UseRiskMatrixOptions = {}) {
     return {
       pool,
       grid,
+      resources,
       collapsed,
       otherActions,
       hiddenCategorizedRiskKeys,
@@ -1496,6 +1665,7 @@ export function useRiskMatrix(options: UseRiskMatrixOptions = {}) {
   }, [
     pool,
     grid,
+    resources,
     collapsed,
     otherActions,
     hiddenCategorizedRiskKeys,
@@ -1521,6 +1691,11 @@ export function useRiskMatrix(options: UseRiskMatrixOptions = {}) {
     confirmDelete,
     risksByColor,
     allActions,
+    resources,
+    addResources,
+    updateResource,
+    handleResourceKeyDown,
+    handleResourceBlur,
     otherActions,
     addOtherAction,
     updateOtherAction,
@@ -1540,6 +1715,7 @@ export function useRiskMatrix(options: UseRiskMatrixOptions = {}) {
     onPoolClick,
     onCellClick,
     requestAddPoolLine,
+    addPoolRisks,
     requestAddMatrixCellLine,
     requestAddMitigationSubLine,
     handleRiskKeyDown,

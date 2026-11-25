@@ -29,6 +29,17 @@ import {
   type NotesInline,
 } from "../notesMarkdown";
 import { ensurePdfFontsRegistered } from "./fonts";
+import {
+  INTRO,
+  RUCKUS_NAME,
+  RUCKUS_URL,
+  STEP_1,
+  STEP_2,
+  STEP_3,
+  STEP_4,
+  STEP_TITLES,
+  leadText,
+} from "../guidance/guidanceCopy";
 
 ensurePdfFontsRegistered();
 
@@ -136,6 +147,10 @@ const styles = StyleSheet.create({
     fontSize: 10,
     lineHeight: 1.45,
     marginBottom: 6,
+  },
+  helpCredit: {
+    fontSize: 9,
+    color: "#555",
   },
   bold: { fontWeight: 700 },
   italic: { fontStyle: "italic" },
@@ -472,7 +487,7 @@ function StepHeader({
   title,
   rightSlot,
 }: {
-  step: 1 | 2 | 3;
+  step: 1 | 2 | 3 | 4;
   title: string;
   rightSlot?: React.ReactNode;
 }) {
@@ -487,44 +502,33 @@ function StepHeader({
   );
 }
 
+/**
+ * The app's guidance, condensed for people who only see the export: the
+ * intro, each step's lead line, and the credit. It prints whether or not
+ * the Guidance switch is on, since the reader never saw the app.
+ */
 function HelpSection() {
+  const leads = [STEP_1.lead, STEP_2.lead, STEP_3.lead, STEP_4.lead];
   return (
     <View style={styles.helpCard} wrap={false}>
-      <Text style={styles.helpHeading}>How to do risk mapping</Text>
-      <Text style={styles.helpParagraph}>
-        Good organizing means taking strategic risks. A risk assessment isn&apos;t
-        about eliminating risk, it helps your group take bolder action with
-        clearer eyes by naming what you&apos;re actually facing, deciding what
-        matters most, and choosing what&apos;s worth preparing for. It works
-        best done with a few people on your team.
-      </Text>
-      <Text style={styles.helpParagraph}>
-        <Text style={styles.bold}>Name the risks.</Text> Be concrete:{" "}
-        <Text style={styles.italic}>who</Text> could do{" "}
-        <Text style={styles.italic}>what</Text>. (&quot;A counter-protester
-        could try to provoke a fight.&quot; &quot;Police could arrest
-        participants for trespassing.&quot; &quot;A leader could be doxxed
-        because their name is on the sign-up page.&quot;) Don&apos;t try to
-        list every possibility. Focus on what feels concerning for this group,
-        this action, this place, this moment.
-      </Text>
-      <Text style={styles.helpParagraph}>
-        <Text style={styles.bold}>Place each risk by impact and likelihood.</Text>{" "}
-        Impact is how bad it would be if it happened. Likelihood is how likely
-        it is to actually happen for a group like yours. If you&apos;re unsure
-        how likely something is, ask people doing similar work in your area.
-        Grounding the estimate in real experience pulls you out of reactive
-        fear.
-      </Text>
-      <Text style={styles.helpParagraph}>
-        <Text style={styles.bold}>Add mitigations.</Text> Under each
-        categorized risk, brainstorm two kinds of action: ways to{" "}
-        <Text style={styles.italic}>reduce the likelihood</Text> it happens
-        (vet new members, use Signal, secure your accounts) and ways to{" "}
-        <Text style={styles.italic}>prepare to respond</Text> if it does
-        (know-your-rights training, exit routes, legal hotline saved). Star the
-        most important ones to surface them in the Actions panel as your
-        shortlist of what to actually go do.
+      <Text style={styles.helpHeading}>{INTRO.heading}</Text>
+      {[leadText(INTRO.lead), ...INTRO.more].map((p) => (
+        <Text key={p} style={styles.helpParagraph}>
+          {p}
+        </Text>
+      ))}
+      {leads.map((lead) => (
+        <Text key={leadText(lead)} style={styles.helpParagraph}>
+          <Text style={styles.bold}>{lead.strong}</Text>
+          {leadText({ parts: lead.parts })}
+        </Text>
+      ))}
+      <Text style={styles.helpCredit}>
+        Adapted with permission from{" "}
+        <Link src={RUCKUS_URL} style={styles.notesLink}>
+          {RUCKUS_NAME}
+        </Link>
+        .
       </Text>
     </View>
   );
@@ -545,6 +549,28 @@ function PoolList({ pool }: { pool: RiskMatrixSnapshot["pool"] }) {
         <View key={line.id} style={styles.poolItem}>
           <Text style={styles.poolBullet}>•</Text>
           <Text style={styles.poolText}>{line.text}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+/** Step 3's list. Matrices from before resources have none. */
+function ResourcesList({
+  resources,
+}: {
+  resources: RiskMatrixSnapshot["resources"];
+}) {
+  const items = (resources ?? []).filter((r) => r.text.trim().length > 0);
+  if (items.length === 0) {
+    return <Text style={styles.emptyText}>No resources listed yet.</Text>;
+  }
+  return (
+    <View>
+      {items.map((r) => (
+        <View key={r.id} style={styles.poolItem}>
+          <Text style={styles.poolBullet}>•</Text>
+          <Text style={styles.poolText}>{r.text}</Text>
         </View>
       ))}
     </View>
@@ -886,7 +912,7 @@ export function MatrixPdfDocument({ title, snapshot }: MatrixPdfDocumentProps) {
         <View style={styles.stepCard} wrap={false}>
           <StepHeader
             step={1}
-            title="What risks concern you the most right now?"
+            title={STEP_TITLES[1]}
           />
           <View style={styles.stepBody}>
             <PoolList pool={snapshot.pool} />
@@ -904,7 +930,7 @@ export function MatrixPdfDocument({ title, snapshot }: MatrixPdfDocumentProps) {
         <View style={styles.stepCard}>
           <StepHeader
             step={2}
-            title="Drag the risks into the matrix"
+            title={STEP_TITLES[2]}
             rightSlot={
               <Link
                 src="https://riskmapper.app"
@@ -920,12 +946,18 @@ export function MatrixPdfDocument({ title, snapshot }: MatrixPdfDocumentProps) {
         </View>
       </Page>
 
-      {/* Page 3+ — portrait — step 3 mitigations, actions, notes */}
+      {/* Page 3+, portrait: step 3 resources, step 4 plan, actions, notes */}
       <Page size="LETTER" orientation="portrait" style={styles.page}>
         <View style={styles.stepCard}>
+          <StepHeader step={3} title={STEP_TITLES[3]} />
+          <View style={styles.stepBody}>
+            <ResourcesList resources={snapshot.resources} />
+          </View>
+        </View>
+        <View style={styles.stepCard}>
           <StepHeader
-            step={3}
-            title="Brainstorm ways you can prepare for these risks. Star the items you intend to act on."
+            step={4}
+            title={STEP_TITLES[4]}
           />
           <View style={[styles.stepBody, { padding: 0 }]}>
             <MitigationsSection grid={snapshot.grid} />
