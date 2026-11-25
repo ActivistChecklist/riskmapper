@@ -9,9 +9,9 @@
  * timeline out of the noise. Severity maps to console.info / .warn /
  * .error so DevTools' level filters keep working.
  *
- * Disabled when `VITE_DEBUG=false`. Otherwise enabled by default
- * (dev). Set `VITE_DEBUG=false` for production builds that should ship
- * quiet.
+ * Disabled when `VITE_DEBUG=false`, otherwise enabled. In `yarn dev` that
+ * comes from the shell or `.env.local`; every build pins it to "false"
+ * (`BUILD_DEFINES` in vite.config.mts), so production always ships quiet.
  *
  * Read from `import.meta.env`, which Vite inlines at build time. This
  * module is client-only; nothing under `server/` imports it.

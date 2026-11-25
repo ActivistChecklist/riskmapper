@@ -73,13 +73,47 @@ export const sharedResolve = {
   dedupe: ["yjs"],
 };
 
-export default defineConfig({
+/**
+ * A prefix no variable uses, so `vite build` reads none from the shell.
+ * See `buildEnv` below.
+ */
+export const BUILD_ENV_PREFIX = "RISKMAPPER_BUILD_IGNORES_ENV_";
+
+/**
+ * The client-visible values every production build gets, whoever runs it.
+ *
+ * Signing hashes a build made on the signing laptop, and each deploy makes
+ * its own build and refuses to go live unless the two match byte for byte.
+ * Anything the environment can change here would make them differ: a
+ * `VITE_DEBUG=false` in the laptop's untracked `.env.local` once decided
+ * whether every chunk logged to the console, and a build without that file
+ * matched no signature. So `vite build` reads no `.env` file and no `VITE_*`
+ * variable, and these are the only values it sees.
+ *
+ * Flags missing here stay unset in a build, which is their default:
+ * `VITE_CLOUD_SYNC_ENABLED` on, `VITE_CLOUD_API_URL` same-origin. The dev
+ * server still reads `.env.local`, so those knobs keep working in `yarn dev`.
+ */
+export const BUILD_DEFINES: Record<string, string> = {
+  // Quiet, like the offline build. lib/log.ts logs unless this is "false".
+  "import.meta.env.VITE_DEBUG": JSON.stringify("false"),
+};
+
+/** The env settings for `vite build`. */
+const buildEnv = {
+  envDir: false as const,
+  envPrefix: BUILD_ENV_PREFIX,
+  define: BUILD_DEFINES,
+};
+
+export default defineConfig(({ command }) => ({
   plugins: [react(), webcatConfigPlugin()],
 
   resolve: sharedResolve,
 
-  // Client-visible env vars. Was NEXT_PUBLIC_* under Next.
-  envPrefix: "VITE_",
+  // Client-visible env vars. Was NEXT_PUBLIC_* under Next. The dev server
+  // reads them from the shell and .env files; a build reads none of them.
+  ...(command === "build" ? buildEnv : { envPrefix: "VITE_" }),
 
   build: {
     outDir: "dist",
@@ -110,4 +144,4 @@ export default defineConfig({
       },
     },
   },
-});
+}));

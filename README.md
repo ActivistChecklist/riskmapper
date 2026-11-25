@@ -95,8 +95,11 @@ See [THREAT-MODEL.md](THREAT-MODEL.md) for the trust assumptions.
 
 The API is served from the same origin as the app, so client requests use
 relative URLs. To disable the feature entirely on a deploy that has no
-database, set `VITE_CLOUD_SYNC_ENABLED=false` — all share affordances are
-hidden.
+database, add `"import.meta.env.VITE_CLOUD_SYNC_ENABLED": JSON.stringify("false")`
+to `BUILD_DEFINES` in `vite.config.mts`, which hides all share affordances.
+Setting the variable in the environment has no effect on a build: `vite build`
+reads no `.env` file and no `VITE_*` variable, so a signed build and the
+deploy's build come out identical. In `yarn dev` the variables still work.
 
 ## Storage
 
