@@ -34,7 +34,7 @@ describe("safety planning guidance", () => {
     expect(screen.getByRole("region", { name: "Example actions" })).toBeTruthy();
     expect(screen.getByRole("region", { name: "Example resources" })).toBeTruthy();
     // Step 1's list, the matrix and step 3's card all carry this one.
-    expect(screen.getAllByText("Infiltrators").length).toBeGreaterThanOrEqual(3);
+    expect(screen.getAllByText("Cops or feds infiltrate as a participant").length).toBeGreaterThanOrEqual(3);
   });
 
   it("takes step 1's example away once a risk is entered", () => {
@@ -113,7 +113,7 @@ describe("safety planning guidance", () => {
     enterRisk("Police arrest blockaders for trespassing hi/hl");
     expect(document.querySelector('[data-drop-target="0-2"] textarea')).toBeTruthy();
     // The matrix's example goes with the first placed risk; the plan's stays.
-    expect(screen.queryAllByText("Infiltrators")).toHaveLength(1);
+    expect(screen.queryAllByText("Cops or feds infiltrate as a participant")).toHaveLength(1);
     expect(screen.getByRole("region", { name: "Example plan" })).toBeTruthy();
 
     const idea = document.querySelector<HTMLTextAreaElement>("[data-sub-line-id]");
@@ -255,7 +255,7 @@ describe("safety planning guidance", () => {
     expect(screen.queryByRole("region", { name: "Safety planning" })).toBeNull();
     expect(screen.queryByRole("button", { name: "More instructions" })).toBeNull();
     expect(screen.queryByRole("region", { name: "Example risks" })).toBeNull();
-    expect(screen.queryByText("Infiltrators")).toBeNull();
+    expect(screen.queryByText("Cops or feds infiltrate as a participant")).toBeNull();
     // Without the example, step 3 falls back to saying what goes there.
     expect(screen.getByText(/Your risks will show up here/)).toBeTruthy();
     expect(window.localStorage.getItem(GUIDANCE_STORAGE_KEY)).toBe("off");

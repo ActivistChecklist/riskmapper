@@ -100,7 +100,7 @@ describe("the example plan", () => {
     );
     expect(tiers).toEqual({
       "Can't access site day-of": "yellow",
-      Infiltrators: "red",
+      "Cops or feds infiltrate as a participant": "red",
       "Dehydration and overheating on the picket line": "yellow",
       "Torrential rain": "green",
       "Earthquake during the action": "yellow",

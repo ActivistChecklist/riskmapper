@@ -32,6 +32,18 @@ import type { StepExample } from "./GuidanceContext";
 import MitigationsTablePlaceholder from "../MitigationsTablePlaceholder";
 import { GUIDANCE_LINK_BUTTON_CLASS, GUIDANCE_SMALL_BUTTON_CLASS } from "./linkButton";
 
+/**
+ * The dashed edge every example box shares, dark enough to read as a
+ * boundary in both themes.
+ */
+const EXAMPLE_BORDER_CLASS = "rounded-lg rm-dashed";
+
+/**
+ * An example box on a white step body: gray, so it reads as set aside from
+ * the person's own work rather than as part of it.
+ */
+const EXAMPLE_BOX_CLASS = `${EXAMPLE_BORDER_CLASS} bg-rm-surface-2 px-3 pb-3 pt-2`;
+
 /** The small "Example" label under each example. */
 export function ExampleLabel({ className }: { className?: string }) {
   return (
@@ -167,7 +179,7 @@ export function Step1Example({ note, toggle }: ExampleBoxProps) {
   return (
     <section
       aria-label="Example risks"
-      className="rounded-lg border border-dashed border-rm-border-strong px-3 pb-3 pt-2"
+      className={EXAMPLE_BOX_CLASS}
     >
       <ExampleHeading note={note} toggle={toggle} />
       <ul className="text-[13.5px] italic text-rm-muted">
@@ -207,7 +219,7 @@ export function ResourcesExample({ note, toggle }: ExampleBoxProps) {
   return (
     <section
       aria-label="Example resources"
-      className="rounded-lg border border-dashed border-rm-border-strong px-3 pb-3 pt-2"
+      className={EXAMPLE_BOX_CLASS}
     >
       <ExampleHeading note={note} toggle={toggle} />
       <ul className="text-[13.5px] italic text-rm-muted">
@@ -225,7 +237,7 @@ export function ResourcesExample({ note, toggle }: ExampleBoxProps) {
 export function ExampleChip({ text }: { text: string }) {
   return (
     <div className="pointer-events-none mt-1 select-none">
-      <div className="rounded-md border border-dashed border-rm-ink/35 px-2 py-1 text-[13px] leading-snug italic text-rm-muted">
+      <div className="rm-dashed rounded-md px-2 py-1 text-[13px] leading-snug italic text-rm-muted [--rm-dash-color:color-mix(in_srgb,var(--rm-ink)_60%,transparent)]">
         {text}
       </div>
       <ExampleLabel className="mt-0.5 pl-1" />
@@ -274,7 +286,9 @@ export function ExampleRiskCard({
           "rounded-r-md border-l-4 px-3 pb-3 pt-2 sm:px-4",
           GROUP_STRIPE_CLASS[tier],
           ghost
-            ? "bg-rm-surface/60 text-rm-muted outline-[1.5px] -outline-offset-[1.5px] outline-dashed outline-rm-border-strong"
+            ? // No fill of its own: the gray behind it shows through, so
+              // the person's own white cards stand out from the example.
+              "rm-dashed-open-left text-rm-muted"
             : "bg-rm-surface text-rm-ink shadow-[var(--rm-shadow-1)]",
         )}
       >
@@ -392,7 +406,14 @@ export function ExampleMatrix({
 }
 
 /** Starred example items, grouped the way the Actions panel groups them. */
-export function ExampleActions({ note, toggle }: ExampleBoxProps) {
+export function ExampleActions({
+  note,
+  toggle,
+  onGray = false,
+}: ExampleBoxProps & {
+  /** Sits on the panel's gray already, under starred actions. */
+  onGray?: boolean;
+}) {
   const byTier = new Map<ColorGroupKey, string[]>();
   for (const r of EXAMPLE_PLAN) {
     for (const m of [...r.reduce, ...r.prepare]) {
@@ -404,7 +425,7 @@ export function ExampleActions({ note, toggle }: ExampleBoxProps) {
   return (
     <section
       aria-label="Example actions"
-      className="rounded-lg border border-dashed border-rm-border-strong px-2.5 pb-2.5 pt-2"
+      className={cn(EXAMPLE_BORDER_CLASS, "px-2.5 pb-2.5 pt-2", !onGray && "bg-rm-surface-2")}
     >
       <ExampleHeading note={note} toggle={toggle} />
       <div className="space-y-2.5">

@@ -12,6 +12,8 @@
  *   other when cell service drops".
  * - The example plan's "Nuclear war" is now "Earthquake during the action":
  *   the same kind of risk, with something to do if it happens.
+ * - Its "Infiltrators" reads "Cops or feds infiltrate as a participant",
+ *   specific the way the worksheet asks entries to be.
  */
 
 import { COLOR_GROUPS } from "../constants";
@@ -103,15 +105,15 @@ export function vagueRiskTipText(vague: string): string {
 
 export const STEP_1 = {
   lead: {
-    strong: "Get imaginative.",
+    strong: "Brainstorm:",
     parts: [
       " List every ",
       { term: "risk", text: "risk" },
-      " that could befall you, and make each one specific.",
+      " that could occur, and make each one specific.",
     ],
   } satisfies Lead,
   more: [
-    "The first thing to do is get imaginative - using all you know about your current situation, make a list of all the risks that could befall you. " +
+    "The first thing to do is get imaginative - using all you know about your current situation, make a list of all the risks that could occur. " +
       beThoroughText(VAGUE_EXAMPLE) +
       " This list may be quite long.",
   ],
@@ -239,7 +241,9 @@ export const EXAMPLE_PLAN: ExampleRisk[] = [
     ],
   },
   {
-    text: "Infiltrators",
+    // The worksheet's "Infiltrators", spelled out as a specific risk the way
+    // its own "Be thorough" advice asks.
+    text: "Cops or feds infiltrate as a participant",
     cellKey: "0-2",
     reduce: [
       { text: "Strengthen vetting process for new members", starred: true },
@@ -314,7 +318,10 @@ export const EXAMPLE_CELLS: Readonly<Record<CellKey, string[]>> = (() => {
 })();
 
 /** The example cards the plan step shows before your first idea. */
-export const PLAN_EXAMPLE_RISKS = ["Infiltrators", "Torrential rain"] as const;
+export const PLAN_EXAMPLE_RISKS = [
+  "Cops or feds infiltrate as a participant",
+  "Torrential rain",
+] as const;
 
 /**
  * Example resources for step 3. New copy, drawn from the worksheet's
