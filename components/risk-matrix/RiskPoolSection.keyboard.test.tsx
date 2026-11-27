@@ -47,18 +47,3 @@ describe("step 1 keyboard", () => {
     );
   });
 });
-
-describe("step Copy buttons", () => {
-  it("keep the word Copy as their name where only the icon shows", () => {
-    render(<RiskMatrix />);
-    const copies = screen.getAllByRole("button", { name: "Copy" });
-    expect(copies.length).toBeGreaterThanOrEqual(4);
-    for (const button of copies) {
-      const word = within(button).getByText("Copy");
-      // Below sm the word is visually hidden, never display:none, so
-      // screen readers still hear it.
-      expect(word.classList.contains("sr-only")).toBe(true);
-      expect(word.classList.contains("hidden")).toBe(false);
-    }
-  });
-});

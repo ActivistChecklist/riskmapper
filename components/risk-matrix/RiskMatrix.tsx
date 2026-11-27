@@ -296,7 +296,11 @@ function RiskMatrixCanvas({ workspace: ws, cloud, remoteApplyRef }: CanvasProps)
     return () => window.removeEventListener("keydown", onKey);
   }, [handleCopyAll]);
 
+  // Each step's Copy is named for what it copies, matching its toast, so
+  // a screen reader's list of buttons tells them apart. Below sm only the
+  // icon shows, and the name still comes from the label.
   const stepCopyBtn = (opts: {
+    label: string;
     disabled: boolean;
     onClick: () => void;
   }) => (
@@ -304,33 +308,36 @@ function RiskMatrixCanvas({ workspace: ws, cloud, remoteApplyRef }: CanvasProps)
       type="button"
       variant="outline"
       size="sm"
+      aria-label={opts.label}
       className={cn("gap-1 text-xs", STEP_SECTION_ACTION_BUTTON_CLASS)}
       disabled={opts.disabled}
       onClick={opts.onClick}
     >
       <Copy size={14} strokeWidth={2} aria-hidden />
-      {/* Below sm the icon shows alone, but the word stays the button's
-          name for screen readers. */}
-      <span className="sr-only sm:not-sr-only">Copy</span>
+      <span className="hidden sm:inline">Copy</span>
     </Button>
   );
 
   const step1Copy = stepCopyBtn({
+    label: "Copy risk pool",
     disabled: !canPool,
     onClick: () => void copyRiskPool(m.pool),
   });
 
   const step2Copy = stepCopyBtn({
+    label: "Copy matrix",
     disabled: !canMx,
     onClick: () => void copyMatrixRisks(m.grid),
   });
 
   const step3ResourcesCopy = stepCopyBtn({
+    label: "Copy resources",
     disabled: !canRes,
     onClick: () => void copyResources(m.resources),
   });
 
   const step3Copy = stepCopyBtn({
+    label: "Copy all mitigations",
     disabled: !canMit,
     onClick: () => void copyMitigationsMarkdown(m.grid),
   });
