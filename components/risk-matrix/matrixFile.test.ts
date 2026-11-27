@@ -39,6 +39,10 @@ function sampleSnapshot(): RiskMatrixSnapshot {
       { id: "p2", text: "" },
     ],
     grid,
+    resources: [
+      { id: "r1", text: "A trained medic" },
+      { id: "r2", text: " " },
+    ],
     collapsed: { red: true, orange: true, yellow: true, green: true },
     otherActions: [{ id: "o1", text: "Phone tree" }],
     hiddenCategorizedRiskKeys: ["2-0:uuid-risk-b"],
@@ -69,6 +73,7 @@ describe("buildMatrixFile", () => {
         },
         { text: "Rain", likelihood: "low", impact: "low", hidden: true },
       ],
+      resources: ["A trained medic"],
       otherActions: ["Phone tree"],
       notes: "## Plan\n\n- **bold**",
     });
@@ -100,7 +105,13 @@ describe("parseMatrixFile", () => {
     expect(snapshot.pool[0].id).toBe("rm-ln-i-3");
     expect(snapshot.grid["0-2"][0].reduce?.[0].id).toBe("rm-sub-s-1");
     expect(snapshot.otherActions[0].id).toBe("rm-other-o-1");
+    expect(snapshot.resources?.[0].id).toBe("rm-res-r-1");
     expect(snapshot.hiddenCategorizedRiskKeys).toEqual(["2-0:rm-ln-i-2"]);
+  });
+
+  it("reads a file from before resources as having none", () => {
+    const { snapshot } = parseMatrixFile(fileText({ unplacedRisks: ["Rain"] }));
+    expect(snapshot.resources).toEqual([]);
   });
 
   it("resets per-viewer UI state instead of trusting the file", () => {
@@ -285,6 +296,7 @@ describe("summarizeImport", () => {
             preparations: [{ text: "call tel:5551234" }],
           },
         ],
+        resources: ["van at www.example.org"],
         otherActions: ["x"],
         notes: "[hotline](https://example.com) and mailto:a@example.com",
       }),
@@ -294,9 +306,10 @@ describe("summarizeImport", () => {
       unplacedRisks: 1,
       mitigations: 3,
       starred: 1,
+      resources: 1,
       otherActions: 1,
       hasNotes: true,
-      links: 4,
+      links: 5,
     });
   });
 });

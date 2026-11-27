@@ -5,6 +5,7 @@ import type {
   GridLine,
   OtherAction,
   PoolLine,
+  ResourceLine,
   SubLine,
 } from "./types";
 import type { RiskMatrixSnapshot } from "./matrixTypes";
@@ -30,6 +31,14 @@ import type { RiskMatrixSnapshot } from "./matrixTypes";
  *                    Y.Map (not Y.Array) so concurrent hides of the same
  *                    key don't insert duplicates.
  *
+ * Top-level, beside "matrix": `doc.getArray("resources")`, each entry a
+ * Y.Map { id, text }. It is not under the root map because shared matrices
+ * created before resources existed have no slot for it, and adding one to
+ * the root map would be a last-writer-wins write: two people opening the
+ * same old matrix could each add an array and one would lose their
+ * entries. A top-level type exists on every peer by name, with nothing to
+ * create, so there is nothing to collide on. Older app versions ignore it.
+ *
  * Concurrent moves of the same risk to different cells resolve LWW on the
  * `location` field with no duplication — that's the central reason risks
  * are id-keyed in a single Y.Map rather than nested under each cell.
@@ -45,6 +54,7 @@ const RISKS = "risks";
 const OTHER_ACTIONS = "otherActions";
 const HIDDEN = "hiddenRiskKeys";
 const NOTES = "notes";
+const RESOURCES = "resources";
 
 const RISK_TEXT = "text";
 const RISK_LOCATION = "location";
@@ -111,6 +121,10 @@ export function seedYDoc(
     for (const a of args.snapshot.otherActions) {
       otherActions.push([makeOtherActionMap(a)]);
     }
+    const resources = getResources(doc);
+    for (const r of args.snapshot.resources ?? []) {
+      resources.push([makeOtherActionMap(r)]);
+    }
     for (const k of args.snapshot.hiddenCategorizedRiskKeys) {
       hidden.set(k, true);
     }
@@ -146,7 +160,7 @@ export function readMatrix(doc: Y.Doc): {
   title: string;
   snapshot: Pick<
     RiskMatrixSnapshot,
-    "pool" | "grid" | "otherActions" | "hiddenCategorizedRiskKeys" | "notes"
+    "pool" | "grid" | "resources" | "otherActions" | "hiddenCategorizedRiskKeys" | "notes"
   >;
 } {
   const r = getRoot(doc);
@@ -185,6 +199,10 @@ export function readMatrix(doc: Y.Doc): {
     id: (m.get(OTHER_ID) as string | undefined) ?? "",
     text: (m.get(OTHER_TEXT) as string | undefined) ?? "",
   }));
+  const resources: ResourceLine[] = getResources(doc).map((m) => ({
+    id: (m.get(OTHER_ID) as string | undefined) ?? "",
+    text: (m.get(OTHER_TEXT) as string | undefined) ?? "",
+  }));
 
   const hiddenCategorizedRiskKeys: string[] = [];
   r.hidden.forEach((v, k) => {
@@ -194,7 +212,14 @@ export function readMatrix(doc: Y.Doc): {
 
   return {
     title,
-    snapshot: { pool, grid, otherActions, hiddenCategorizedRiskKeys, notes },
+    snapshot: {
+      pool,
+      grid,
+      resources,
+      otherActions,
+      hiddenCategorizedRiskKeys,
+      notes,
+    },
   };
 }
 
@@ -325,6 +350,40 @@ export function removeOtherAction(doc: Y.Doc, id: string): void {
   }
 }
 
+// resources
+/** The resources list. Exists on any doc, old or new, without seeding. */
+export function getResources(doc: Y.Doc): Y.Array<AnyMap> {
+  return doc.getArray<AnyMap>(RESOURCES);
+}
+
+/** Insert a resource at `index` (the end when omitted). */
+export function addResource(doc: Y.Doc, resource: ResourceLine, index?: number): void {
+  const arr = getResources(doc);
+  const at = index === undefined ? arr.length : Math.min(Math.max(index, 0), arr.length);
+  arr.insert(at, [makeOtherActionMap(resource)]);
+}
+
+export function editResourceText(doc: Y.Doc, id: string, text: string): void {
+  const arr = getResources(doc);
+  for (let i = 0; i < arr.length; i++) {
+    const m = arr.get(i);
+    if (m.get(OTHER_ID) === id) {
+      m.set(OTHER_TEXT, text);
+      return;
+    }
+  }
+}
+
+export function removeResource(doc: Y.Doc, id: string): void {
+  const arr = getResources(doc);
+  for (let i = 0; i < arr.length; i++) {
+    if (arr.get(i).get(OTHER_ID) === id) {
+      arr.delete(i, 1);
+      return;
+    }
+  }
+}
+
 // — hidden keys —
 export function setHiddenRiskKey(doc: Y.Doc, key: string, hidden: boolean): void {
   const m = getRoot(doc).hidden;
@@ -431,7 +490,8 @@ function makeSubLineMap(s: SubLine): AnyMap {
   return m;
 }
 
-function makeOtherActionMap(a: OtherAction): AnyMap {
+/** An `{ id, text }` entry: used for other actions and for resources. */
+function makeOtherActionMap(a: OtherAction | ResourceLine): AnyMap {
   const m = new Y.Map() as AnyMap;
   m.set(OTHER_ID, a.id);
   m.set(OTHER_TEXT, a.text);

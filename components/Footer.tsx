@@ -1,3 +1,4 @@
+import { RUCKUS_NAME, RUCKUS_URL } from "@/components/risk-matrix/guidance/guidanceCopy";
 import { isOfflineBuild, sitePageLinkProps } from "@/lib/offlineBuild";
 import { OFFLINE_PAGE_PATH } from "@/lib/offlinePaths.mts";
 import { builtOnLabel } from "@/lib/releaseDate";
@@ -32,12 +33,23 @@ export function Footer() {
           >
             Activist Checklist
           </a>
-          {isOfflineBuild() && (
+          . Safety planning worksheet adapted with permission from{" "}
+          <a
+            href={RUCKUS_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-rm-ink underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rm-ring"
+          >
+            {RUCKUS_NAME}
+          </a>
+          {isOfflineBuild() ? (
             <>
               {" · "}
               <span className="font-medium text-rm-ink">Offline copy</span>, built{" "}
               {builtOnLabel()}
             </>
+          ) : (
+            "."
           )}
         </p>
         <nav

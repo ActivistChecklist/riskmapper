@@ -3,10 +3,30 @@ import { escapeMarkdownFetches } from "./markdownEscape";
 import { COL_LABELS, ROW_LABELS } from "./constants";
 import { formatAllMitigationsMarkdown } from "./mitigationsMarkdown";
 import { cellKeyToTone, prependToneCircle } from "./riskTone";
-import type { CellKey, GridLine, OtherAction, PoolLine, StarredAction } from "./types";
+import type {
+  CellKey,
+  GridLine,
+  OtherAction,
+  PoolLine,
+  ResourceLine,
+  StarredAction,
+} from "./types";
 
 export function canCopyPool(pool: PoolLine[]): boolean {
   return pool.some((p) => p.text.trim().length > 0);
+}
+
+export function canCopyResources(resources: ResourceLine[]): boolean {
+  return resources.some((r) => r.text.trim().length > 0);
+}
+
+/** Step 3's list: one bulleted line per resource. */
+export function formatResourcesPlain(resources: ResourceLine[]): string {
+  const lines = resources
+    .map((r) => escapeMarkdownFetches(r.text.trim()))
+    .filter((t) => t.length > 0);
+  if (lines.length === 0) return "(No resources listed.)";
+  return lines.map((t) => `- ${t}`).join("\n");
 }
 
 export function canCopyMatrix(grid: Record<CellKey, GridLine[]>): boolean {
@@ -79,10 +99,13 @@ export function buildFullPlainReport(args: {
   title: string;
   pool: PoolLine[];
   grid: Record<CellKey, GridLine[]>;
+  /** Step 3's list. Absent in matrices from before resources: read as none. */
+  resources?: ResourceLine[];
   allActions: StarredAction[];
   otherActions: OtherAction[];
 }): string {
   const { title, pool, grid, allActions, otherActions } = args;
+  const resources = args.resources ?? [];
   const head = escapeMarkdownFetches(title.replace(/\s+/g, " ").trim()) || "Untitled";
   const mitBody = shiftMarkdownHeadingDepth(formatMitigationsMarkdownBody(grid), 1);
   const actionsBody = formatActionsMarkdownSection(allActions, otherActions);
@@ -96,6 +119,10 @@ export function buildFullPlainReport(args: {
     "## Risk matrix",
     "",
     formatMatrixRisksPlain(grid),
+    "",
+    "## Resources",
+    "",
+    formatResourcesPlain(resources),
     "",
     "## Mitigations & preparations",
     "",
@@ -112,6 +139,7 @@ export function buildSummaryPlain(args: {
   title: string;
   pool: PoolLine[];
   grid: Record<CellKey, GridLine[]>;
+  resources?: ResourceLine[];
   allActions: StarredAction[];
   otherActions: OtherAction[];
 }): string {
@@ -126,9 +154,11 @@ export function buildSummaryPlain(args: {
   for (const lines of Object.values(args.grid)) {
     matrixN += lines.filter((l) => l.text.trim()).length;
   }
+  const resourcesN = (args.resources ?? []).filter((r) => r.text.trim()).length;
   const parts: string[] = [`# ${titleLine}`, ""];
   parts.push("## Risk pool", "", `- Total lines: ${poolN}`, "");
   parts.push("## Risk matrix", "", `- Total risks on matrix: ${matrixN}`, "");
+  parts.push("## Resources", "", `- Total resources: ${resourcesN}`, "");
   parts.push(
     "## Mitigations & preparations",
     "",

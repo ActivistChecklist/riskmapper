@@ -15,6 +15,7 @@ import {
 import { siteIconSrc } from "@/lib/offlineBuild";
 import { MatrixDocumentActions } from "./MatrixToolbar";
 import ThemeToggle from "./ThemeToggle";
+import GuidanceSwitch from "./guidance/GuidanceSwitch";
 import type { MatrixWorkspaceApi } from "./useMatrixWorkspace";
 
 type Props = {
@@ -260,6 +261,7 @@ export default function MatrixTopBar({
                 use Tailwind responsive classes to hide labels at the
                 same breakpoint, so the rendered DOM matches the layout
                 decision at every width. */}
+            <GuidanceSwitch />
             <ThemeToggle />
             {exportMenu}
             {cloudShareControl}

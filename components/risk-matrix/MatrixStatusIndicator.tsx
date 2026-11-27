@@ -3,12 +3,12 @@
 import React, { useState } from "react";
 import {
   AlertTriangle,
-  CircleCheck,
   CloudOff,
   Loader2,
   LockKeyhole,
   RefreshCw,
   ShieldAlert,
+  UserPlus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -53,6 +53,10 @@ export type MatrixStatusIndicatorProps = {
   syncState: SyncState;
   /** Surface a terminal-state action (re-open error dialog, etc). */
   onIndicatorAction?: () => void;
+  /** The Export menu, offered in the local explainer. */
+  exportMenu?: React.ReactNode;
+  /** Opens the share dialog. Absent where sharing isn't available. */
+  onShare?: () => void;
   className?: string;
 };
 
@@ -96,7 +100,7 @@ function OfflinePageLink() {
   if (isOfflineBuild()) return null;
   return (
     <p>
-      To use Risk Mapper fully offline, with nothing sent to any server,{" "}
+      To use Risk Mapper fully offline,{" "}
       <a
         href={OFFLINE_PAGE_PATH}
         className="font-medium text-rm-ink underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rm-ring"
@@ -140,17 +144,68 @@ function OfflineStorageNote() {
   );
 }
 
+/**
+ * The local explainer's push to keep another copy. A matrix saved only in
+ * this browser is one cleared cache or lost laptop away from gone, so this
+ * says so plainly and puts the two ways out (Export, and Share where it
+ * exists) right under it. It sits outside the dialog's description so its
+ * buttons aren't read out as part of the description.
+ */
+function KeepACopy({
+  exportMenu,
+  onShare,
+}: {
+  exportMenu?: React.ReactNode;
+  onShare?: () => void;
+}) {
+  return (
+    <section
+      aria-labelledby="rm-keep-a-copy"
+      className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm leading-relaxed text-amber-950 dark:border-amber-700/60 dark:bg-amber-950/40 dark:text-amber-100"
+    >
+      <h3 id="rm-keep-a-copy" className="font-semibold">
+        Keep another copy
+      </h3>
+      <p className="mt-1">
+        The app keeps this matrix only in this browser. If this site&apos;s
+        data is cleared, or this computer is lost, broken or taken, the matrix
+        is gone. Export a copy and keep it somewhere safe
+        {onShare
+          ? ", or share it to keep an end-to-end encrypted copy that you can open on another device with the link."
+          : "."}
+      </p>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        {exportMenu}
+        {onShare ? (
+          <Button
+            type="button"
+            variant="primary"
+            className="gap-2 px-3 text-[15px] sm:px-4"
+            onClick={onShare}
+          >
+            <UserPlus className="size-[18px]" aria-hidden />
+            Share
+          </Button>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
 /** The shell both pills share: title, prose, security link, dismiss. */
 function StatusInfoDialog({
   open,
   onOpenChange,
   title,
   children,
+  after,
 }: {
   open: boolean;
   onOpenChange: (next: boolean) => void;
   title: string;
   children: React.ReactNode;
+  /** Shown under the description, before the dismiss button. */
+  after?: React.ReactNode;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -165,6 +220,7 @@ function StatusInfoDialog({
             </div>
           </DialogDescription>
         </DialogHeader>
+        {after}
         <div className="mt-4 flex justify-end">
           <Button type="button" onClick={() => onOpenChange(false)}>
             Got it
@@ -179,6 +235,8 @@ export default function MatrixStatusIndicator({
   shared,
   syncState,
   onIndicatorAction,
+  exportMenu,
+  onShare,
   className,
 }: MatrixStatusIndicatorProps) {
   const [infoOpen, setInfoOpen] = useState(false);
@@ -200,7 +258,9 @@ export default function MatrixStatusIndicator({
                 className,
               )}
             >
-              <CircleCheck className="size-3.5 text-emerald-600 dark:text-emerald-400" aria-hidden />
+              {/* A lock, like the encrypted shared state: it says this is
+                  about safety, and that clicking it explains how. */}
+              <LockKeyhole className="size-3.5 text-emerald-600 dark:text-emerald-400" aria-hidden />
               {/* Label collapses to icon-only below lg so the title row
                   keeps the right cluster on a single line on narrower
                   screens. */}
@@ -216,6 +276,21 @@ export default function MatrixStatusIndicator({
           open={infoOpen}
           onOpenChange={setInfoOpen}
           title="Saved on your device"
+          after={
+            <KeepACopy
+              exportMenu={exportMenu}
+              onShare={
+                onShare
+                  ? () => {
+                      setInfoOpen(false);
+                      // Open the share dialog once this one has closed and
+                      // handed focus back, so focus lands in the new one.
+                      requestAnimationFrame(onShare);
+                    }
+                  : undefined
+              }
+            />
+          }
         >
           <p>
             Nothing you type here is sent over the internet or stored on our
@@ -223,12 +298,7 @@ export default function MatrixStatusIndicator({
             in this browser on this computer, like notes in a notebook that
             never leave your desk.
           </p>
-          {isOfflineBuild() ? <OfflineStorageNote /> : (
-            <p>
-              If you clear this site&apos;s data in your browser, the data will be
-              deleted.
-            </p>
-          )}
+          {isOfflineBuild() ? <OfflineStorageNote /> : null}
         </StatusInfoDialog>
       </>
     );

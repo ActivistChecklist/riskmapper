@@ -4,6 +4,7 @@ import React from "react";
 import { GripVertical } from "lucide-react";
 import type { LineLocation, PoolLine, GridLine } from "./types";
 import LineShell from "./LineShell";
+import { CELL_RISK_CARD_CLASS } from "./constants";
 import { cn } from "@/lib/utils";
 
 export type LineRowProps = {
@@ -56,8 +57,8 @@ const LineRow = React.memo(function LineRow({
         isEmpty
           ? "border-transparent bg-transparent"
           : inCell
-            ? "border-rm-border bg-white/55 dark:bg-white/[0.05]"
-            : "border-rm-border bg-rm-line",
+            ? CELL_RISK_CARD_CLASS
+            : "border-rm-border bg-rm-surface shadow-[var(--rm-shadow-1)]",
       )}
       leftAffordance={
         <span

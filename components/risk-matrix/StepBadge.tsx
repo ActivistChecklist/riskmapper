@@ -3,7 +3,7 @@
 import React from "react";
 
 export type StepBadgeProps = {
-  step: 1 | 2 | 3;
+  step: 1 | 2 | 3 | 4;
   /** `onPrimary`: light badge on `bg-rm-primary` step headers. */
   variant?: "default" | "onPrimary";
 };

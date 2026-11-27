@@ -61,6 +61,17 @@ describe("Footer", () => {
     expect(credit.getAttribute("rel")).toBe("noopener noreferrer");
   });
 
+  it("credits Ruckus Society for the safety planning worksheet, in a new tab", () => {
+    render(<Footer />);
+    const credit = screen.getByRole("link", { name: "Ruckus Society" });
+    expect(credit.closest("p")?.textContent).toContain(
+      "Safety planning worksheet adapted with permission from Ruckus Society.",
+    );
+    expect(credit.getAttribute("href")).toBe("https://www.ruckus.org/resources");
+    expect(credit.getAttribute("target")).toBe("_blank");
+    expect(credit.getAttribute("rel")).toBe("noopener noreferrer");
+  });
+
   it("exposes the site nav as a labelled landmark", () => {
     render(<Footer />);
     expect(screen.getByRole("navigation", { name: /site/i })).toBeTruthy();

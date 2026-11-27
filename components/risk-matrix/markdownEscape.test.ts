@@ -37,6 +37,7 @@ describe("plain-text exports never carry a fetching construct", () => {
       title: IMAGE,
       pool: [{ id: "p", text: HTML }],
       grid,
+      resources: [{ id: "r", text: IMAGE }],
       allActions: [
         {
           subLine: grid["0-2"][0].reduce![0],

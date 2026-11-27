@@ -32,6 +32,13 @@ export const CELL_BG_CLASSES: string[][] = [
   ["bg-rm-green", "bg-rm-green", "bg-rm-yellow"],
 ];
 
+/**
+ * A risk placed in a matrix cell: translucent, so the cell's tier color
+ * tints it. The example matrix uses it too, so its cards match real ones.
+ */
+export const CELL_RISK_CARD_CLASS =
+  "border-rm-border bg-white/55 dark:bg-white/[0.05]";
+
 export function cellKeyToBgClass(key: CellKey): string {
   const [rs, cs] = key.split("-");
   const row = Number(rs);

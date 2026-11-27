@@ -63,13 +63,17 @@ function sampleGrid() {
 }
 
 describe("buildMatrixCsv", () => {
-  it("writes one row per mitigation, highest risk first, then pool and other actions", () => {
+  it("writes one row per mitigation, highest risk first, then pool, resources and other actions", () => {
     const csv = buildMatrixCsv({
       pool: [
         { id: "p1", text: "Infiltrator" },
         { id: "p2", text: "" },
       ],
       grid: sampleGrid(),
+      resources: [
+        { id: "r1", text: "Two trained medics" },
+        { id: "r2", text: "  " },
+      ],
       otherActions: [
         { id: "o1", text: "Set up a phone tree" },
         { id: "o2", text: " " },
@@ -98,8 +102,16 @@ describe("buildMatrixCsv", () => {
         "",
       ],
       ["Not yet placed", "", "", "Infiltrator", "", "", ""],
+      ["", "", "", "", "Resource", "Two trained medics", ""],
       ["", "", "", "", "Other action", "Set up a phone tree", "Yes"],
     ]);
+  });
+
+  it("reads a matrix saved before resources existed as having none", () => {
+    const rows = parseCsv(
+      buildMatrixCsv({ pool: [], grid: emptyGrid(), otherActions: [] }).slice(1),
+    );
+    expect(rows.flat()).not.toContain("Resource");
   });
 
   it("writes only the header for an empty matrix", () => {
@@ -150,6 +162,11 @@ describe("buildWorksheetCsv", () => {
         title: "Spring march",
         pool: [{ id: "p1", text: "Infiltrator" }],
         grid: sampleGrid(),
+        resources: [
+          { id: "r1", text: "Two trained medics" },
+          { id: "r2", text: "" },
+          { id: "r3", text: "Van for the support team" },
+        ],
         otherActions: [{ id: "o1", text: "Set up a phone tree" }],
         notes: "## Plan\n\n \n\n- Meet at the library\n- Bring water",
         ...overrides,
@@ -176,7 +193,11 @@ describe("buildWorksheetCsv", () => {
       ["Medium likelihood", "", "", "🟠 Phone seized at protest"],
       ["Low likelihood"],
       [],
-      ["━━ STEP 3 · MITIGATIONS (⭐ = an action you intend to take) ━━"],
+      ["━━ STEP 3 · RESOURCES ━━"],
+      ["• Two trained medics"],
+      ["• Van for the support team"],
+      [],
+      ["━━ STEP 4 · MITIGATIONS (⭐ = an action you intend to take) ━━"],
       ["🔴 HIGHEST RISK"],
       ["🔴 Doxxing"],
       [
@@ -247,8 +268,15 @@ describe("buildWorksheetCsv", () => {
   });
 
   it("says so when sections are empty, and leaves notes out when blank", () => {
-    const rows = worksheet({ pool: [], grid: emptyGrid(), otherActions: [], notes: " " });
+    const rows = worksheet({
+      pool: [],
+      grid: emptyGrid(),
+      resources: [],
+      otherActions: [],
+      notes: " ",
+    });
     expect(rows).toContainEqual(["(No risks left in the pool)"]);
+    expect(rows).toContainEqual(["(No resources listed yet)"]);
     expect(rows).toContainEqual(["(No risks on the matrix yet)"]);
     expect(rows).toContainEqual(["(No actions yet. Star a mitigation to add it here.)"]);
     expect(rows.flat().join(" ")).not.toContain("NOTES");

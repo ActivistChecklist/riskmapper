@@ -1,4 +1,4 @@
-import { act, fireEvent, render } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as Y from "yjs";
 import {
@@ -68,7 +68,7 @@ function snapshot(): RiskMatrixSnapshot {
   };
 }
 
-function seedWorkspace(): void {
+function seedWorkspace(snap: RiskMatrixSnapshot = snapshot()): void {
   const ws: MatrixWorkspaceV1 = {
     v: 1,
     activeKind: "saved",
@@ -80,7 +80,7 @@ function seedWorkspace(): void {
         id: "row-1",
         title: "Shared",
         updatedAt: new Date(0).toISOString(),
-        snapshot: snapshot(),
+        snapshot: snap,
         cloud: {
           recordId: "rec-1",
           keyB64: "k".repeat(43),
@@ -135,6 +135,46 @@ function poolTextarea(container: HTMLElement, id: string): HTMLTextAreaElement {
   if (!el) throw new Error(`no textarea for ${id}`);
   return el;
 }
+
+describe("RiskMatrix live sync of resources", () => {
+  const withResources = (): RiskMatrixSnapshot => ({
+    ...snapshot(),
+    resources: [{ id: "rm-res-r-1", text: "A trained medic" }],
+  });
+
+  beforeEach(() => {
+    window.localStorage.clear();
+    seedWorkspace(withResources());
+    const doc = new Y.Doc();
+    seedYDoc(doc, { title: "Shared", snapshot: withResources() });
+    cloudStub.doc = doc;
+  });
+
+  afterEach(() => {
+    window.localStorage.clear();
+    cloudStub.doc = null;
+  });
+
+  it("keeps the shared doc's resources when something else is edited", () => {
+    const { container } = render(<RiskMatrix />);
+    fireEvent.change(poolTextarea(container, "rm-ln-i-1"), {
+      target: { value: "alpha edited" },
+    });
+    const doc = readMatrix(cloudStub.doc!).snapshot;
+    expect(doc.pool[0].text).toBe("alpha edited");
+    expect(doc.resources).toEqual([{ id: "rm-res-r-1", text: "A trained medic" }]);
+  });
+
+  it("sends a resource added here to the shared doc", () => {
+    render(<RiskMatrix />);
+    const field = screen.getByRole("textbox", { name: "Add a resource" });
+    fireEvent.change(field, { target: { value: "Van for the support team" } });
+    fireEvent.keyDown(field, { key: "Enter" });
+    expect(
+      (readMatrix(cloudStub.doc!).snapshot.resources ?? []).map((r) => r.text),
+    ).toEqual(["A trained medic", "Van for the support team"]);
+  });
+});
 
 describe("RiskMatrix live sync", () => {
   beforeEach(() => {

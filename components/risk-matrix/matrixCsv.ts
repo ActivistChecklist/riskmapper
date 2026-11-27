@@ -15,6 +15,7 @@ import type {
   GridLine,
   OtherAction,
   PoolLine,
+  ResourceLine,
   SubLine,
 } from "./types";
 
@@ -30,7 +31,8 @@ import type {
  * - A placed risk gets one row per non-empty mitigation, or a single row
  *   with the mitigation columns blank if it has none.
  * - Risks still in the pool come next, with no level, likelihood or impact.
- * - Other actions come last, with only the mitigation columns filled.
+ * - Resources follow, typed "Resource", with only the item column filled.
+ * - Other actions come last, with only the item columns filled.
  *
  * Filtering the Action column to "Yes" gives the same list as the Actions
  * panel. Notes are free-form Markdown and are left out.
@@ -42,7 +44,7 @@ export const MATRIX_CSV_HEADERS = [
   "Impact",
   "Risk",
   "Type",
-  "Mitigation or action",
+  "Mitigation, action or resource",
   "Action",
 ] as const;
 
@@ -90,6 +92,8 @@ function placedRiskRows(line: GridLine, cellKey: CellKey, level: string): Row[] 
 export function buildMatrixCsv(args: {
   pool: PoolLine[];
   grid: Record<CellKey, GridLine[]>;
+  /** Absent in matrices from before resources: read as none. */
+  resources?: ResourceLine[];
   otherActions: OtherAction[];
 }): string {
   const rows: Row[] = [[...MATRIX_CSV_HEADERS]];
@@ -104,6 +108,10 @@ export function buildMatrixCsv(args: {
   for (const p of args.pool) {
     if (!p.text.trim()) continue;
     rows.push([UNPLACED_LEVEL, "", "", p.text, "", "", ""]);
+  }
+  for (const r of args.resources ?? []) {
+    if (!r.text.trim()) continue;
+    rows.push(["", "", "", "", "Resource", r.text, ""]);
   }
   for (const o of args.otherActions) {
     if (!o.text.trim()) continue;
@@ -128,7 +136,8 @@ function toCsv(rows: Row[]): string {
 /**
  * Worksheet layout: the page as a spreadsheet, top to bottom. The risk pool,
  * then the 3x3 matrix with every risk in its cell (one per line, each with
- * the cell's colored circle), then mitigations laid out like step 3: each
+ * the cell's colored circle), then the resources list, then mitigations
+ * laid out like step 4: each
  * tier, each risk as its own row, the two questions side by side under it,
  * and the ideas beneath them. Then actions grouped by tier like the Actions
  * panel, and notes. Headers are ruled with ━ so they stand out without
@@ -171,6 +180,8 @@ export function buildWorksheetCsv(args: {
   title: string;
   pool: PoolLine[];
   grid: Record<CellKey, GridLine[]>;
+  /** Absent in matrices from before resources: read as none. */
+  resources?: ResourceLine[];
   otherActions: OtherAction[];
   notes: string;
 }): string {
@@ -198,8 +209,14 @@ export function buildWorksheetCsv(args: {
   });
   rows.push([]);
 
+  rows.push(sectionHeading("STEP 3 · RESOURCES"));
+  const resources = filled(args.resources);
+  if (resources.length === 0) rows.push(["(No resources listed yet)"]);
+  for (const r of resources) rows.push([`${BULLET} ${r.text}`]);
+  rows.push([]);
+
   rows.push(
-    sectionHeading(`STEP 3 · MITIGATIONS (${STAR} = an action you intend to take)`),
+    sectionHeading(`STEP 4 · MITIGATIONS (${STAR} = an action you intend to take)`),
   );
   let anyPlaced = false;
   for (const group of COLOR_GROUPS) {

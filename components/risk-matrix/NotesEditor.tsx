@@ -299,7 +299,10 @@ export default function NotesEditor({
           className="[&_.ProseMirror]:min-h-[5rem] [&_.ProseMirror]:outline-none"
         />
         {editor.isEmpty ? (
-          <p className="pointer-events-none absolute left-3 top-2.5 select-none text-sm text-rm-ink/40 sm:text-[15px]">
+          // Sits exactly where the first typed line lands: the wrapper's
+          // 10px padding plus the paragraph's 6px top margin (top-4), and
+          // the editor's own inherited size and line height.
+          <p className="pointer-events-none absolute left-3 top-4 select-none text-rm-ink/40">
             {placeholder}
           </p>
         ) : null}

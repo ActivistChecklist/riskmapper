@@ -7,11 +7,19 @@ import {
   buildFullPlainReport,
   buildSummaryPlain,
   formatMatrixRisksPlain,
+  formatResourcesPlain,
   formatRiskPoolPlain,
 } from "./matrixExport";
 import { formatAllMitigationsMarkdown } from "./mitigationsMarkdown";
 import { buildRichWorksheetHtml } from "./richTextWorksheet";
-import type { CellKey, GridLine, OtherAction, PoolLine, StarredAction } from "./types";
+import type {
+  CellKey,
+  GridLine,
+  OtherAction,
+  PoolLine,
+  ResourceLine,
+  StarredAction,
+} from "./types";
 
 async function writePlain(text: string, okMessage: string): Promise<boolean> {
   const t = text.trim();
@@ -33,6 +41,7 @@ export async function copyFullReport(args: {
   title: string;
   pool: PoolLine[];
   grid: Record<CellKey, GridLine[]>;
+  resources?: ResourceLine[];
   allActions: StarredAction[];
   otherActions: OtherAction[];
 }): Promise<boolean> {
@@ -53,6 +62,7 @@ export async function copyRichWorksheet(args: {
   title: string;
   pool: PoolLine[];
   grid: Record<CellKey, GridLine[]>;
+  resources?: ResourceLine[];
   allActions: StarredAction[];
   otherActions: OtherAction[];
   notes: string;
@@ -91,6 +101,7 @@ export async function copySummary(args: {
   title: string;
   pool: PoolLine[];
   grid: Record<CellKey, GridLine[]>;
+  resources?: ResourceLine[];
   allActions: StarredAction[];
   otherActions: OtherAction[];
 }): Promise<boolean> {
@@ -99,6 +110,10 @@ export async function copySummary(args: {
 
 export async function copyRiskPool(pool: PoolLine[]): Promise<boolean> {
   return writePlain(formatRiskPoolPlain(pool), "Copied risk pool");
+}
+
+export async function copyResources(resources: ResourceLine[]): Promise<boolean> {
+  return writePlain(formatResourcesPlain(resources), "Copied resources");
 }
 
 export async function copyMatrixRisks(

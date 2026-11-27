@@ -3,6 +3,8 @@
 import React, { useMemo } from "react";
 import { Copy, Star } from "lucide-react";
 import ActionRow from "./ActionRow";
+import CountBadge from "./CountBadge";
+import EmptySlot from "./EmptySlot";
 import OtherActionRow from "./OtherActionRow";
 import { groupActionsByTier, OTHER_ACTIONS_LABEL } from "./actionGroups";
 import {
@@ -10,6 +12,10 @@ import {
   GROUP_STRIPE_CLASS,
   STEP_SECTION_ACTION_BUTTON_CLASS,
 } from "./constants";
+import GuidanceBrief from "./guidance/GuidanceBrief";
+import { useGuidance, useStepExample } from "./guidance/GuidanceContext";
+import { ExampleActions, useExampleToggle } from "./guidance/examples";
+import { FINISHED } from "./guidance/guidanceCopy";
 import { copyStarredActions } from "./matrixClipboard";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -54,6 +60,11 @@ export default function ActionsAside({
   onOtherBlur,
 }: ActionsAsideProps) {
   const totalCount = allActions.length + otherActions.length;
+  const { enabled: guidance } = useGuidance();
+  const example = useStepExample("actions", totalCount === 0);
+  // Like steps 1, 3 and 4, the box holds its own Hide examples link, and a
+  // Show examples link takes the box's place once it is hidden.
+  const exampleToggle = useExampleToggle(example);
 
   const hasCopyableText = useMemo(() => {
     const starredOk = allActions.some(
@@ -74,6 +85,17 @@ export default function ActionsAside({
     void copyStarredActions(allActions, otherActions);
   };
 
+  const emptyText = (
+    <>
+      Star a mitigation or preparation item to also show it here as a
+      prioritized action, or use{" "}
+      <span className="font-medium not-italic text-rm-muted">
+        Add other action
+      </span>{" "}
+      below for anything else.
+    </>
+  );
+
   const addOtherActionControl = (
     <div className="mt-1.5 flex justify-stretch sm:justify-start">
       <Button
@@ -91,6 +113,15 @@ export default function ActionsAside({
   const listBody =
     allActions.length > 0 || otherActions.length > 0 ? (
       <div className="min-h-0 space-y-3 bg-rm-well px-2 pb-2 pt-2.5 sm:px-3">
+        {/* Examples first, above the person's own actions, matching the
+            other steps. */}
+        {guidance ? (
+          example.shown ? (
+            <ExampleActions note={false} toggle={exampleToggle} />
+          ) : (
+            <div className="px-1">{exampleToggle}</div>
+          )
+        ) : null}
         {actionsByTier.map(({ tone, label, actions }) => (
           <ActionGroup
             key={tone}
@@ -127,21 +158,26 @@ export default function ActionsAside({
         ) : null}
         {addOtherActionControl}
       </div>
+    ) : example.shown ? (
+      // Until something is starred, the worksheet's example shows what
+      // this panel collects, and the empty slot under it still says how to
+      // add the person's own.
+      <div className="bg-rm-well px-3 pb-2 pt-2.5">
+        <ExampleActions note toggle={exampleToggle} />
+        <EmptySlot className="mt-3" textClassName="max-w-[17rem]">
+          {emptyText}
+        </EmptySlot>
+        {addOtherActionControl}
+      </div>
     ) : (
-      <div className="flex min-h-[12.5rem] flex-col bg-rm-surface px-3 pb-2 pt-2.5 sm:min-h-[14rem]">
-        <div
-          className="flex min-h-[10.5rem] flex-1 flex-col items-center justify-center rounded-lg border border-dashed border-rm-border-strong bg-rm-surface-2 px-4 py-8 sm:min-h-[11.5rem]"
-          aria-label="Placeholder: starred mitigations and preparations also list here."
+      <div className="flex min-h-[12.5rem] flex-col bg-rm-well px-3 pb-2 pt-2.5 sm:min-h-[14rem]">
+        <EmptySlot
+          action={guidance ? exampleToggle : null}
+          className="min-h-[10.5rem] flex-1 py-8 sm:min-h-[11.5rem]"
+          textClassName="max-w-[17rem]"
         >
-          <p className="max-w-[17rem] text-center text-[13px] leading-snug font-normal italic text-rm-muted-2 sm:text-sm sm:leading-relaxed">
-            Star a mitigation or preparation item to also show it here as a
-            prioritized action, or use{" "}
-            <span className="font-medium not-italic text-rm-muted">
-              Add other action
-            </span>{" "}
-            below for anything else.
-          </p>
-        </div>
+          {emptyText}
+        </EmptySlot>
         {addOtherActionControl}
       </div>
     );
@@ -154,10 +190,13 @@ export default function ActionsAside({
       <div className="flex flex-col overflow-hidden rounded-md border border-rm-border bg-rm-surface">
         <div className="flex shrink-0 items-center gap-1.5 border-b border-white/25 bg-rm-primary px-2 py-2 text-rm-primary-fg sm:px-3">
           <Star size={13} fill="currentColor" strokeWidth={1.5} />
-          <span className="min-w-0 flex-1 text-xs font-semibold uppercase tracking-wide sm:text-sm">
-            Actions
-          </span>
-          <span className="text-xs opacity-90 sm:text-sm">({totalCount})</span>
+          {/* The count sits with the title it counts, not by the Copy button. */}
+          <div className="flex min-w-0 flex-1 items-center gap-1.5">
+            <span className="min-w-0 truncate text-xs font-semibold uppercase tracking-wide sm:text-sm">
+              Actions
+            </span>
+            <CountBadge count={totalCount} variant="onPrimary" />
+          </div>
           <Button
             type="button"
             variant="outline"
@@ -175,6 +214,11 @@ export default function ActionsAside({
           </Button>
         </div>
         {listBody}
+        <GuidanceBrief
+          lead={FINISHED.lead}
+          more={FINISHED.more}
+          className="border-b-0 border-t"
+        />
       </div>
     </aside>
   );

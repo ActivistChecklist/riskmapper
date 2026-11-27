@@ -42,6 +42,7 @@ export const MATRIX_FILE_LIMITS = {
   mitigationsPerRisk: 100,
   mitigationsTotal: 5_000,
   otherActions: 500,
+  resources: 500,
 } as const;
 
 export type MatrixFileLevel = "low" | "medium" | "high";
@@ -65,6 +66,8 @@ export type MatrixFileV1 = {
   /** Risks brainstormed but not yet placed on the matrix. */
   unplacedRisks: string[];
   risks: MatrixFileRisk[];
+  /** What the group has on its side. Absent in files from before resources. */
+  resources?: string[];
   otherActions: string[];
   /** Markdown. */
   notes: string;
@@ -121,6 +124,9 @@ export function buildMatrixFile(args: {
     title: args.title.trim() || DEFAULT_DRAFT_MATRIX_TITLE,
     unplacedRisks: snapshot.pool.map((p) => p.text).filter((t) => !isBlank(t)),
     risks,
+    resources: (snapshot.resources ?? [])
+      .map((r) => r.text)
+      .filter((t) => !isBlank(t)),
     otherActions: snapshot.otherActions
       .map((o) => o.text)
       .filter((t) => !isBlank(t)),
@@ -307,6 +313,11 @@ export function parseMatrixFile(text: string): {
     "otherActions",
     MATRIX_FILE_LIMITS.otherActions,
   ).map((t, i) => ({ id: `rm-other-o-${i + 1}`, text: t }));
+  const resources = stringList(
+    raw.resources,
+    "resources",
+    MATRIX_FILE_LIMITS.resources,
+  ).map((t, i) => ({ id: `rm-res-r-${i + 1}`, text: t }));
   // A title is one line: it lands in the title input and download filenames.
   const title = optionalString(raw.title, "title", MATRIX_FILE_LIMITS.titleChars)
     ?.replace(/\s+/g, " ")
@@ -317,6 +328,7 @@ export function parseMatrixFile(text: string): {
     snapshot: {
       pool,
       grid,
+      resources,
       collapsed: { ...INITIAL_COLLAPSED },
       otherActions,
       hiddenCategorizedRiskKeys,
@@ -332,6 +344,7 @@ export type MatrixImportSummary = {
   unplacedRisks: number;
   mitigations: number;
   starred: number;
+  resources: number;
   otherActions: number;
   hasNotes: boolean;
   /** Web, mail or phone links anywhere in the text. */
@@ -348,6 +361,7 @@ export function summarizeImport(snapshot: RiskMatrixSnapshot): MatrixImportSumma
     ...snapshot.pool.map((p) => p.text),
     ...lines.map((l) => l.text),
     ...subs.map((s) => s.text),
+    ...(snapshot.resources ?? []).map((r) => r.text),
     ...snapshot.otherActions.map((o) => o.text),
     snapshot.notes,
   ];
@@ -356,6 +370,7 @@ export function summarizeImport(snapshot: RiskMatrixSnapshot): MatrixImportSumma
     unplacedRisks: snapshot.pool.length,
     mitigations: subs.length,
     starred: subs.filter((s) => s.starred).length,
+    resources: (snapshot.resources ?? []).length,
     otherActions: snapshot.otherActions.length,
     hasNotes: snapshot.notes.trim().length > 0,
     links: texts.reduce((n, t) => n + (t.match(LINK_RE)?.length ?? 0), 0),

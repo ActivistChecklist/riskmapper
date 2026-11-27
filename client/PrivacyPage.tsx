@@ -1,4 +1,4 @@
-import { OFFLINE_DOWNLOAD_PATH, OFFLINE_PAGE_PATH } from "@/lib/offlinePaths.mts";
+import { OFFLINE_PAGE_PATH } from "@/lib/offlinePaths.mts";
 import { DocPage } from "./DocPage";
 
 /**
@@ -124,11 +124,10 @@ that, nobody, including us, can match the scrambled address to yours.
 ## Use it without contacting us at all
 
 If you would rather we never see a visit from you,
-[download the single-file version](${OFFLINE_DOWNLOAD_PATH}) and open it
+[download the single-file version](${OFFLINE_PAGE_PATH}) and open it
 from your computer. It works fully offline, sends no analytics, and never
 contacts this site or anyone else. Downloading it is one request to this
-site, like any other visit. The [offline page](${OFFLINE_PAGE_PATH})
-explains how it differs from the website.
+site, like any other visit.
 
 ## Verify any of this
 

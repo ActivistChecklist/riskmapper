@@ -13,6 +13,7 @@ import type {
   GridLine,
   OtherAction,
   PoolLine,
+  ResourceLine,
   StarredAction,
 } from "./types";
 
@@ -101,6 +102,17 @@ function poolHtml(pool: PoolLine[]): string {
       (p) =>
         `<li style="margin:0 0 0.25em 0;">${escapeHtml(p.text)}</li>`,
     )
+    .join("");
+  return `<ul style="margin:0.4em 0;padding-left:1.4em;">${lis}</ul>`;
+}
+
+function resourcesHtml(resources: ResourceLine[]): string {
+  const items = resources.filter((r) => r.text.trim().length > 0);
+  if (items.length === 0) {
+    return `<p style="margin:0.4em 0;color:#777;font-style:italic;">No resources listed yet.</p>`;
+  }
+  const lis = items
+    .map((r) => `<li style="margin:0 0 0.25em 0;">${escapeHtml(r.text)}</li>`)
     .join("");
   return `<ul style="margin:0.4em 0;padding-left:1.4em;">${lis}</ul>`;
 }
@@ -231,6 +243,8 @@ export type RichWorksheetArgs = {
   title: string;
   pool: PoolLine[];
   grid: Record<CellKey, GridLine[]>;
+  /** Step 3's list. Absent in matrices from before resources: read as none. */
+  resources?: ResourceLine[];
   allActions: StarredAction[];
   otherActions: OtherAction[];
   notes: string;
@@ -246,6 +260,8 @@ export function buildRichWorksheetHtml(args: RichWorksheetArgs): string {
     poolHtml(args.pool),
     `<h2 style="margin:0.7em 0 0.3em 0;font-size:16px;">Risk matrix</h2>`,
     matrixHtml(args.grid),
+    `<h2 style="margin:0.7em 0 0.3em 0;font-size:16px;">Resources</h2>`,
+    resourcesHtml(args.resources ?? []),
     `<h2 style="margin:0.7em 0 0.3em 0;font-size:16px;">Mitigations &amp; preparations</h2>`,
     mitigationsHtml(args.grid),
     `<h2 style="margin:0.7em 0 0.3em 0;font-size:16px;">Actions</h2>`,

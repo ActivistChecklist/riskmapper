@@ -1,10 +1,21 @@
 import type { KeyboardEvent } from "react";
 
-/** Shift/Cmd/Ctrl/Alt + arrows: native selection & OS shortcuts, not cross-line focus. */
+/**
+ * Arrows the lists leave to the browser instead of moving focus between
+ * lines: with Shift/Cmd/Ctrl/Alt (native selection and OS shortcuts), and
+ * any arrow while an IME is composing, where it picks a candidate.
+ */
 export function isArrowWithSelectionOrOsShortcut(
   e: KeyboardEvent,
 ): boolean {
-  return e.shiftKey || e.metaKey || e.ctrlKey || e.altKey;
+  return (
+    e.shiftKey ||
+    e.metaKey ||
+    e.ctrlKey ||
+    e.altKey ||
+    // Optional: hand-built events in tests carry no nativeEvent.
+    e.nativeEvent?.isComposing === true
+  );
 }
 
 export type TextLineRef = { id: string; text: string };
