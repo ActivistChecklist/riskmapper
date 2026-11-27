@@ -17,6 +17,27 @@ describe("listTextareaNav", () => {
     ).toBe(true);
   });
 
+  it("leaves arrows to an IME that is composing", () => {
+    expect(
+      isArrowWithSelectionOrOsShortcut({
+        shiftKey: false,
+        metaKey: false,
+        ctrlKey: false,
+        altKey: false,
+        nativeEvent: { isComposing: true },
+      } as unknown as KeyboardEvent),
+    ).toBe(true);
+    expect(
+      isArrowWithSelectionOrOsShortcut({
+        shiftKey: false,
+        metaKey: false,
+        ctrlKey: false,
+        altKey: false,
+        nativeEvent: { isComposing: false },
+      } as unknown as KeyboardEvent),
+    ).toBe(false);
+  });
+
   it("moves focus on arrow down within a list", () => {
     const focus = vi.fn();
     const lines = [

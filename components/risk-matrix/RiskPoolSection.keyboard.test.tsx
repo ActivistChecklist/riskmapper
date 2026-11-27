@@ -37,6 +37,17 @@ describe("step 1 keyboard", () => {
     );
   });
 
+  it("leaves ArrowDown to the IME while it is composing", () => {
+    render(<RiskMatrix />);
+    addRisk("Police arrest blockaders for trespassing at the gate");
+    const risk = poolRisk("Police arrest blockaders for trespassing at the gate");
+    risk.focus();
+    risk.setSelectionRange(risk.value.length, risk.value.length);
+    const notHandled = fireEvent.keyDown(risk, { key: "ArrowDown", isComposing: true });
+    expect(notHandled).toBe(true);
+    expect(document.activeElement).toBe(risk);
+  });
+
   it("still moves ArrowDown from one risk to the next", () => {
     render(<RiskMatrix />);
     addRisk("Police arrest blockaders for trespassing at the gate");

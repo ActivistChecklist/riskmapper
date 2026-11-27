@@ -146,7 +146,8 @@ export default function RiskPoolSection({
 
   const handleKeyDown: RiskPoolSectionProps["onKeyDown"] = (e, loc, line) => {
     // ArrowDown follows what is on screen: past a hidden blank entry to the
-    // next risk shown, or to the add field after the last one.
+    // next risk shown, or to the add field after the last one. Not with a
+    // modifier or while an IME is composing (see the shared check).
     if (e.key === "ArrowDown" && !isArrowWithSelectionOrOsShortcut(e)) {
       const el = e.target as HTMLTextAreaElement;
       const idx = pool.findIndex((l) => l.id === line.id);
