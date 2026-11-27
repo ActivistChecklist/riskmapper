@@ -3,6 +3,7 @@
 import React, { useRef, useState } from "react";
 import AddField from "./AddField";
 import LineRow from "./LineRow";
+import { isArrowWithSelectionOrOsShortcut } from "./listTextareaNav";
 import GuidanceBrief from "./guidance/GuidanceBrief";
 import { useGuidance, useStepExample } from "./guidance/GuidanceContext";
 import StartBeacon from "./guidance/StartBeacon";
@@ -144,6 +145,32 @@ export default function RiskPoolSection({
   };
 
   const handleKeyDown: RiskPoolSectionProps["onKeyDown"] = (e, loc, line) => {
+    // ArrowDown follows what is on screen: past a hidden blank entry to the
+    // next risk shown, or to the add field after the last one.
+    if (e.key === "ArrowDown" && !isArrowWithSelectionOrOsShortcut(e)) {
+      const el = e.target as HTMLTextAreaElement;
+      const idx = pool.findIndex((l) => l.id === line.id);
+      const next = pool[idx + 1];
+      if (
+        idx >= 0 &&
+        !el.value.substring(el.selectionStart ?? 0).includes("\n") &&
+        (next === undefined || !visibleIds.has(next.id))
+      ) {
+        e.preventDefault();
+        const nextShown = pool.slice(idx + 1).find((l) => visibleIds.has(l.id));
+        const rows = e.currentTarget
+          .closest("[data-drop-target]")
+          ?.querySelectorAll<HTMLTextAreaElement>("textarea[data-line-id]");
+        const target = nextShown
+          ? Array.from(rows ?? []).find(
+              (t) => t.getAttribute("data-line-id") === nextShown.id,
+            )
+          : fieldRef.current;
+        target?.focus();
+        target?.setSelectionRange(0, 0);
+        return;
+      }
+    }
     if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
       considerTip(line);
       // Enter at the end of a risk moves on to the add field, the one place

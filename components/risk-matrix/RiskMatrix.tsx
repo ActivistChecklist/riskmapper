@@ -309,7 +309,9 @@ function RiskMatrixCanvas({ workspace: ws, cloud, remoteApplyRef }: CanvasProps)
       onClick={opts.onClick}
     >
       <Copy size={14} strokeWidth={2} aria-hidden />
-      <span className="hidden sm:inline">Copy</span>
+      {/* Below sm the icon shows alone, but the word stays the button's
+          name for screen readers. */}
+      <span className="sr-only sm:not-sr-only">Copy</span>
     </Button>
   );
 
